@@ -1,12 +1,7 @@
 package com.nightlegion.livexp;
 
 import com.google.inject.Provides;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -23,6 +18,13 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +37,8 @@ import org.slf4j.LoggerFactory;
 public class NightLegionLiveXpPlugin extends Plugin
 {
 	private static final Logger log = LoggerFactory.getLogger(NightLegionLiveXpPlugin.class);
-	private static final URI ENDPOINT = URI.create("https://nightlegion-livexp.onrender.com/sotw/live-xp");
+	private static final String ENDPOINT = "https://nightlegion-livexp.onrender.com/sotw/live-xp";
+	private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 	private static final long PUSH_INTERVAL_MS = 5_000L;
 
 	@Inject
@@ -44,9 +47,8 @@ public class NightLegionLiveXpPlugin extends Plugin
 	@Inject
 	private NightLegionLiveXpConfig config;
 
-	private final HttpClient httpClient = HttpClient.newBuilder()
-		.connectTimeout(Duration.ofSeconds(8))
-		.build();
+	@Inject
+	private OkHttpClient okHttpClient;
 
 	private final Map<Skill, Integer> latestXp = new ConcurrentHashMap<>();
 	private final Map<Skill, Integer> lastSentXp = new ConcurrentHashMap<>();
@@ -191,42 +193,47 @@ public class NightLegionLiveXpPlugin extends Plugin
 			"\"xp\":" + xp +
 			"}";
 
-		HttpRequest request = HttpRequest.newBuilder()
-			.uri(ENDPOINT)
-			.timeout(Duration.ofSeconds(10))
-			.header("Content-Type", "application/json")
+		Request request = new Request.Builder()
+			.url(ENDPOINT)
 			.header("X-NightLegion-Token", token)
-			.POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
+			.post(RequestBody.create(JSON, json))
 			.build();
 
-		httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
-			.whenComplete((response, throwable) ->
+		okHttpClient.newCall(request).enqueue(new Callback()
+		{
+			@Override
+			public void onFailure(Call call, IOException e)
 			{
-				if (throwable != null)
-				{
-					log.debug("NightLegion upload failed", throwable);
-					return;
-				}
+				log.debug("NightLegion upload failed", e);
+			}
 
-				if (!token.equals(lastToken) || !rsn.equals(currentRsn))
+			@Override
+			public void onResponse(Call call, Response response)
+			{
+				try (Response ignored = response)
 				{
-					return;
-				}
+					if (!token.equals(lastToken) || !rsn.equals(currentRsn))
+					{
+						return;
+					}
 
-				if (response.statusCode() >= 200 && response.statusCode() < 300)
-				{
-					lastSentXp.put(skill, xp);
-					log.debug("NightLegion sent {} {} XP", skill.getName(), xp);
+					int statusCode = response.code();
+					if (statusCode >= 200 && statusCode < 300)
+					{
+						lastSentXp.put(skill, xp);
+						log.debug("NightLegion sent {} {} XP", skill.getName(), xp);
+					}
+					else if (statusCode == 401)
+					{
+						log.warn("NightLegion token was rejected. Create a new one with /sotw_runelite_link.");
+					}
+					else
+					{
+						log.debug("NightLegion server returned HTTP {}", statusCode);
+					}
 				}
-				else if (response.statusCode() == 401)
-				{
-					log.warn("NightLegion token was rejected. Create a new one with /sotw_runelite_link.");
-				}
-				else
-				{
-					log.debug("NightLegion server returned HTTP {}", response.statusCode());
-				}
-			});
+			}
+		});
 	}
 
 	private static String escapeJson(String value)

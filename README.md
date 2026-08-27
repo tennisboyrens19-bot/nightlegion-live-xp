@@ -35,4 +35,4 @@ Keep the Personal Link Token private. Running `/sotw_runelite_link` again rotate
 
 ## Development
 
-Requires Java 11. The project follows the standard RuneLite Plugin Hub layout and has no additional runtime dependencies beyond RuneLite/JDK APIs.
+Requires Java 11. HTTP requests use RuneLite's injected OkHttpClient as required by Plugin Hub review rules.
