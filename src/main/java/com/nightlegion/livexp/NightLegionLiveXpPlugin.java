@@ -2,11 +2,6 @@ package com.nightlegion.livexp;
 
 import com.google.gson.Gson;
 import com.google.inject.Provides;
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Map;
@@ -285,39 +280,7 @@ public class NightLegionLiveXpPlugin extends Plugin
 
     private static BufferedImage createIcon()
     {
-        BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = image.createGraphics();
-        try
-        {
-            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g.setColor(new Color(255, 104, 0));
-            g.setStroke(new BasicStroke(2.25f, BasicStroke.CAP_SQUARE, BasicStroke.JOIN_MITER));
-
-            Path2D left = new Path2D.Double();
-            left.moveTo(2.0, 3.0);
-            left.lineTo(6.4, 7.4);
-            left.lineTo(4.0, 9.8);
-            left.lineTo(1.2, 7.0);
-            g.draw(left);
-
-            Path2D right = new Path2D.Double();
-            right.moveTo(14.0, 3.0);
-            right.lineTo(9.6, 7.4);
-            right.lineTo(12.0, 9.8);
-            right.lineTo(14.8, 7.0);
-            g.draw(right);
-
-            Path2D lower = new Path2D.Double();
-            lower.moveTo(5.4, 8.5);
-            lower.lineTo(8.0, 11.2);
-            lower.lineTo(10.6, 8.5);
-            g.draw(lower);
-        }
-        finally
-        {
-            g.dispose();
-        }
-        return image;
+        return NightLegionTheme.markImage(16, NightLegionTheme.PURPLE_BRIGHT);
     }
 
     private static String escapeJson(String value)
