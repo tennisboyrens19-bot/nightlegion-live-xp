@@ -11,6 +11,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
 import net.runelite.client.callback.ClientThread;
 
 class NightLegionNotifier
@@ -28,7 +29,11 @@ class NightLegionNotifier
     private final Set<String> seenGroups = new HashSet<>();
     private final Map<String, Set<Long>> hostMembers = new HashMap<>();
     private final Map<String, Set<Long>> hostPending = new HashMap<>();
+
+    private boolean sessionActive;
     private boolean primed;
+    private String seenBotwId = "";
+    private String seenSotwId = "";
     private String seenGiveawayId = "";
 
     NightLegionNotifier(
@@ -47,7 +52,23 @@ class NightLegionNotifier
 
     void start()
     {
-        executor.scheduleWithFixedDelay(this::poll, 8, POLL_SECONDS, TimeUnit.SECONDS);
+        executor.scheduleWithFixedDelay(this::poll, 3, POLL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    void onLoggedIn()
+    {
+        if (!sessionActive)
+        {
+            sessionActive = true;
+            resetTracking();
+        }
+        executor.execute(this::poll);
+    }
+
+    void onLoggedOut()
+    {
+        sessionActive = false;
+        resetTracking();
     }
 
     private void poll()
@@ -55,16 +76,36 @@ class NightLegionNotifier
         String token = config.token() == null ? "" : config.token().trim();
         if (token.isEmpty())
         {
-            reset();
+            resetAll();
             return;
         }
 
-        api.action("overview", rsn(), new JsonObject(), this::handleOverview, ignored -> { });
+        String currentRsn = rsn();
+        if (client.getGameState() != GameState.LOGGED_IN || currentRsn.isEmpty())
+        {
+            return;
+        }
+
+        if (!sessionActive)
+        {
+            sessionActive = true;
+            resetTracking();
+        }
+
+        api.action("overview", currentRsn, new JsonObject(), this::handleOverview, ignored -> { });
     }
 
-    private void reset()
+    private void resetAll()
+    {
+        sessionActive = false;
+        resetTracking();
+    }
+
+    private void resetTracking()
     {
         primed = false;
+        seenBotwId = "";
+        seenSotwId = "";
         seenGiveawayId = "";
         seenGroups.clear();
         hostMembers.clear();
@@ -73,13 +114,13 @@ class NightLegionNotifier
 
     private void handleOverview(JsonObject overview)
     {
-        String currentGiveaway = "";
-        JsonObject giveaway = null;
-        if (overview.has("giveaway") && overview.get("giveaway").isJsonObject())
-        {
-            giveaway = overview.getAsJsonObject("giveaway");
-            currentGiveaway = text(giveaway, "id");
-        }
+        JsonObject botw = object(overview, "botw");
+        JsonObject sotw = object(overview, "sotw");
+        JsonObject giveaway = object(overview, "giveaway");
+
+        String currentBotw = id(botw);
+        String currentSotw = id(sotw);
+        String currentGiveaway = id(giveaway);
 
         JsonArray groups = overview.has("groups") && overview.get("groups").isJsonArray()
             ? overview.getAsJsonArray("groups")
@@ -88,6 +129,18 @@ class NightLegionNotifier
 
         if (!primed)
         {
+            if (config.eventAlerts())
+            {
+                announceEvent(botw, "BOTW", "⚔", false);
+                announceEvent(sotw, "SOTW", "🏆", false);
+            }
+            if (config.giveawayAlerts())
+            {
+                announceGiveaway(giveaway, false);
+            }
+
+            seenBotwId = currentBotw;
+            seenSotwId = currentSotw;
             seenGiveawayId = currentGiveaway;
             seenGroups.clear();
             seenGroups.addAll(currentGroups);
@@ -96,15 +149,23 @@ class NightLegionNotifier
             return;
         }
 
+        if (config.eventAlerts())
+        {
+            if (botw != null && !currentBotw.isEmpty() && !currentBotw.equals(seenBotwId))
+            {
+                announceEvent(botw, "BOTW", "⚔", true);
+            }
+            if (sotw != null && !currentSotw.isEmpty() && !currentSotw.equals(seenSotwId))
+            {
+                announceEvent(sotw, "SOTW", "🏆", true);
+            }
+        }
+        seenBotwId = currentBotw;
+        seenSotwId = currentSotw;
+
         if (config.giveawayAlerts() && giveaway != null && !currentGiveaway.isEmpty() && !currentGiveaway.equals(seenGiveawayId))
         {
-            String prize = text(giveaway, "prize");
-            String rank = text(giveaway, "required_role_name");
-            boolean eligible = !giveaway.has("eligible") || giveaway.get("eligible").getAsBoolean();
-            String suffix = eligible
-                ? "Open NightLegion → Giveaway to enter."
-                : (rank.isEmpty() ? "Open NightLegion → Giveaway for details." : "Requires Discord rank: " + rank + ".");
-            chat("🎁 New Giveaway: " + (prize.isEmpty() ? "NightLegion giveaway" : prize) + " — " + suffix);
+            announceGiveaway(giveaway, true);
         }
         seenGiveawayId = currentGiveaway;
 
@@ -123,6 +184,66 @@ class NightLegionNotifier
         seenGroups.addAll(currentGroups);
     }
 
+    private void announceEvent(JsonObject event, String section, String emoji, boolean isNew)
+    {
+        if (event == null || id(event).isEmpty())
+        {
+            return;
+        }
+
+        String label = text(event, "label");
+        boolean entered = bool(event, "entered");
+        boolean pending = bool(event, "pending_buyin");
+        String action;
+        if (entered)
+        {
+            action = "You're entered — open NightLegion → " + section + " for progress.";
+        }
+        else if (pending)
+        {
+            action = "Your buy-in is pending — open NightLegion → " + section + ".";
+        }
+        else
+        {
+            action = "Open NightLegion → " + section + " to join.";
+        }
+
+        chat(emoji + " " + (isNew ? "New " : "") + section + " active: "
+            + (label.isEmpty() ? section : label) + " — " + action);
+    }
+
+    private void announceGiveaway(JsonObject giveaway, boolean isNew)
+    {
+        if (giveaway == null || id(giveaway).isEmpty())
+        {
+            return;
+        }
+
+        String prize = text(giveaway, "prize");
+        String rank = text(giveaway, "required_role_name");
+        boolean entered = bool(giveaway, "entered");
+        boolean eligible = !giveaway.has("eligible") || giveaway.get("eligible").getAsBoolean();
+
+        String suffix;
+        if (entered)
+        {
+            suffix = "You're already entered.";
+        }
+        else if (eligible)
+        {
+            suffix = "Open NightLegion → Giveaway to enter.";
+        }
+        else
+        {
+            suffix = rank.isEmpty()
+                ? "Open NightLegion → Giveaway for details."
+                : "Requires Discord rank: " + rank + ".";
+        }
+
+        chat("🎁 " + (isNew ? "New Giveaway" : "Giveaway active") + ": "
+            + (prize.isEmpty() ? "NightLegion giveaway" : prize) + " — " + suffix);
+    }
+
     private void broadcastNewGroups(JsonArray groups)
     {
         for (JsonElement element : groups)
@@ -132,9 +253,9 @@ class NightLegionNotifier
                 continue;
             }
             JsonObject group = element.getAsJsonObject();
-            String id = text(group, "id");
-            boolean isHost = group.has("is_host") && group.get("is_host").getAsBoolean();
-            if (id.isEmpty() || seenGroups.contains(id) || isHost)
+            String groupId = text(group, "id");
+            boolean isHost = bool(group, "is_host");
+            if (groupId.isEmpty() || seenGroups.contains(groupId) || isHost)
             {
                 continue;
             }
@@ -169,19 +290,19 @@ class NightLegionNotifier
                 continue;
             }
             JsonObject group = element.getAsJsonObject();
-            boolean isHost = group.has("is_host") && group.get("is_host").getAsBoolean();
-            String id = text(group, "id");
-            if (!isHost || id.isEmpty())
+            boolean isHost = bool(group, "is_host");
+            String groupId = text(group, "id");
+            if (!isHost || groupId.isEmpty())
             {
                 continue;
             }
 
-            activeHostGroups.add(id);
+            activeHostGroups.add(groupId);
             long hostId = longValue(group, "host_id", 0L);
             Set<Long> currentMembers = ids(group, "members");
             Set<Long> currentPending = ids(group, "pending");
-            Set<Long> previousMembers = hostMembers.getOrDefault(id, new HashSet<>());
-            Set<Long> previousPending = hostPending.getOrDefault(id, new HashSet<>());
+            Set<Long> previousMembers = hostMembers.getOrDefault(groupId, new HashSet<>());
+            Set<Long> previousPending = hostPending.getOrDefault(groupId, new HashSet<>());
             Map<Long, String> memberNames = names(group, "member_details");
             Map<Long, String> pendingNames = names(group, "pending_details");
             String activity = text(group, "activity");
@@ -208,8 +329,8 @@ class NightLegionNotifier
                     + currentMembers.size() + "/" + max + " players.");
             }
 
-            hostMembers.put(id, new HashSet<>(currentMembers));
-            hostPending.put(id, new HashSet<>(currentPending));
+            hostMembers.put(groupId, new HashSet<>(currentMembers));
+            hostPending.put(groupId, new HashSet<>(currentPending));
         }
 
         hostMembers.keySet().retainAll(activeHostGroups);
@@ -227,15 +348,15 @@ class NightLegionNotifier
                 continue;
             }
             JsonObject group = element.getAsJsonObject();
-            if (!group.has("is_host") || !group.get("is_host").getAsBoolean())
+            if (!bool(group, "is_host"))
             {
                 continue;
             }
-            String id = text(group, "id");
-            if (!id.isEmpty())
+            String groupId = text(group, "id");
+            if (!groupId.isEmpty())
             {
-                hostMembers.put(id, ids(group, "members"));
-                hostPending.put(id, ids(group, "pending"));
+                hostMembers.put(groupId, ids(group, "members"));
+                hostPending.put(groupId, ids(group, "pending"));
             }
         }
     }
@@ -247,10 +368,10 @@ class NightLegionNotifier
         {
             if (element.isJsonObject())
             {
-                String id = text(element.getAsJsonObject(), "id");
-                if (!id.isEmpty())
+                String groupId = text(element.getAsJsonObject(), "id");
+                if (!groupId.isEmpty())
                 {
-                    out.add(id);
+                    out.add(groupId);
                 }
             }
         }
@@ -321,6 +442,28 @@ class NightLegionNotifier
             "",
             "<col=" + PURPLE + ">[NightLegion]</col> <col=" + MUTED + ">" + escapeTags(message) + "</col>",
             null));
+    }
+
+    private static JsonObject object(JsonObject parent, String key)
+    {
+        return parent.has(key) && parent.get(key).isJsonObject() ? parent.getAsJsonObject(key) : null;
+    }
+
+    private static String id(JsonObject object)
+    {
+        return object == null ? "" : text(object, "id");
+    }
+
+    private static boolean bool(JsonObject object, String key)
+    {
+        try
+        {
+            return object.has(key) && !object.get(key).isJsonNull() && object.get(key).getAsBoolean();
+        }
+        catch (Exception ignored)
+        {
+            return false;
+        }
     }
 
     private static long longValue(JsonObject object, String key, long fallback)
