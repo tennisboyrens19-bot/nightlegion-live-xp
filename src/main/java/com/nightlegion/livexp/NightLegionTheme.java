@@ -59,6 +59,16 @@ final class NightLegionTheme
             BorderFactory.createEmptyBorder(4, 6, 4, 6)));
     }
 
+    static int sectionItemId(String section)
+    {
+        String value = section == null ? "" : section.toLowerCase();
+        if (value.equals("botw")) return 4151;       // Abyssal whip
+        if (value.equals("sotw")) return 13280;      // Max cape
+        if (value.equals("giveaway")) return 995;    // Coins
+        if (value.contains("group")) return 20997;   // Twisted bow
+        return -1;
+    }
+
     static int activityItemId(String label)
     {
         String value = label == null ? "" : label.toLowerCase();
@@ -75,6 +85,29 @@ final class NightLegionTheme
         if (value.contains("commander zilyana")) return 11806; // Saradomin godsword
         if (value.contains("barbarian assault")) return 10551; // Fighter torso
         if (value.contains("soul wars")) return 25256; // Soul cape
+        if (value.contains("agility")) return 11849; // Mark of grace
+        if (value.contains("attack")) return 4151; // Abyssal whip
+        if (value.contains("strength")) return 6528; // Tzhaar-ket-om
+        if (value.contains("defence")) return 11283; // Dragonfire shield
+        if (value.contains("ranged")) return 20997; // Twisted bow
+        if (value.contains("prayer")) return 536; // Dragon bones
+        if (value.contains("magic")) return 12002; // Occult necklace
+        if (value.contains("runecraft")) return 7936; // Pure essence
+        if (value.contains("construction")) return 8782; // Mahogany plank
+        if (value.contains("hitpoints")) return 11936; // Dark crab
+        if (value.contains("herblore")) return 257; // Ranarr weed
+        if (value.contains("thieving")) return 1523; // Lockpick
+        if (value.contains("crafting")) return 6573; // Onyx
+        if (value.contains("fletching")) return 861; // Magic shortbow
+        if (value.contains("slayer")) return 11864; // Slayer helmet
+        if (value.contains("hunter")) return 10033; // Chinchompa
+        if (value.contains("mining")) return 451; // Runite ore
+        if (value.contains("smithing")) return 2363; // Runite bar
+        if (value.contains("fishing")) return 385; // Shark
+        if (value.contains("cooking")) return 3144; // Cooked karambwan
+        if (value.contains("firemaking")) return 1511; // Logs
+        if (value.contains("woodcutting")) return 1513; // Magic logs
+        if (value.contains("farming")) return 5316; // Magic seed
         return -1;
     }
 
@@ -92,6 +125,11 @@ final class NightLegionTheme
     }
 
     static ImageIcon markIcon(int size, Color color)
+    {
+        return new ImageIcon(markImage(size, color));
+    }
+
+    static BufferedImage markImage(int size, Color color)
     {
         BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
@@ -126,7 +164,7 @@ final class NightLegionTheme
         {
             g.dispose();
         }
-        return new ImageIcon(image);
+        return image;
     }
 
     static void applyForeground(Component component, Color color)
