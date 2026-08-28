@@ -18,17 +18,18 @@ class NightLegionApi
 {
     private static final String BASE = "https://nightlegion-companion-test.onrender.com";
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
-    private static final Gson GSON = new Gson();
 
     private final OkHttpClient client;
     private final ScheduledExecutorService executor;
     private final NightLegionLiveXpConfig config;
+    private final Gson gson;
 
-    NightLegionApi(OkHttpClient client, ScheduledExecutorService executor, NightLegionLiveXpConfig config)
+    NightLegionApi(OkHttpClient client, ScheduledExecutorService executor, NightLegionLiveXpConfig config, Gson gson)
     {
         this.client = client;
         this.executor = executor;
         this.config = config;
+        this.gson = gson;
     }
 
     void action(String action, String rsn, JsonObject data, Consumer<JsonObject> ok, Consumer<String> fail)
@@ -48,7 +49,7 @@ class NightLegionApi
         Request request = new Request.Builder()
             .url(BASE + "/companion/request")
             .header("X-NightLegion-Token", token)
-            .post(RequestBody.create(JSON, GSON.toJson(body)))
+            .post(RequestBody.create(JSON, gson.toJson(body)))
             .build();
 
         client.newCall(request).enqueue(new Callback()
@@ -75,7 +76,7 @@ class NightLegionApi
                         fail.accept(errorText(text, response.code()));
                         return;
                     }
-                    JsonObject json = GSON.fromJson(text, JsonObject.class);
+                    JsonObject json = gson.fromJson(text, JsonObject.class);
                     String requestId = json != null && json.has("request_id") ? json.get("request_id").getAsString() : "";
                     if (requestId.isEmpty())
                     {
@@ -133,7 +134,7 @@ class NightLegionApi
                             fail.accept(errorText(text, response.code()));
                             return;
                         }
-                        JsonObject json = GSON.fromJson(text, JsonObject.class);
+                        JsonObject json = gson.fromJson(text, JsonObject.class);
                         if (json == null)
                         {
                             fail.accept("NightLegion returned invalid data.");
@@ -156,11 +157,11 @@ class NightLegionApi
         return config.token() == null ? "" : config.token().trim();
     }
 
-    private static String errorText(String text, int code)
+    private String errorText(String text, int code)
     {
         try
         {
-            JsonObject json = GSON.fromJson(text, JsonObject.class);
+            JsonObject json = gson.fromJson(text, JsonObject.class);
             if (json != null && json.has("error"))
             {
                 return json.get("error").getAsString();
