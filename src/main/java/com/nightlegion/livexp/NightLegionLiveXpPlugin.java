@@ -1,5 +1,6 @@
 package com.nightlegion.livexp;
 
+import com.google.gson.Gson;
 import com.google.inject.Provides;
 import java.awt.Color;
 import java.awt.Font;
@@ -58,6 +59,9 @@ public class NightLegionLiveXpPlugin extends Plugin
     private OkHttpClient okHttpClient;
 
     @Inject
+    private Gson gson;
+
+    @Inject
     private ClientToolbar clientToolbar;
 
     private final Map<Skill, Integer> latestXp = new ConcurrentHashMap<>();
@@ -81,7 +85,7 @@ public class NightLegionLiveXpPlugin extends Plugin
         });
         sender.scheduleWithFixedDelay(this::flushPending, 2, 2, TimeUnit.SECONDS);
 
-        NightLegionApi api = new NightLegionApi(okHttpClient, sender, config);
+        NightLegionApi api = new NightLegionApi(okHttpClient, sender, config, gson);
         SwingUtilities.invokeLater(() ->
         {
             panel = new NightLegionPanel(client, api);
