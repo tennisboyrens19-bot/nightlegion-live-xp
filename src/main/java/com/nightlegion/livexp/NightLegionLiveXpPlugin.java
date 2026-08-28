@@ -24,6 +24,7 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
@@ -66,6 +67,9 @@ public class NightLegionLiveXpPlugin extends Plugin
     @Inject
     private ClientToolbar clientToolbar;
 
+    @Inject
+    private ItemManager itemManager;
+
     private final Map<Skill, Integer> latestXp = new ConcurrentHashMap<>();
     private final Map<Skill, Integer> lastSentXp = new ConcurrentHashMap<>();
     private final Map<Skill, Long> lastAttemptAt = new ConcurrentHashMap<>();
@@ -90,7 +94,7 @@ public class NightLegionLiveXpPlugin extends Plugin
         NightLegionApi api = new NightLegionApi(okHttpClient, sender, config, gson);
         SwingUtilities.invokeLater(() ->
         {
-            panel = new NightLegionPanel(client, api);
+            panel = new NightLegionPanel(client, api, itemManager);
             navButton = NavigationButton.builder()
                 .tooltip("NightLegion")
                 .icon(createIcon())
@@ -289,7 +293,6 @@ public class NightLegionLiveXpPlugin extends Plugin
             g.setColor(new Color(255, 104, 0));
             g.setStroke(new BasicStroke(2.25f, BasicStroke.CAP_SQUARE, BasicStroke.JOIN_MITER));
 
-            // NightLegion angular mark, drawn on a transparent background for RuneLite's sidebar.
             Path2D left = new Path2D.Double();
             left.moveTo(2.0, 3.0);
             left.lineTo(6.4, 7.4);
