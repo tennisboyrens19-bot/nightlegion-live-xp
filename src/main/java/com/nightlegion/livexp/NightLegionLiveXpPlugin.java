@@ -1,6 +1,10 @@
 package com.nightlegion.livexp;
 
 import com.google.inject.Provides;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -8,6 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
+import javax.swing.SwingUtilities;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.Player;
@@ -18,6 +23,8 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.ClientToolbar;
+import net.runelite.client.ui.NavigationButton;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.MediaType;
@@ -29,225 +36,274 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @PluginDescriptor(
-	name = "NightLegion",
-	description = "Updates the NightLegion SOTW leaderboard while you stay logged in",
-	tags = {"nightlegion", "sotw", "xp", "skilling"},
-	enabledByDefault = true
+    name = "NightLegion",
+    description = "NightLegion SOTW, BOTW, Giveaways and Group Finder",
+    tags = {"nightlegion", "sotw", "botw", "giveaway", "group finder", "xp", "bossing", "skilling"},
+    enabledByDefault = true
 )
 public class NightLegionLiveXpPlugin extends Plugin
 {
-	private static final Logger log = LoggerFactory.getLogger(NightLegionLiveXpPlugin.class);
-	private static final String ENDPOINT = "https://nightlegion-livexp.onrender.com/sotw/live-xp";
-	private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
-	private static final long PUSH_INTERVAL_MS = 5_000L;
+    private static final Logger log = LoggerFactory.getLogger(NightLegionLiveXpPlugin.class);
+    private static final String ENDPOINT = "https://nightlegion-livexp.onrender.com/sotw/live-xp";
+    private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+    private static final long PUSH_INTERVAL_MS = 5_000L;
 
-	@Inject
-	private Client client;
+    @Inject
+    private Client client;
 
-	@Inject
-	private NightLegionLiveXpConfig config;
+    @Inject
+    private NightLegionLiveXpConfig config;
 
-	@Inject
-	private OkHttpClient okHttpClient;
+    @Inject
+    private OkHttpClient okHttpClient;
 
-	private final Map<Skill, Integer> latestXp = new ConcurrentHashMap<>();
-	private final Map<Skill, Integer> lastSentXp = new ConcurrentHashMap<>();
-	private final Map<Skill, Long> lastAttemptAt = new ConcurrentHashMap<>();
+    @Inject
+    private ClientToolbar clientToolbar;
 
-	private volatile String currentRsn = "";
-	private volatile String lastToken = "";
-	private ScheduledExecutorService sender;
+    private final Map<Skill, Integer> latestXp = new ConcurrentHashMap<>();
+    private final Map<Skill, Integer> lastSentXp = new ConcurrentHashMap<>();
+    private final Map<Skill, Long> lastAttemptAt = new ConcurrentHashMap<>();
 
-	@Override
-	protected void startUp()
-	{
-		sender = Executors.newSingleThreadScheduledExecutor(r ->
-		{
-			Thread thread = new Thread(r, "nightlegion-live-xp");
-			thread.setDaemon(true);
-			return thread;
-		});
-		sender.scheduleWithFixedDelay(this::flushPending, 2, 2, TimeUnit.SECONDS);
-		log.info("NightLegion started");
-	}
+    private volatile String currentRsn = "";
+    private volatile String lastToken = "";
+    private ScheduledExecutorService sender;
+    private NavigationButton navButton;
+    private NightLegionPanel panel;
 
-	@Override
-	protected void shutDown()
-	{
-		if (sender != null)
-		{
-			sender.shutdownNow();
-			sender = null;
-		}
-		latestXp.clear();
-		lastSentXp.clear();
-		lastAttemptAt.clear();
-		currentRsn = "";
-		lastToken = "";
-		log.info("NightLegion stopped");
-	}
+    @Override
+    protected void startUp()
+    {
+        sender = Executors.newSingleThreadScheduledExecutor(r ->
+        {
+            Thread thread = new Thread(r, "nightlegion-companion");
+            thread.setDaemon(true);
+            return thread;
+        });
+        sender.scheduleWithFixedDelay(this::flushPending, 2, 2, TimeUnit.SECONDS);
 
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		if (event.getGameState() != GameState.LOGGED_IN)
-		{
-			return;
-		}
+        NightLegionApi api = new NightLegionApi(okHttpClient, sender, config);
+        SwingUtilities.invokeLater(() ->
+        {
+            panel = new NightLegionPanel(client, api);
+            navButton = NavigationButton.builder()
+                .tooltip("NightLegion")
+                .icon(createIcon())
+                .priority(6)
+                .panel(panel)
+                .build();
+            clientToolbar.addNavigation(navButton);
+        });
 
-		refreshRsn();
-	}
+        log.info("NightLegion companion started");
+    }
 
-	@Subscribe
-	public void onStatChanged(StatChanged event)
-	{
-		Skill skill = event.getSkill();
-		if (skill == null || skill == Skill.OVERALL || client.getGameState() != GameState.LOGGED_IN)
-		{
-			return;
-		}
+    @Override
+    protected void shutDown()
+    {
+        if (navButton != null)
+        {
+            clientToolbar.removeNavigation(navButton);
+            navButton = null;
+        }
+        panel = null;
 
-		refreshRsn();
-		if (currentRsn.isEmpty())
-		{
-			return;
-		}
+        if (sender != null)
+        {
+            sender.shutdownNow();
+            sender = null;
+        }
+        latestXp.clear();
+        lastSentXp.clear();
+        lastAttemptAt.clear();
+        currentRsn = "";
+        lastToken = "";
+        log.info("NightLegion companion stopped");
+    }
 
-		int xp = event.getXp();
-		if (xp >= 0)
-		{
-			latestXp.put(skill, xp);
-		}
-	}
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged event)
+    {
+        if (event.getGameState() != GameState.LOGGED_IN)
+        {
+            return;
+        }
 
-	private void refreshRsn()
-	{
-		Player player = client.getLocalPlayer();
-		if (player == null || player.getName() == null)
-		{
-			return;
-		}
+        refreshRsn();
+        NightLegionPanel currentPanel = panel;
+        if (currentPanel != null)
+        {
+            SwingUtilities.invokeLater(currentPanel::refresh);
+        }
+    }
 
-		String nextRsn = player.getName().trim();
-		if (!nextRsn.equals(currentRsn))
-		{
-			currentRsn = nextRsn;
-			latestXp.clear();
-			lastSentXp.clear();
-			lastAttemptAt.clear();
-		}
-	}
+    @Subscribe
+    public void onStatChanged(StatChanged event)
+    {
+        Skill skill = event.getSkill();
+        if (skill == null || skill == Skill.OVERALL || client.getGameState() != GameState.LOGGED_IN)
+        {
+            return;
+        }
 
-	private void flushPending()
-	{
-		try
-		{
-			String token = config.token() == null ? "" : config.token().trim();
-			String rsn = currentRsn == null ? "" : currentRsn.trim();
+        refreshRsn();
+        if (currentRsn.isEmpty())
+        {
+            return;
+        }
 
-			if (!token.equals(lastToken))
-			{
-				lastToken = token;
-				lastSentXp.clear();
-				lastAttemptAt.clear();
-			}
+        int xp = event.getXp();
+        if (xp >= 0)
+        {
+            latestXp.put(skill, xp);
+        }
+    }
 
-			if (token.isEmpty() || rsn.isEmpty())
-			{
-				return;
-			}
+    private void refreshRsn()
+    {
+        Player player = client.getLocalPlayer();
+        if (player == null || player.getName() == null)
+        {
+            return;
+        }
 
-			long now = System.currentTimeMillis();
-			for (Map.Entry<Skill, Integer> entry : latestXp.entrySet())
-			{
-				Skill skill = entry.getKey();
-				int xp = entry.getValue();
-				Integer sentXp = lastSentXp.get(skill);
+        String nextRsn = player.getName().trim();
+        if (!nextRsn.equals(currentRsn))
+        {
+            currentRsn = nextRsn;
+            latestXp.clear();
+            lastSentXp.clear();
+            lastAttemptAt.clear();
+        }
+    }
 
-				if (sentXp != null && sentXp == xp)
-				{
-					continue;
-				}
+    private void flushPending()
+    {
+        try
+        {
+            String token = config.token() == null ? "" : config.token().trim();
+            String rsn = currentRsn == null ? "" : currentRsn.trim();
 
-				long previousAttempt = lastAttemptAt.getOrDefault(skill, 0L);
-				if (now - previousAttempt < PUSH_INTERVAL_MS)
-				{
-					continue;
-				}
+            if (!token.equals(lastToken))
+            {
+                lastToken = token;
+                lastSentXp.clear();
+                lastAttemptAt.clear();
+            }
 
-				lastAttemptAt.put(skill, now);
-				send(token, rsn, skill, xp);
-			}
-		}
-		catch (Exception ex)
-		{
-			log.debug("NightLegion flush failed", ex);
-		}
-	}
+            if (token.isEmpty() || rsn.isEmpty())
+            {
+                return;
+            }
 
-	private void send(String token, String rsn, Skill skill, int xp)
-	{
-		String json = "{" +
-			"\"rsn\":\"" + escapeJson(rsn) + "\"," +
-			"\"skill\":\"" + escapeJson(skill.getName()) + "\"," +
-			"\"xp\":" + xp +
-			"}";
+            long now = System.currentTimeMillis();
+            for (Map.Entry<Skill, Integer> entry : latestXp.entrySet())
+            {
+                Skill skill = entry.getKey();
+                int xp = entry.getValue();
+                Integer sentXp = lastSentXp.get(skill);
 
-		Request request = new Request.Builder()
-			.url(ENDPOINT)
-			.header("X-NightLegion-Token", token)
-			.post(RequestBody.create(JSON, json))
-			.build();
+                if (sentXp != null && sentXp == xp)
+                {
+                    continue;
+                }
 
-		okHttpClient.newCall(request).enqueue(new Callback()
-		{
-			@Override
-			public void onFailure(Call call, IOException e)
-			{
-				log.debug("NightLegion upload failed", e);
-			}
+                long previousAttempt = lastAttemptAt.getOrDefault(skill, 0L);
+                if (now - previousAttempt < PUSH_INTERVAL_MS)
+                {
+                    continue;
+                }
 
-			@Override
-			public void onResponse(Call call, Response response)
-			{
-				try (Response ignored = response)
-				{
-					if (!token.equals(lastToken) || !rsn.equals(currentRsn))
-					{
-						return;
-					}
+                lastAttemptAt.put(skill, now);
+                sendXp(token, rsn, skill, xp);
+            }
+        }
+        catch (Exception ex)
+        {
+            log.debug("NightLegion XP flush failed", ex);
+        }
+    }
 
-					int statusCode = response.code();
-					if (statusCode >= 200 && statusCode < 300)
-					{
-						lastSentXp.put(skill, xp);
-						log.debug("NightLegion sent {} {} XP", skill.getName(), xp);
-					}
-					else if (statusCode == 401)
-					{
-						log.warn("NightLegion token was rejected. Create a new one with /sotw_runelite_link.");
-					}
-					else
-					{
-						log.debug("NightLegion server returned HTTP {}", statusCode);
-					}
-				}
-			}
-		});
-	}
+    private void sendXp(String token, String rsn, Skill skill, int xp)
+    {
+        String json = "{" +
+            "\"rsn\":\"" + escapeJson(rsn) + "\"," +
+            "\"skill\":\"" + escapeJson(skill.getName()) + "\"," +
+            "\"xp\":" + xp +
+            "}";
 
-	private static String escapeJson(String value)
-	{
-		return value
-			.replace("\\", "\\\\")
-			.replace("\"", "\\\"")
-			.replace("\r", "\\r")
-			.replace("\n", "\\n");
-	}
+        Request request = new Request.Builder()
+            .url(ENDPOINT)
+            .header("X-NightLegion-Token", token)
+            .post(RequestBody.create(JSON, json))
+            .build();
 
-	@Provides
-	NightLegionLiveXpConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(NightLegionLiveXpConfig.class);
-	}
+        okHttpClient.newCall(request).enqueue(new Callback()
+        {
+            @Override
+            public void onFailure(Call call, IOException e)
+            {
+                log.debug("NightLegion XP upload failed", e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response)
+            {
+                try (Response ignored = response)
+                {
+                    if (!token.equals(lastToken) || !rsn.equals(currentRsn))
+                    {
+                        return;
+                    }
+
+                    int statusCode = response.code();
+                    if (statusCode >= 200 && statusCode < 300)
+                    {
+                        lastSentXp.put(skill, xp);
+                    }
+                    else if (statusCode == 401)
+                    {
+                        log.warn("NightLegion token was rejected. Create a new one with /runelite_link.");
+                    }
+                    else
+                    {
+                        log.debug("NightLegion XP server returned HTTP {}", statusCode);
+                    }
+                }
+            }
+        });
+    }
+
+    private static BufferedImage createIcon()
+    {
+        BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = image.createGraphics();
+        try
+        {
+            g.setColor(new Color(176, 105, 255));
+            g.fillRoundRect(0, 0, 16, 16, 5, 5);
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("SansSerif", Font.BOLD, 11));
+            g.drawString("N", 4, 12);
+        }
+        finally
+        {
+            g.dispose();
+        }
+        return image;
+    }
+
+    private static String escapeJson(String value)
+    {
+        return value
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\r", "\\r")
+            .replace("\n", "\\n");
+    }
+
+    @Provides
+    NightLegionLiveXpConfig provideConfig(ConfigManager configManager)
+    {
+        return configManager.getConfig(NightLegionLiveXpConfig.class);
+    }
 }
