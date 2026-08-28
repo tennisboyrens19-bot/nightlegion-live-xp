@@ -17,8 +17,8 @@ import net.runelite.client.callback.ClientThread;
 class NightLegionNotifier
 {
     private static final long POLL_SECONDS = 20L;
-    private static final String PURPLE = "b86cff";
-    private static final String MUTED = "d4c4df";
+    private static final String PURPLE = "7b16c9";
+    private static final String MUTED = "2f1638";
 
     private final Client client;
     private final ClientThread clientThread;
