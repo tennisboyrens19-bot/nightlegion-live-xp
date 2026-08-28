@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - runelite-companion-v2
+      - purple-ui-v3
   workflow_dispatch:
 
 jobs:
