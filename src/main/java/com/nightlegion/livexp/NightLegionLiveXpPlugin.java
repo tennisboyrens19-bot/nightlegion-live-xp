@@ -137,12 +137,28 @@ public class NightLegionLiveXpPlugin extends Plugin
     @Subscribe
     public void onGameStateChanged(GameStateChanged event)
     {
+        NightLegionNotifier currentNotifier = notifier;
+
+        if (event.getGameState() == GameState.LOGIN_SCREEN)
+        {
+            if (currentNotifier != null)
+            {
+                currentNotifier.onLoggedOut();
+            }
+            return;
+        }
+
         if (event.getGameState() != GameState.LOGGED_IN)
         {
             return;
         }
 
         refreshRsn();
+        if (currentNotifier != null)
+        {
+            currentNotifier.onLoggedIn();
+        }
+
         NightLegionPanel currentPanel = panel;
         if (currentPanel != null)
         {
