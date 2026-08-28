@@ -10,6 +10,7 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.awt.Rectangle;
 import java.awt.Window;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,6 +28,11 @@ import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JViewport;
+import javax.swing.ScrollPaneConstants;
+import javax.swing.Scrollable;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import net.runelite.api.Client;
 import net.runelite.client.game.ItemManager;
@@ -35,6 +41,8 @@ import net.runelite.client.util.AsyncBufferedImage;
 
 class NightLegionPanel extends PluginPanel
 {
+    private static final int ROW_HEIGHT = 30;
+
     private final Client client;
     private final NightLegionApi api;
     private final ItemManager itemManager;
@@ -45,7 +53,7 @@ class NightLegionPanel extends PluginPanel
     });
     private final JComboBox<String> activityFilter = new JComboBox<>();
     private final JLabel connection = new JLabel("● Not connected");
-    private final JPanel body = new JPanel();
+    private final ViewportPanel body = new ViewportPanel();
 
     private JsonObject latest;
     private List<String> activities = new ArrayList<>();
@@ -60,22 +68,25 @@ class NightLegionPanel extends PluginPanel
         setLayout(new BorderLayout());
         setBackground(NightLegionTheme.BACKGROUND);
 
-        section.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
+        section.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
         section.setAlignmentX(Component.LEFT_ALIGNMENT);
         NightLegionTheme.styleCombo(section);
         configureSectionCombo();
 
-        activityFilter.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        activityFilter.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
         activityFilter.setAlignmentX(Component.LEFT_ALIGNMENT);
         NightLegionTheme.styleCombo(activityFilter);
         configureActivityCombo(activityFilter);
 
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
         body.setBackground(NightLegionTheme.BACKGROUND);
-        body.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        body.setBorder(BorderFactory.createEmptyBorder(7, 7, 7, 7));
 
         JScrollPane scroll = new JScrollPane(body);
         scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
         scroll.getViewport().setBackground(NightLegionTheme.BACKGROUND);
 
         add(buildHeader(), BorderLayout.NORTH);
@@ -100,34 +111,35 @@ class NightLegionPanel extends PluginPanel
         header.setBackground(NightLegionTheme.HEADER);
         header.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 2, 0, NightLegionTheme.PURPLE),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)));
+            BorderFactory.createEmptyBorder(8, 9, 7, 9)));
 
-        JPanel brand = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel brand = new JPanel(new FlowLayout(FlowLayout.LEFT, 7, 0));
         brand.setBackground(NightLegionTheme.HEADER);
         brand.setAlignmentX(Component.LEFT_ALIGNMENT);
-        brand.add(new JLabel(NightLegionTheme.markIcon(28, NightLegionTheme.PURPLE_BRIGHT)));
+        brand.setMaximumSize(new Dimension(Integer.MAX_VALUE, 37));
+        brand.add(new JLabel(NightLegionTheme.markIcon(25, NightLegionTheme.PURPLE_BRIGHT)));
 
         JPanel names = new JPanel();
         names.setLayout(new BoxLayout(names, BoxLayout.Y_AXIS));
         names.setBackground(NightLegionTheme.HEADER);
         JLabel title = new JLabel("NightLegion");
         title.setForeground(NightLegionTheme.PURPLE_BRIGHT);
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
         JLabel subtitle = new JLabel("Own the night");
         subtitle.setForeground(NightLegionTheme.MUTED);
-        subtitle.setFont(subtitle.getFont().deriveFont(11f));
+        subtitle.setFont(subtitle.getFont().deriveFont(9.5f));
         names.add(title);
         names.add(subtitle);
         brand.add(names);
 
         connection.setForeground(NightLegionTheme.MUTED);
-        connection.setFont(connection.getFont().deriveFont(Font.BOLD, 11f));
+        connection.setFont(connection.getFont().deriveFont(Font.BOLD, 10f));
         connection.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         header.add(brand);
-        header.add(Box.createVerticalStrut(8));
+        header.add(Box.createVerticalStrut(5));
         header.add(section);
-        header.add(Box.createVerticalStrut(7));
+        header.add(Box.createVerticalStrut(5));
         header.add(connection);
         return header;
     }
@@ -238,7 +250,7 @@ class NightLegionPanel extends PluginPanel
         body.removeAll();
         if (latest == null)
         {
-            addEmptyState("Waiting for NightLegion...");
+            addCenteredEmptyState("Waiting for NightLegion...", "Connecting to your linked account.", true);
             repaintBody();
             return;
         }
@@ -267,8 +279,7 @@ class NightLegionPanel extends PluginPanel
     {
         if (!latest.has(key) || latest.get(key).isJsonNull())
         {
-            addEmptyState("No active " + subtitle.toLowerCase());
-            addRefreshButton();
+            addCenteredEmptyState("No active " + subtitle.toLowerCase(), "NightLegion will show it here when one starts.", true);
             return;
         }
 
@@ -278,33 +289,13 @@ class NightLegionPanel extends PluginPanel
         boolean pending = event.has("pending_buyin") && event.get("pending_buyin").getAsBoolean();
 
         JPanel hero = heroCard();
-        JPanel titleRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 9, 0));
-        titleRow.setOpaque(false);
-        ImageIcon eventIcon = activityIcon(label);
-        if (eventIcon == null)
-        {
-            eventIcon = itemIcon(NightLegionTheme.sectionItemId(key.toUpperCase()));
-        }
-        if (eventIcon != null)
-        {
-            titleRow.add(new JLabel(eventIcon));
-        }
-        JPanel text = new JPanel();
-        text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
-        text.setOpaque(false);
-        JLabel heading = new JLabel(label);
-        heading.setForeground(NightLegionTheme.PURPLE_BRIGHT);
-        heading.setFont(heading.getFont().deriveFont(Font.BOLD, 17f));
-        JLabel sub = new JLabel(subtitle);
-        sub.setForeground(NightLegionTheme.MUTED);
-        text.add(heading);
-        text.add(sub);
-        titleRow.add(text);
-        hero.add(titleRow);
-        hero.add(Box.createVerticalStrut(9));
+        hero.add(eventTitle(label, subtitle, key));
+        hero.add(Box.createVerticalStrut(6));
 
-        JPanel stats = new JPanel(new GridLayout(2, 2, 6, 6));
+        JPanel stats = new JPanel(new GridLayout(2, 2, 5, 5));
         stats.setOpaque(false);
+        stats.setAlignmentX(Component.LEFT_ALIGNMENT);
+        stats.setMaximumSize(new Dimension(Integer.MAX_VALUE, 76));
         stats.add(statTile("ENTRY", formatGp(safeLong(event, "entry_fee_gp", 0))));
         stats.add(statTile("ENDS", formatTime(safeLong(event, "end_time", 0))));
         stats.add(statTile("PLAYERS", String.valueOf(safeInt(event, "participants", 0))));
@@ -313,40 +304,33 @@ class NightLegionPanel extends PluginPanel
 
         if (event.has("personal") && event.get("personal").isJsonObject())
         {
-            JsonObject personal = event.getAsJsonObject("personal");
-            hero.add(Box.createVerticalStrut(8));
-            JPanel myStrip = miniPanel();
-            JLabel mine = new JLabel(personalSummary(personal));
-            mine.setForeground(NightLegionTheme.SILVER);
-            mine.setFont(mine.getFont().deriveFont(Font.BOLD, 11f));
-            myStrip.add(mine);
-            hero.add(myStrip);
+            hero.add(Box.createVerticalStrut(6));
+            hero.add(personalStrip(event.getAsJsonObject("personal")));
         }
 
         body.add(hero);
-        body.add(Box.createVerticalStrut(7));
+        body.add(Box.createVerticalStrut(6));
 
         if (event.has("prizes") && event.get("prizes").isJsonArray() && event.getAsJsonArray("prizes").size() > 0)
         {
-            body.add(sectionPanel("PRIZES", event.getAsJsonArray("prizes")));
-            body.add(Box.createVerticalStrut(7));
+            body.add(compactLines("PRIZES", event.getAsJsonArray("prizes"), 3));
+            body.add(Box.createVerticalStrut(6));
         }
 
         if (event.has("leaderboard") && event.get("leaderboard").isJsonArray() && event.getAsJsonArray("leaderboard").size() > 0)
         {
             body.add(leaderboardPreview(event));
-            body.add(Box.createVerticalStrut(7));
+            body.add(Box.createVerticalStrut(6));
         }
 
         JButton refresh = new JButton("Refresh");
         JButton join = new JButton(entered ? "✓ Entered" : pending ? "Buy-in Pending" : joinText);
-        JButton progress = new JButton("My Progress");
+        JButton progress = new JButton("Progress");
         JButton leaderboard = new JButton("Leaderboard");
         NightLegionTheme.styleButton(refresh, false, false);
         NightLegionTheme.styleButton(join, true, false);
         NightLegionTheme.styleButton(progress, false, false);
         NightLegionTheme.styleButton(leaderboard, false, false);
-
         join.setEnabled(!entered && !pending);
         progress.setEnabled(event.has("personal") && event.get("personal").isJsonObject());
         leaderboard.setEnabled(event.has("leaderboard") && event.get("leaderboard").isJsonArray());
@@ -366,25 +350,65 @@ class NightLegionPanel extends PluginPanel
         progress.addActionListener(e -> showProgress(event, subtitle));
         leaderboard.addActionListener(e -> showLeaderboard(event, subtitle));
 
-        JPanel buttons = new JPanel(new GridLayout(2, 2, 6, 4));
-        buttons.setOpaque(false);
-        buttons.setMaximumSize(new Dimension(Integer.MAX_VALUE, 64));
-        buttons.setAlignmentX(Component.LEFT_ALIGNMENT);
-        buttons.add(refresh);
-        buttons.add(join);
-        buttons.add(progress);
-        buttons.add(leaderboard);
-        body.add(buttons);
+        body.add(buttonGrid(refresh, join, progress, leaderboard));
+    }
+
+    private JPanel eventTitle(String label, String subtitle, String key)
+    {
+        JPanel row = new JPanel(new BorderLayout(8, 0));
+        row.setOpaque(false);
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+
+        ImageIcon icon = activityIcon(label);
+        if (icon == null)
+        {
+            icon = itemIcon(NightLegionTheme.sectionItemId(key.toUpperCase()));
+        }
+        if (icon != null)
+        {
+            JLabel iconLabel = new JLabel(icon);
+            iconLabel.setVerticalAlignment(SwingConstants.TOP);
+            row.add(iconLabel, BorderLayout.WEST);
+        }
+
+        JPanel text = new JPanel();
+        text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
+        text.setOpaque(false);
+        JLabel heading = new JLabel(shorten(label, 28));
+        heading.setForeground(NightLegionTheme.PURPLE_BRIGHT);
+        heading.setFont(heading.getFont().deriveFont(Font.BOLD, 15f));
+        JLabel sub = new JLabel(subtitle);
+        sub.setForeground(NightLegionTheme.MUTED);
+        sub.setFont(sub.getFont().deriveFont(10f));
+        text.add(heading);
+        text.add(sub);
+        row.add(text, BorderLayout.CENTER);
+        return row;
+    }
+
+    private JPanel personalStrip(JsonObject p)
+    {
+        JPanel strip = new JPanel(new BorderLayout());
+        strip.setBackground(NightLegionTheme.SURFACE_ALT);
+        strip.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(NightLegionTheme.PURPLE.darker()),
+            BorderFactory.createEmptyBorder(4, 6, 4, 6)));
+        strip.setAlignmentX(Component.LEFT_ALIGNMENT);
+        strip.setMaximumSize(new Dimension(Integer.MAX_VALUE, 29));
+        JLabel mine = new JLabel(shorten(personalSummary(p), 38));
+        mine.setForeground(NightLegionTheme.SILVER);
+        mine.setFont(mine.getFont().deriveFont(Font.BOLD, 10f));
+        strip.add(mine, BorderLayout.CENTER);
+        return strip;
     }
 
     private JPanel leaderboardPreview(JsonObject event)
     {
         JPanel panel = card();
-        JLabel title = new JLabel("TOP 3");
-        title.setForeground(NightLegionTheme.PURPLE_BRIGHT);
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 11f));
+        JLabel title = sectionHeading("TOP 3");
         panel.add(title);
-        panel.add(Box.createVerticalStrut(5));
+        panel.add(Box.createVerticalStrut(3));
 
         JsonArray rows = event.getAsJsonArray("leaderboard");
         int limit = Math.min(3, rows.size());
@@ -392,11 +416,20 @@ class NightLegionPanel extends PluginPanel
         {
             JsonObject row = rows.get(i).getAsJsonObject();
             String rank = row.has("rank") ? "#" + row.get("rank").getAsInt() : "#" + (i + 1);
-            String rsn = safeString(row, "rsn", "Unknown");
+            String player = shorten(safeString(row, "rsn", "Unknown"), 16);
             String gain = formatGain(safeLong(row, "gain", 0), safeString(event, "unit", ""));
-            JLabel line = new JLabel(rank + "  " + rsn + "   " + gain);
-            line.setForeground(row.has("is_you") && row.get("is_you").getAsBoolean()
-                ? NightLegionTheme.PURPLE_BRIGHT : NightLegionTheme.SILVER);
+
+            JPanel line = new JPanel(new BorderLayout(5, 0));
+            line.setOpaque(false);
+            line.setAlignmentX(Component.LEFT_ALIGNMENT);
+            line.setMaximumSize(new Dimension(Integer.MAX_VALUE, 19));
+            JLabel left = new JLabel(rank + "  " + player);
+            JLabel right = new JLabel(gain);
+            boolean you = row.has("is_you") && row.get("is_you").getAsBoolean();
+            left.setForeground(you ? NightLegionTheme.PURPLE_BRIGHT : NightLegionTheme.SILVER);
+            right.setForeground(you ? NightLegionTheme.PURPLE_BRIGHT : NightLegionTheme.MUTED);
+            line.add(left, BorderLayout.CENTER);
+            line.add(right, BorderLayout.EAST);
             panel.add(line);
         }
         return panel;
@@ -447,7 +480,9 @@ class NightLegionPanel extends PluginPanel
                 addDialogLine(panel, left, right);
             }
         }
-        JOptionPane.showMessageDialog(this, new JScrollPane(panel), title + " — Leaderboard", JOptionPane.PLAIN_MESSAGE);
+        JScrollPane scroll = new JScrollPane(panel);
+        scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        JOptionPane.showMessageDialog(this, scroll, title + " — Leaderboard", JOptionPane.PLAIN_MESSAGE);
     }
 
     private String personalSummary(JsonObject p)
@@ -464,8 +499,7 @@ class NightLegionPanel extends PluginPanel
     {
         if (!latest.has("giveaway") || latest.get("giveaway").isJsonNull())
         {
-            addEmptyState("No active giveaway");
-            addRefreshButton();
+            addCenteredEmptyState("No active giveaway", "You'll get a NightLegion alert when a new giveaway starts.", true);
             return;
         }
 
@@ -474,52 +508,27 @@ class NightLegionPanel extends PluginPanel
         boolean eligible = !g.has("eligible") || g.get("eligible").getAsBoolean();
 
         JPanel hero = heroCard();
-        JPanel titleRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 9, 0));
-        titleRow.setOpaque(false);
-        ImageIcon coins = itemIcon(NightLegionTheme.sectionItemId("GIVEAWAY"));
-        if (coins != null)
-        {
-            titleRow.add(new JLabel(coins));
-        }
-        JPanel titles = new JPanel();
-        titles.setLayout(new BoxLayout(titles, BoxLayout.Y_AXIS));
-        titles.setOpaque(false);
-        JLabel heading = new JLabel(safeString(g, "prize", "Giveaway"));
-        heading.setForeground(NightLegionTheme.PURPLE_BRIGHT);
-        heading.setFont(heading.getFont().deriveFont(Font.BOLD, 17f));
-        JLabel sub = new JLabel("NightLegion Giveaway");
-        sub.setForeground(NightLegionTheme.MUTED);
-        titles.add(heading);
-        titles.add(sub);
-        titleRow.add(titles);
-        hero.add(titleRow);
-        hero.add(Box.createVerticalStrut(9));
+        hero.add(eventTitle(safeString(g, "prize", "Giveaway"), "NightLegion Giveaway", "GIVEAWAY"));
+        hero.add(Box.createVerticalStrut(6));
 
-        JPanel stats = new JPanel(new GridLayout(2, 2, 6, 6));
+        JPanel stats = new JPanel(new GridLayout(2, 2, 5, 5));
         stats.setOpaque(false);
+        stats.setMaximumSize(new Dimension(Integer.MAX_VALUE, 76));
         stats.add(statTile("ENTRIES", String.valueOf(safeInt(g, "entries", 0))));
         stats.add(statTile("ENDS", formatTime(safeLong(g, "end_time", 0))));
         stats.add(statTile("RANK", g.has("required_role_name") && !g.get("required_role_name").isJsonNull()
-            ? g.get("required_role_name").getAsString() : "None"));
+            ? shorten(g.get("required_role_name").getAsString(), 13) : "None"));
         stats.add(statTile("STATUS", entered ? "ENTERED" : eligible ? "ELIGIBLE" : "LOCKED"));
         hero.add(stats);
         body.add(hero);
-        body.add(Box.createVerticalStrut(7));
+        body.add(Box.createVerticalStrut(6));
 
         JPanel info = card();
-        JLabel title = new JLabel("HOW IT WORKS");
-        title.setForeground(NightLegionTheme.PURPLE_BRIGHT);
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 11f));
-        info.add(title);
-        info.add(Box.createVerticalStrut(4));
-        JLabel line1 = new JLabel("One entry per linked Discord member.");
-        JLabel line2 = new JLabel("Rank requirements are checked by NightLegion.");
-        line1.setForeground(NightLegionTheme.SILVER);
-        line2.setForeground(NightLegionTheme.MUTED);
-        info.add(line1);
-        info.add(line2);
+        info.add(sectionHeading("HOW IT WORKS"));
+        info.add(Box.createVerticalStrut(3));
+        info.add(wrappedText("One entry per linked Discord member. Rank requirements are checked by NightLegion.", NightLegionTheme.MUTED, 2));
         body.add(info);
-        body.add(Box.createVerticalStrut(7));
+        body.add(Box.createVerticalStrut(6));
 
         JButton refresh = new JButton("Refresh");
         JButton enter = new JButton(entered ? "✓ Entered" : eligible ? "Enter Giveaway" : "Rank Required");
@@ -550,14 +559,7 @@ class NightLegionPanel extends PluginPanel
             "NightLegion — Giveaway Status",
             JOptionPane.INFORMATION_MESSAGE));
 
-        JPanel buttons = new JPanel(new GridLayout(2, 2, 6, 4));
-        buttons.setOpaque(false);
-        buttons.setMaximumSize(new Dimension(Integer.MAX_VALUE, 64));
-        buttons.add(refresh);
-        buttons.add(enter);
-        buttons.add(details);
-        buttons.add(status);
-        body.add(buttons);
+        body.add(buttonGrid(refresh, enter, details, status));
     }
 
     private void showGiveawayDetails(JsonObject g)
@@ -573,9 +575,8 @@ class NightLegionPanel extends PluginPanel
 
     private void renderGroups()
     {
-        activityFilter.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         body.add(activityFilter);
-        body.add(Box.createVerticalStrut(8));
+        body.add(Box.createVerticalStrut(6));
 
         JButton refresh = new JButton("Refresh");
         JButton create = new JButton("Create Listing");
@@ -590,38 +591,39 @@ class NightLegionPanel extends PluginPanel
         requests.addActionListener(e -> showRequests());
         mine.addActionListener(e -> showMyGroups());
 
-        JPanel buttons = new JPanel(new GridLayout(2, 2, 6, 4));
-        buttons.setOpaque(false);
-        buttons.setMaximumSize(new Dimension(Integer.MAX_VALUE, 64));
-        buttons.setAlignmentX(Component.LEFT_ALIGNMENT);
-        buttons.add(refresh);
-        buttons.add(create);
-        buttons.add(requests);
-        buttons.add(mine);
-        body.add(buttons);
-        body.add(Box.createVerticalStrut(7));
+        body.add(buttonGrid(refresh, create, requests, mine));
+        body.add(Box.createVerticalStrut(6));
 
         List<JsonObject> groups = filteredGroups();
+        JPanel statusBar = new JPanel(new BorderLayout());
+        statusBar.setOpaque(false);
+        statusBar.setAlignmentX(Component.LEFT_ALIGNMENT);
+        statusBar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
         JLabel status = new JLabel(groups.size() + (groups.size() == 1 ? " open listing" : " open listings"));
         status.setForeground(NightLegionTheme.PURPLE_BRIGHT);
-        status.setFont(status.getFont().deriveFont(Font.BOLD, 11f));
-        status.setAlignmentX(Component.LEFT_ALIGNMENT);
-        body.add(status);
-
-        JLabel notice = new JLabel("<html><small>RSNs are client-observed. Listings sync with NightLegion Discord.</small></html>");
-        notice.setForeground(NightLegionTheme.MUTED);
-        notice.setAlignmentX(Component.LEFT_ALIGNMENT);
-        body.add(Box.createVerticalStrut(3));
-        body.add(notice);
-        body.add(Box.createVerticalStrut(10));
+        status.setFont(status.getFont().deriveFont(Font.BOLD, 10f));
+        statusBar.add(status, BorderLayout.WEST);
+        body.add(statusBar);
+        body.add(Box.createVerticalStrut(2));
+        body.add(wrappedText("RSNs are client-observed. Listings sync with NightLegion Discord.", NightLegionTheme.MUTED, 2));
+        body.add(Box.createVerticalStrut(7));
 
         if (groups.isEmpty())
         {
-            JLabel empty = new JLabel("No open listings found");
-            empty.setForeground(Color.GRAY);
-            empty.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-            empty.setAlignmentX(Component.LEFT_ALIGNMENT);
+            JPanel empty = card();
+            empty.setBorder(BorderFactory.createEmptyBorder(20, 8, 20, 8));
+            JLabel title = new JLabel("No open listings found", SwingConstants.CENTER);
+            title.setForeground(NightLegionTheme.SILVER);
+            title.setAlignmentX(Component.CENTER_ALIGNMENT);
+            JLabel hint = new JLabel("Create one and your clan can join from RuneLite.", SwingConstants.CENTER);
+            hint.setForeground(NightLegionTheme.MUTED);
+            hint.setFont(hint.getFont().deriveFont(10f));
+            hint.setAlignmentX(Component.CENTER_ALIGNMENT);
+            empty.add(title);
+            empty.add(Box.createVerticalStrut(4));
+            empty.add(hint);
             body.add(empty);
+            body.add(Box.createVerticalGlue());
             return;
         }
 
@@ -663,12 +665,20 @@ class NightLegionPanel extends PluginPanel
         String activity = safeString(group, "activity", "Group");
         String host = safeString(group, "host_name", "Unknown");
 
-        JLabel heading = new JLabel(activity + " — " + host);
+        JPanel headingRow = new JPanel(new BorderLayout(6, 0));
+        headingRow.setOpaque(false);
+        headingRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        headingRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        ImageIcon icon = activityIcon(activity);
+        if (icon != null)
+        {
+            headingRow.add(new JLabel(icon), BorderLayout.WEST);
+        }
+        JLabel heading = new JLabel(shorten(activity + " — " + host, 30));
         heading.setForeground(NightLegionTheme.PURPLE_BRIGHT);
-        heading.setFont(heading.getFont().deriveFont(Font.BOLD));
-        heading.setIcon(activityIcon(activity));
-        heading.setIconTextGap(7);
-        card.add(heading);
+        heading.setFont(heading.getFont().deriveFont(Font.BOLD, 11f));
+        headingRow.add(heading, BorderLayout.CENTER);
+        card.add(headingRow);
 
         int members = group.has("members") && group.get("members").isJsonArray()
             ? group.getAsJsonArray("members").size() : 0;
@@ -677,27 +687,29 @@ class NightLegionPanel extends PluginPanel
             + " · " + safeString(group, "language", "EN");
         JLabel detailLabel = new JLabel(details);
         detailLabel.setForeground(NightLegionTheme.MUTED);
+        detailLabel.setFont(detailLabel.getFont().deriveFont(10f));
         card.add(detailLabel);
 
+        String middle = "Role: " + safeString(group, "role", "ANY");
+        String kc = safeString(group, "kc", "");
+        if (!kc.isEmpty())
+        {
+            middle += " · KC: " + kc;
+        }
         if (group.has("world") && !group.get("world").isJsonNull())
         {
-            JLabel world = new JLabel("World " + group.get("world").getAsInt());
-            world.setForeground(NightLegionTheme.SILVER);
-            card.add(world);
+            middle += " · W" + group.get("world").getAsInt();
         }
-
-        String role = safeString(group, "role", "ANY");
-        String kc = safeString(group, "kc", "");
-        JLabel roleKc = new JLabel("Role: " + role + (kc.isEmpty() ? "" : " · KC: " + kc));
+        JLabel roleKc = new JLabel(shorten(middle, 38));
         roleKc.setForeground(NightLegionTheme.SILVER);
+        roleKc.setFont(roleKc.getFont().deriveFont(10f));
         card.add(roleKc);
 
         String note = safeString(group, "note", "");
         if (!note.isEmpty())
         {
-            JLabel noteLabel = new JLabel(note);
-            noteLabel.setForeground(NightLegionTheme.MUTED);
-            card.add(noteLabel);
+            card.add(Box.createVerticalStrut(2));
+            card.add(wrappedText(note, NightLegionTheme.MUTED, 2));
         }
 
         boolean joined = group.has("joined") && group.get("joined").getAsBoolean();
@@ -709,7 +721,7 @@ class NightLegionPanel extends PluginPanel
         NightLegionTheme.styleButton(join, true, false);
         join.setEnabled(!hostGroup && !joined && !requested && open);
         join.setAlignmentX(Component.LEFT_ALIGNMENT);
-        join.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        join.setMaximumSize(new Dimension(Integer.MAX_VALUE, ROW_HEIGHT));
         join.addActionListener(e ->
         {
             JsonObject data = new JsonObject();
@@ -721,7 +733,7 @@ class NightLegionPanel extends PluginPanel
                     refresh();
                 }), this::showError);
         });
-        card.add(Box.createVerticalStrut(6));
+        card.add(Box.createVerticalStrut(5));
         card.add(join);
         return card;
     }
@@ -764,33 +776,32 @@ class NightLegionPanel extends PluginPanel
                     return;
                 }
 
-                JPanel list = new JPanel();
-                list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
-                list.setBackground(NightLegionTheme.BACKGROUND);
+                JPanel list = dialogPanel();
                 for (JsonElement element : rows)
                 {
                     JsonObject row = element.getAsJsonObject();
                     JPanel line = card();
-                    JLabel who = new JLabel(safeString(row, "display_name", "Player") + " → " + safeString(row, "group_title", "Group"));
-                    who.setForeground(NightLegionTheme.SILVER);
-                    line.add(who);
+                    line.add(wrappedText(safeString(row, "display_name", "Player") + " → " + safeString(row, "group_title", "Group"), NightLegionTheme.SILVER, 2));
 
-                    JPanel actions = new JPanel(new GridLayout(1, 2, 6, 0));
-                    actions.setOpaque(false);
                     JButton accept = new JButton("Accept");
                     JButton decline = new JButton("Decline");
                     NightLegionTheme.styleButton(accept, true, false);
                     NightLegionTheme.styleButton(decline, false, true);
                     accept.addActionListener(e -> decide(row, true));
                     decline.addActionListener(e -> decide(row, false));
+                    JPanel actions = new JPanel(new GridLayout(1, 2, 5, 0));
+                    actions.setOpaque(false);
+                    actions.setMaximumSize(new Dimension(Integer.MAX_VALUE, ROW_HEIGHT));
                     actions.add(accept);
                     actions.add(decline);
-                    line.add(Box.createVerticalStrut(5));
+                    line.add(Box.createVerticalStrut(4));
                     line.add(actions);
                     list.add(line);
                     list.add(Box.createVerticalStrut(5));
                 }
-                JOptionPane.showMessageDialog(this, new JScrollPane(list), "Group Requests", JOptionPane.PLAIN_MESSAGE);
+                JScrollPane scroll = new JScrollPane(list);
+                scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+                JOptionPane.showMessageDialog(this, scroll, "Group Requests", JOptionPane.PLAIN_MESSAGE);
             }), this::showError);
     }
 
@@ -825,17 +836,16 @@ class NightLegionPanel extends PluginPanel
             return;
         }
 
-        JPanel list = new JPanel();
-        list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
-        list.setBackground(NightLegionTheme.BACKGROUND);
+        JPanel list = dialogPanel();
         for (JsonObject g : mine)
         {
             JPanel row = card();
-            JLabel title = new JLabel(safeString(g, "title", "My Group"));
+            JLabel title = new JLabel(shorten(safeString(g, "title", "My Group"), 34));
             title.setForeground(NightLegionTheme.PURPLE_BRIGHT);
             row.add(title);
             JButton close = new JButton("Close Group");
             NightLegionTheme.styleButton(close, false, true);
+            close.setMaximumSize(new Dimension(Integer.MAX_VALUE, ROW_HEIGHT));
             close.addActionListener(e ->
             {
                 JsonObject data = new JsonObject();
@@ -847,7 +857,7 @@ class NightLegionPanel extends PluginPanel
                         refresh();
                     }), this::showError);
             });
-            row.add(Box.createVerticalStrut(5));
+            row.add(Box.createVerticalStrut(4));
             row.add(close);
             list.add(row);
             list.add(Box.createVerticalStrut(5));
@@ -861,7 +871,7 @@ class NightLegionPanel extends PluginPanel
         card.setBackground(NightLegionTheme.HEADER);
         card.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 2, 0, NightLegionTheme.PURPLE),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)));
+            BorderFactory.createEmptyBorder(7, 8, 7, 8)));
         return card;
     }
 
@@ -872,19 +882,10 @@ class NightLegionPanel extends PluginPanel
         card.setBackground(NightLegionTheme.SURFACE);
         card.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(NightLegionTheme.SURFACE_ALT.brighter()),
-            BorderFactory.createEmptyBorder(8, 8, 8, 8)));
+            BorderFactory.createEmptyBorder(6, 7, 6, 7)));
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 210));
         return card;
-    }
-
-    private JPanel miniPanel()
-    {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
-        panel.setBackground(NightLegionTheme.SURFACE_ALT);
-        panel.setBorder(BorderFactory.createLineBorder(NightLegionTheme.PURPLE.darker()));
-        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        return panel;
     }
 
     private JPanel statTile(String label, String value)
@@ -892,33 +893,69 @@ class NightLegionPanel extends PluginPanel
         JPanel tile = new JPanel();
         tile.setLayout(new BoxLayout(tile, BoxLayout.Y_AXIS));
         tile.setBackground(NightLegionTheme.SURFACE_ALT);
-        tile.setBorder(BorderFactory.createEmptyBorder(6, 7, 6, 7));
+        tile.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
         JLabel top = new JLabel(label);
         top.setForeground(NightLegionTheme.MUTED);
-        top.setFont(top.getFont().deriveFont(Font.BOLD, 9f));
-        JLabel bottom = new JLabel(value);
+        top.setFont(top.getFont().deriveFont(Font.BOLD, 8.5f));
+        JLabel bottom = new JLabel(shorten(value, 15));
         bottom.setForeground(NightLegionTheme.SILVER);
-        bottom.setFont(bottom.getFont().deriveFont(Font.BOLD, 11f));
+        bottom.setFont(bottom.getFont().deriveFont(Font.BOLD, 10f));
         tile.add(top);
         tile.add(bottom);
         return tile;
     }
 
-    private JPanel sectionPanel(String heading, JsonArray lines)
+    private JPanel compactLines(String heading, JsonArray lines, int maxLines)
     {
         JPanel panel = card();
-        JLabel title = new JLabel(heading);
-        title.setForeground(NightLegionTheme.PURPLE_BRIGHT);
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 11f));
-        panel.add(title);
-        panel.add(Box.createVerticalStrut(5));
-        for (JsonElement e : lines)
+        panel.add(sectionHeading(heading));
+        panel.add(Box.createVerticalStrut(3));
+        int limit = Math.min(maxLines, lines.size());
+        for (int i = 0; i < limit; i++)
         {
-            JLabel line = new JLabel(e.getAsString());
-            line.setForeground(NightLegionTheme.SILVER);
-            panel.add(line);
+            panel.add(wrappedText(lines.get(i).getAsString(), NightLegionTheme.SILVER, 1));
         }
         return panel;
+    }
+
+    private JLabel sectionHeading(String text)
+    {
+        JLabel title = new JLabel(text);
+        title.setForeground(NightLegionTheme.PURPLE_BRIGHT);
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 10f));
+        title.setAlignmentX(Component.LEFT_ALIGNMENT);
+        return title;
+    }
+
+    private JTextArea wrappedText(String text, Color color, int maxRows)
+    {
+        JTextArea area = new JTextArea(text == null ? "" : text);
+        area.setEditable(false);
+        area.setFocusable(false);
+        area.setOpaque(false);
+        area.setForeground(color);
+        area.setFont(area.getFont().deriveFont(10f));
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setRows(Math.max(1, maxRows));
+        area.setColumns(1);
+        area.setBorder(BorderFactory.createEmptyBorder());
+        area.setAlignmentX(Component.LEFT_ALIGNMENT);
+        area.setMaximumSize(new Dimension(Integer.MAX_VALUE, Math.max(18, 17 * maxRows)));
+        return area;
+    }
+
+    private JPanel buttonGrid(JButton a, JButton b, JButton c, JButton d)
+    {
+        JPanel buttons = new JPanel(new GridLayout(2, 2, 5, 4));
+        buttons.setOpaque(false);
+        buttons.setAlignmentX(Component.LEFT_ALIGNMENT);
+        buttons.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
+        buttons.add(a);
+        buttons.add(b);
+        buttons.add(c);
+        buttons.add(d);
+        return buttons;
     }
 
     private JPanel dialogPanel()
@@ -938,23 +975,44 @@ class NightLegionPanel extends PluginPanel
         panel.add(line);
     }
 
-    private void addRefreshButton()
+    private void addCenteredEmptyState(String titleText, String hintText, boolean withRefresh)
     {
-        JButton refresh = new JButton("Refresh");
-        NightLegionTheme.styleButton(refresh, false, false);
-        refresh.setAlignmentX(Component.LEFT_ALIGNMENT);
-        refresh.addActionListener(e -> refresh());
-        body.add(Box.createVerticalStrut(8));
-        body.add(refresh);
-    }
-
-    private void addEmptyState(String text)
-    {
-        JLabel empty = new JLabel(text);
-        empty.setForeground(NightLegionTheme.MUTED);
-        empty.setBorder(BorderFactory.createEmptyBorder(10, 4, 10, 4));
+        body.add(Box.createVerticalGlue());
+        JPanel empty = new JPanel();
+        empty.setLayout(new BoxLayout(empty, BoxLayout.Y_AXIS));
+        empty.setOpaque(false);
         empty.setAlignmentX(Component.LEFT_ALIGNMENT);
+        empty.setMaximumSize(new Dimension(Integer.MAX_VALUE, 125));
+
+        JLabel icon = new JLabel(NightLegionTheme.markIcon(28, NightLegionTheme.PURPLE));
+        icon.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel title = new JLabel(titleText, SwingConstants.CENTER);
+        title.setForeground(NightLegionTheme.SILVER);
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 12f));
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel hint = new JLabel("<html><div style='text-align:center'>" + escapeHtml(hintText) + "</div></html>", SwingConstants.CENTER);
+        hint.setForeground(NightLegionTheme.MUTED);
+        hint.setFont(hint.getFont().deriveFont(10f));
+        hint.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        empty.add(icon);
+        empty.add(Box.createVerticalStrut(5));
+        empty.add(title);
+        empty.add(Box.createVerticalStrut(4));
+        empty.add(hint);
+
+        if (withRefresh)
+        {
+            JButton refresh = new JButton("Refresh");
+            NightLegionTheme.styleButton(refresh, false, false);
+            refresh.setAlignmentX(Component.CENTER_ALIGNMENT);
+            refresh.addActionListener(e -> refresh());
+            empty.add(Box.createVerticalStrut(8));
+            empty.add(refresh);
+        }
+
         body.add(empty);
+        body.add(Box.createVerticalGlue());
     }
 
     private void configureSectionCombo()
@@ -986,7 +1044,7 @@ class NightLegionPanel extends PluginPanel
             {
                 JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, selected, focus);
                 String text = value == null ? "" : String.valueOf(value);
-                label.setText(text);
+                label.setText(shorten(text, 26));
                 label.setBorder(BorderFactory.createEmptyBorder(3, 6, 3, 6));
                 label.setBackground(selected ? NightLegionTheme.PURPLE : NightLegionTheme.SURFACE_ALT);
                 label.setForeground(Color.WHITE);
@@ -1036,7 +1094,7 @@ class NightLegionPanel extends PluginPanel
         SwingUtilities.invokeLater(() ->
         {
             connection.setForeground(new Color(236, 112, 112));
-            connection.setText("● " + error);
+            connection.setText("● " + shorten(error, 34));
             JOptionPane.showMessageDialog(this, error, "NightLegion", JOptionPane.ERROR_MESSAGE);
         });
     }
@@ -1103,7 +1161,10 @@ class NightLegionPanel extends PluginPanel
 
     private static String formatGp(long gp)
     {
-        if (gp <= 0) return "FREE";
+        if (gp <= 0)
+        {
+            return "FREE";
+        }
         return formatNumber(gp) + " GP";
     }
 
@@ -1146,8 +1207,74 @@ class NightLegionPanel extends PluginPanel
         long days = seconds / 86400;
         long hours = (seconds % 86400) / 3600;
         long mins = (seconds % 3600) / 60;
-        if (days > 0) return days + "d " + hours + "h";
-        if (hours > 0) return hours + "h " + mins + "m";
+        if (days > 0)
+        {
+            return days + "d " + hours + "h";
+        }
+        if (hours > 0)
+        {
+            return hours + "h " + mins + "m";
+        }
         return mins + "m";
+    }
+
+    private static String shorten(String text, int max)
+    {
+        if (text == null)
+        {
+            return "";
+        }
+        String clean = text.replace('\n', ' ').replace('\r', ' ').trim();
+        if (clean.length() <= max)
+        {
+            return clean;
+        }
+        return clean.substring(0, Math.max(1, max - 1)).trim() + "…";
+    }
+
+    private static String escapeHtml(String value)
+    {
+        if (value == null)
+        {
+            return "";
+        }
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    private static final class ViewportPanel extends JPanel implements Scrollable
+    {
+        @Override
+        public Dimension getPreferredScrollableViewportSize()
+        {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction)
+        {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction)
+        {
+            return Math.max(48, visibleRect.height - 48);
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight()
+        {
+            if (getParent() instanceof JViewport)
+            {
+                return ((JViewport) getParent()).getHeight() > getPreferredSize().height;
+            }
+            return false;
+        }
     }
 }
