@@ -5,6 +5,7 @@ on:
     branches:
       - runelite-companion-v2
       - purple-ui-v3
+      - compact-ui-v4
   workflow_dispatch:
 
 jobs:
