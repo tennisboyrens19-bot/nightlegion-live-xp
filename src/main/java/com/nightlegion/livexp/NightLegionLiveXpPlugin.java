@@ -17,6 +17,7 @@ import net.runelite.api.Player;
 import net.runelite.api.Skill;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.StatChanged;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.ItemManager;
@@ -51,6 +52,9 @@ public class NightLegionLiveXpPlugin extends Plugin
     private Client client;
 
     @Inject
+    private ClientThread clientThread;
+
+    @Inject
     private NightLegionLiveXpConfig config;
 
     @Inject
@@ -74,6 +78,7 @@ public class NightLegionLiveXpPlugin extends Plugin
     private ScheduledExecutorService sender;
     private NavigationButton navButton;
     private NightLegionPanel panel;
+    private NightLegionNotifier notifier;
 
     @Override
     protected void startUp()
@@ -87,6 +92,9 @@ public class NightLegionLiveXpPlugin extends Plugin
         sender.scheduleWithFixedDelay(this::flushPending, 2, 2, TimeUnit.SECONDS);
 
         NightLegionApi api = new NightLegionApi(okHttpClient, sender, config, gson);
+        notifier = new NightLegionNotifier(client, clientThread, api, config, sender);
+        notifier.start();
+
         SwingUtilities.invokeLater(() ->
         {
             panel = new NightLegionPanel(client, api, itemManager);
@@ -111,6 +119,7 @@ public class NightLegionLiveXpPlugin extends Plugin
             navButton = null;
         }
         panel = null;
+        notifier = null;
 
         if (sender != null)
         {
