@@ -21,10 +21,21 @@ public interface NightLegionLiveXpConfig extends Config
     }
 
     @ConfigItem(
+        keyName = "eventAlerts",
+        name = "BOTW / SOTW chat alerts",
+        description = "Show NightLegion chatbox messages for active BOTW/SOTW on login and when a new event starts",
+        position = 1
+    )
+    default boolean eventAlerts()
+    {
+        return true;
+    }
+
+    @ConfigItem(
         keyName = "giveawayAlerts",
         name = "Giveaway chat alerts",
-        description = "Show an in-game NightLegion chatbox message when a new giveaway appears",
-        position = 1
+        description = "Show NightLegion chatbox messages for active giveaways on login and when a new giveaway appears",
+        position = 2
     )
     default boolean giveawayAlerts()
     {
@@ -35,7 +46,7 @@ public interface NightLegionLiveXpConfig extends Config
         keyName = "groupFinderAlerts",
         name = "Group Finder chat alerts",
         description = "Show an in-game NightLegion chatbox message for new Group Finder listings when your linked Discord account has the Group Finder rank",
-        position = 2
+        position = 3
     )
     default boolean groupFinderAlerts()
     {
