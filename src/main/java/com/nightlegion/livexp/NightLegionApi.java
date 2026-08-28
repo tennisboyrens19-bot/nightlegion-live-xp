@@ -16,7 +16,7 @@ import okhttp3.Response;
 
 class NightLegionApi
 {
-    private static final String BASE = "https://nightlegion-livexp.onrender.com";
+    private static final String BASE = "https://nightlegion-companion-test.onrender.com";
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
     private static final Gson GSON = new Gson();
 
