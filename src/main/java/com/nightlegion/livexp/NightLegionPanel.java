@@ -85,7 +85,8 @@ class NightLegionPanel extends PluginPanel
             SwingUtilities.invokeLater(() ->
             {
                 latest = json;
-                connection.setText("● Connected" + (json.has("discord_name") ? " as " + json.get("discord_name").getAsString() : ""));
+                String playerRsn = rsn();
+                connection.setText(playerRsn.isEmpty() ? "● Connected" : "● Connected as " + playerRsn);
                 activities = new ArrayList<>();
                 if (json.has("activities") && json.get("activities").isJsonArray())
                 {
