@@ -78,7 +78,7 @@ public class NightLegionLiveXpPlugin extends Plugin
     private volatile String lastToken = "";
     private ScheduledExecutorService sender;
     private NavigationButton navButton;
-    private NightLegionPanel panel;
+    private NightLegionRootPanel panel;
     private NightLegionNotifier notifier;
     private NightLegionRankTracker rankTracker;
 
@@ -102,7 +102,7 @@ public class NightLegionLiveXpPlugin extends Plugin
 
         SwingUtilities.invokeLater(() ->
         {
-            panel = new NightLegionPanel(client, api, itemManager);
+            panel = new NightLegionRootPanel(client, api, itemManager);
             navButton = NavigationButton.builder()
                 .tooltip("NightLegion")
                 .icon(createIcon())
@@ -175,7 +175,7 @@ public class NightLegionLiveXpPlugin extends Plugin
             currentNotifier.onLoggedIn();
         }
 
-        NightLegionPanel currentPanel = panel;
+        NightLegionRootPanel currentPanel = panel;
         if (currentPanel != null)
         {
             SwingUtilities.invokeLater(currentPanel::refresh);
