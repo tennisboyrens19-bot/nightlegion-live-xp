@@ -75,8 +75,7 @@ class NightLegionRankPanel extends JPanel
 
         JPanel nextCard = card();
         nextCard.setLayout(new BoxLayout(nextCard, BoxLayout.Y_AXIS));
-        JLabel nextTitle = smallTitle("NEXT RANK");
-        nextCard.add(nextTitle);
+        nextCard.add(smallTitle("NEXT RANK"));
         nextCard.add(Box.createVerticalStrut(3));
         nextCard.add(next);
         nextCard.add(Box.createVerticalStrut(6));
@@ -102,7 +101,7 @@ class NightLegionRankPanel extends JPanel
         weekCard.setLayout(new BoxLayout(weekCard, BoxLayout.Y_AXIS));
         weekCard.add(smallTitle("THIS WEEK"));
         weekCard.add(Box.createVerticalStrut(4));
-        weekly.setForeground(NightLegionTheme.TEXT);
+        weekly.setForeground(NightLegionTheme.SILVER);
         weekCard.add(weekly);
         content.add(weekCard);
         content.add(Box.createVerticalStrut(7));
@@ -113,7 +112,7 @@ class NightLegionRankPanel extends JPanel
         content.add(Box.createVerticalStrut(8));
 
         JButton refresh = new JButton("REFRESH RANK");
-        NightLegionTheme.styleButton(refresh, true);
+        NightLegionTheme.styleButton(refresh, true, false);
         refresh.setAlignmentX(LEFT_ALIGNMENT);
         refresh.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
         refresh.addActionListener(e -> refresh());
@@ -214,9 +213,9 @@ class NightLegionRankPanel extends JPanel
     private static JPanel card()
     {
         JPanel panel = new JPanel();
-        panel.setBackground(NightLegionTheme.CARD);
+        panel.setBackground(NightLegionTheme.SURFACE);
         panel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(NightLegionTheme.BORDER),
+            BorderFactory.createLineBorder(NightLegionTheme.SURFACE_ALT.brighter()),
             BorderFactory.createEmptyBorder(8, 8, 8, 8)));
         panel.setAlignmentX(LEFT_ALIGNMENT);
         panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
@@ -235,7 +234,7 @@ class NightLegionRankPanel extends JPanel
     private static JLabel valueLabel(String value)
     {
         JLabel label = new JLabel(value);
-        label.setForeground(NightLegionTheme.TEXT);
+        label.setForeground(NightLegionTheme.SILVER);
         label.setFont(label.getFont().deriveFont(Font.BOLD, 12f));
         label.setAlignmentX(LEFT_ALIGNMENT);
         return label;
