@@ -3,6 +3,7 @@ name: NightLegion companion dev build
 on:
   push:
     branches:
+      - main
       - runelite-companion-v2
       - purple-ui-v3
   workflow_dispatch:
