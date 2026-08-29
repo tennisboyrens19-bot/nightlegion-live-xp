@@ -64,7 +64,7 @@ public interface NightLegionLiveXpConfig extends Config
     @ConfigItem(
         keyName = "rankTrackingEnabled",
         name = "Enable rank tracking",
-        description = "Send rank activity/progression snapshots to the NightLegion rank bot",
+        description = "Send optional desktop telemetry to the NightLegion ranking system. Mobile players are tracked through Discord/clan activity and Wise Old Man instead.",
         section = rankTrackingSection,
         position = 0
     )
@@ -76,8 +76,8 @@ public interface NightLegionLiveXpConfig extends Config
     @ConfigItem(
         keyName = "rankToken",
         name = "Rank Secret Key",
-        description = "Paste the separate secret key created in Discord with /rank_link",
-        warning = "Rank tracking sends your RuneScape display name, total XP, total level, quest points, tracked session time, your own clan-chat activity counts, and detected boss-kill activity to NightLegion. Message contents, passwords, Jagex credentials, bank contents, inventory contents and private chat are not sent.",
+        description = "Paste the separate secret key created in Discord with /rank link",
+        warning = "Rank tracking sends your RuneScape display name, total XP, total level, quest points, tracked session time, your own clan-chat activity counts, and detected boss-kill activity to NightLegion. RuneLite-only telemetry does not give desktop players extra rank points. Message contents, passwords, Jagex credentials, bank contents, inventory contents and private chat are not sent.",
         secret = true,
         section = rankTrackingSection,
         position = 1
