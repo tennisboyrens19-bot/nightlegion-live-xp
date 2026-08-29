@@ -16,7 +16,11 @@ import okhttp3.Response;
 
 class NightLegionApi
 {
-    private static final String BASE = "https://nightlegion-companion-test.onrender.com";
+    // Use the same production relay as LiveXP and rank telemetry. The old
+    // nightlegion-companion-test URL had its own queue, while the Discord bot
+    // polls nightlegion-livexp. Requests sent to the test queue therefore sat
+    // pending until the RuneLite client timed out.
+    private static final String BASE = "https://nightlegion-livexp.onrender.com";
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
     private final OkHttpClient client;
@@ -91,9 +95,12 @@ class NightLegionApi
 
     private void poll(String requestId, int attempt, Consumer<JsonObject> ok, Consumer<String> fail)
     {
-        if (attempt > 30)
+        // Allow up to ~30 seconds. Normal replies arrive in a few seconds, but
+        // this avoids false timeouts during a deploy/restart or short network
+        // hiccup.
+        if (attempt > 60)
         {
-            fail.accept("NightLegion timed out. Try Refresh.");
+            fail.accept("NightLegion is taking too long to respond. Try Refresh.");
             return;
         }
 
