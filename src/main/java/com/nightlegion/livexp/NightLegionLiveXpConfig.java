@@ -3,6 +3,7 @@ package com.nightlegion.livexp;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.ConfigSection;
 
 @ConfigGroup("nightlegionlivexp")
 public interface NightLegionLiveXpConfig extends Config
@@ -51,5 +52,38 @@ public interface NightLegionLiveXpConfig extends Config
     default boolean groupFinderAlerts()
     {
         return true;
+    }
+
+    @ConfigSection(
+        name = "Rank Tracking",
+        description = "Separate NightLegion rank-system connection and telemetry",
+        position = 10
+    )
+    String rankTrackingSection = "rankTrackingSection";
+
+    @ConfigItem(
+        keyName = "rankTrackingEnabled",
+        name = "Enable rank tracking",
+        description = "Send rank activity/progression snapshots to the NightLegion rank bot",
+        section = rankTrackingSection,
+        position = 0
+    )
+    default boolean rankTrackingEnabled()
+    {
+        return true;
+    }
+
+    @ConfigItem(
+        keyName = "rankToken",
+        name = "Rank Secret Key",
+        description = "Paste the separate secret key created in Discord with /rank_link",
+        warning = "Rank tracking sends your RuneScape display name, total XP, total level, quest points, tracked session time, your own clan-chat activity counts, and detected boss-kill activity to NightLegion. Message contents, passwords, Jagex credentials, bank contents, inventory contents and private chat are not sent.",
+        secret = true,
+        section = rankTrackingSection,
+        position = 1
+    )
+    default String rankToken()
+    {
+        return "";
     }
 }
