@@ -15,6 +15,7 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.Player;
 import net.runelite.api.Skill;
+import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.callback.ClientThread;
@@ -37,8 +38,8 @@ import org.slf4j.LoggerFactory;
 
 @PluginDescriptor(
     name = "NightLegion",
-    description = "NightLegion SOTW, BOTW, Giveaways and Group Finder",
-    tags = {"nightlegion", "sotw", "botw", "giveaway", "group finder", "xp", "bossing", "skilling"},
+    description = "NightLegion SOTW, BOTW, Giveaways, Group Finder and clan rank tracking",
+    tags = {"nightlegion", "sotw", "botw", "giveaway", "group finder", "rank", "clan", "xp", "bossing", "skilling"},
     enabledByDefault = true
 )
 public class NightLegionLiveXpPlugin extends Plugin
@@ -79,6 +80,7 @@ public class NightLegionLiveXpPlugin extends Plugin
     private NavigationButton navButton;
     private NightLegionPanel panel;
     private NightLegionNotifier notifier;
+    private NightLegionRankTracker rankTracker;
 
     @Override
     protected void startUp()
@@ -94,6 +96,9 @@ public class NightLegionLiveXpPlugin extends Plugin
         NightLegionApi api = new NightLegionApi(okHttpClient, sender, config, gson);
         notifier = new NightLegionNotifier(client, clientThread, api, config, sender);
         notifier.start();
+
+        rankTracker = new NightLegionRankTracker(client, okHttpClient, sender, config, gson);
+        rankTracker.start();
 
         SwingUtilities.invokeLater(() ->
         {
@@ -121,6 +126,12 @@ public class NightLegionLiveXpPlugin extends Plugin
         panel = null;
         notifier = null;
 
+        if (rankTracker != null)
+        {
+            rankTracker.stop();
+            rankTracker = null;
+        }
+
         if (sender != null)
         {
             sender.shutdownNow();
@@ -138,6 +149,11 @@ public class NightLegionLiveXpPlugin extends Plugin
     public void onGameStateChanged(GameStateChanged event)
     {
         NightLegionNotifier currentNotifier = notifier;
+        NightLegionRankTracker currentRankTracker = rankTracker;
+        if (currentRankTracker != null)
+        {
+            currentRankTracker.onGameStateChanged(event.getGameState());
+        }
 
         if (event.getGameState() == GameState.LOGIN_SCREEN)
         {
@@ -163,6 +179,16 @@ public class NightLegionLiveXpPlugin extends Plugin
         if (currentPanel != null)
         {
             SwingUtilities.invokeLater(currentPanel::refresh);
+        }
+    }
+
+    @Subscribe
+    public void onChatMessage(ChatMessage event)
+    {
+        NightLegionRankTracker currentRankTracker = rankTracker;
+        if (currentRankTracker != null)
+        {
+            currentRankTracker.onChatMessage(event);
         }
     }
 
