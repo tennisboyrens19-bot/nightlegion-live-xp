@@ -101,7 +101,6 @@ class NightLegionPanel extends PluginPanel
             }
         });
 
-        refresh();
     }
 
     private JPanel buildHeader()
