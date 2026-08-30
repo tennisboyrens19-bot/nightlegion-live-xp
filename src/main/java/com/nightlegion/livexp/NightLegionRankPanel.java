@@ -134,7 +134,6 @@ class NightLegionRankPanel extends JPanel
         content.add(helpCard);
 
         add(content, BorderLayout.NORTH);
-        refresh();
     }
 
     void refresh()

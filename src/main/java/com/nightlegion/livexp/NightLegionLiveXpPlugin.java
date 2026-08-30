@@ -71,6 +71,9 @@ public class NightLegionLiveXpPlugin extends Plugin
     private ClientToolbar clientToolbar;
 
     @Inject
+    private ConfigManager configManager;
+
+    @Inject
     private ItemManager itemManager;
 
     private final Map<Skill, Integer> latestXp = new ConcurrentHashMap<>();
@@ -107,11 +110,11 @@ public class NightLegionLiveXpPlugin extends Plugin
 
         SwingUtilities.invokeLater(() ->
         {
-            panel = new NightLegionRootPanel(client, api, itemManager);
+            panel = new NightLegionRootPanel(client, api, itemManager, config, configManager);
             navButton = NavigationButton.builder()
                 .tooltip("NightLegion")
                 .icon(createIcon())
-                .priority(6)
+                .priority(config.sidebarIconPriority())
                 .panel(panel)
                 .build();
             clientToolbar.addNavigation(navButton);

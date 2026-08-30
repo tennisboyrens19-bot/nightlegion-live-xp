@@ -3,19 +3,84 @@ package com.nightlegion.livexp;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
-import net.runelite.client.config.ConfigSection;
 import net.runelite.client.config.Range;
 
 @ConfigGroup("nightlegionlivexp")
 public interface NightLegionLiveXpConfig extends Config
 {
+    String THIRD_PARTY_WARNING =
+        "This feature submits your IP address to a 3rd-party server not controlled or verified by RuneLite developers";
+
+    // Visible settings intentionally mirror the approved Live On Clan plugin.
+    @ConfigItem(
+        keyName = "enabled",
+        name = "Connect to clan",
+        description = "Enable NightLegion clan features and automatic member verification",
+        warning = THIRD_PARTY_WARNING,
+        position = 0
+    )
+    default boolean enabled()
+    {
+        return true;
+    }
+
+    @ConfigItem(
+        keyName = "liveStatusEnabled",
+        name = "Show live members",
+        description = "Show configured NightLegion members who are live",
+        warning = THIRD_PARTY_WARNING,
+        position = 1
+    )
+    default boolean liveStatusEnabled()
+    {
+        return true;
+    }
+
+    @ConfigItem(
+        keyName = "statsEnabled",
+        name = "Participate in monthly MVP",
+        description = "Enable NightLegion activity features used by the monthly MVP views",
+        warning = THIRD_PARTY_WARNING,
+        position = 2
+    )
+    default boolean statsEnabled()
+    {
+        return true;
+    }
+
+    @ConfigItem(
+        keyName = "discordDropsEnabled",
+        name = "Send drops to Discord",
+        description = "Report qualifying drops to the NightLegion Discord drop feed",
+        warning = THIRD_PARTY_WARNING,
+        position = 3
+    )
+    default boolean discordDropsEnabled()
+    {
+        return false;
+    }
+
+    @Range(min = -20, max = 20)
+    @ConfigItem(
+        keyName = "sidebarIconPriority",
+        name = "Sidebar icon position",
+        description = "Use the arrows to move the NightLegion icon on the RuneLite sidebar",
+        position = 4
+    )
+    default int sidebarIconPriority()
+    {
+        return 0;
+    }
+
+    // Existing NightLegion credentials/features are preserved but hidden from
+    // the normal settings screen so the visible configuration matches Live On.
     @ConfigItem(
         keyName = "token",
         name = "Personal Link Token",
-        description = "Paste the private token from Discord /runelite_link (the old /sotw_runelite_link command also works)",
-        warning = "NightLegion sends your RuneScape display name, SOTW XP updates, event join actions, Giveaway entries and Group Finder listing/request data to the NightLegion service. It does not send passwords, Jagex credentials, bank contents, inventory contents or private chat.",
+        description = "NightLegion Discord/RuneLite link token",
+        warning = THIRD_PARTY_WARNING,
         secret = true,
-        position = 0
+        hidden = true
     )
     default String token()
     {
@@ -25,8 +90,8 @@ public interface NightLegionLiveXpConfig extends Config
     @ConfigItem(
         keyName = "eventAlerts",
         name = "BOTW / SOTW chat alerts",
-        description = "Show NightLegion chatbox messages for active BOTW/SOTW on login and when a new event starts",
-        position = 1
+        description = "Show NightLegion in-game event notifications",
+        hidden = true
     )
     default boolean eventAlerts()
     {
@@ -36,8 +101,8 @@ public interface NightLegionLiveXpConfig extends Config
     @ConfigItem(
         keyName = "giveawayAlerts",
         name = "Giveaway chat alerts",
-        description = "Show NightLegion chatbox messages for active giveaways on login and when a new giveaway appears",
-        position = 2
+        description = "Show NightLegion in-game giveaway notifications",
+        hidden = true
     )
     default boolean giveawayAlerts()
     {
@@ -47,27 +112,19 @@ public interface NightLegionLiveXpConfig extends Config
     @ConfigItem(
         keyName = "groupFinderAlerts",
         name = "Group Finder chat alerts",
-        description = "Show an in-game NightLegion chatbox message for new Group Finder listings when your linked Discord account has the Group Finder rank",
-        position = 3
+        description = "Show NightLegion in-game Group Finder notifications",
+        hidden = true
     )
     default boolean groupFinderAlerts()
     {
         return true;
     }
 
-    @ConfigSection(
-        name = "Rank Tracking",
-        description = "Separate NightLegion rank-system connection and telemetry",
-        position = 10
-    )
-    String rankTrackingSection = "rankTrackingSection";
-
     @ConfigItem(
         keyName = "rankTrackingEnabled",
         name = "Enable rank tracking",
-        description = "Send optional desktop telemetry to the NightLegion ranking system. Mobile players are tracked through Discord/clan activity and Wise Old Man instead.",
-        section = rankTrackingSection,
-        position = 0
+        description = "Send optional NightLegion rank telemetry",
+        hidden = true
     )
     default boolean rankTrackingEnabled()
     {
@@ -77,57 +134,44 @@ public interface NightLegionLiveXpConfig extends Config
     @ConfigItem(
         keyName = "rankToken",
         name = "Rank Secret Key",
-        description = "Paste the separate secret key created in Discord with /rank link",
-        warning = "Rank tracking sends your RuneScape display name, total XP, total level, quest points, tracked session time, your own clan-chat activity counts, and detected boss-kill activity to NightLegion. RuneLite-only telemetry does not give desktop players extra rank points. Message contents, passwords, Jagex credentials, bank contents, inventory contents and private chat are not sent.",
+        description = "Private NightLegion rank-system key",
+        warning = THIRD_PARTY_WARNING,
         secret = true,
-        section = rankTrackingSection,
-        position = 1
+        hidden = true
     )
     default String rankToken()
     {
         return "";
     }
 
-    @ConfigSection(
-        name = "Community Hub",
-        description = "Optional community features such as PB and valuable-drop reporting",
-        position = 20
-    )
-    String communitySection = "communitySection";
-
     @ConfigItem(
         keyName = "communityPbTracking",
-        name = "Submit new PB messages",
-        description = "When RuneLite sees a game message containing a new personal best time, submit the time and your display name to the NightLegion clan PB board.",
-        warning = "This sends the detected personal-best game message, parsed time, and your RuneScape display name to the NightLegion third-party service. It does not send private chat.",
-        section = communitySection,
-        position = 0
+        name = "Submit PBs",
+        description = "Submit detected NightLegion personal bests",
+        hidden = true
     )
     default boolean communityPbTracking()
     {
-        return false;
+        return true;
     }
 
     @ConfigItem(
         keyName = "communityDropTracking",
-        name = "Report valuable NPC drops",
-        description = "Submit qualifying NPC drops to the NightLegion recent-drop feed and optional Discord drop channel.",
-        warning = "This sends the item name, quantity, approximate GE value, NPC source, and your RuneScape display name to the NightLegion third-party service. Inventory and bank contents are not scanned or transmitted.",
-        section = communitySection,
-        position = 1
+        name = "Report valuable drops",
+        description = "Report valuable NPC drops",
+        hidden = true
     )
     default boolean communityDropTracking()
     {
-        return false;
+        return discordDropsEnabled();
     }
 
     @Range(min = 0, max = 2000000000)
     @ConfigItem(
         keyName = "communityDropThreshold",
         name = "Minimum drop value",
-        description = "Minimum approximate GE value in coins before an NPC drop is submitted",
-        section = communitySection,
-        position = 2
+        description = "Minimum GE value before a drop is submitted",
+        hidden = true
     )
     default int communityDropThreshold()
     {

@@ -41,12 +41,19 @@ class NightLegionCommunityPanel extends PluginPanel
     private final JPanel body = new JPanel();
     private final JLabel status = new JLabel("● Loading community hub");
     private JsonObject snapshot;
+    private final String fixedSection;
 
     NightLegionCommunityPanel(Client client, NightLegionApi api)
+    {
+        this(client, api, null);
+    }
+
+    NightLegionCommunityPanel(Client client, NightLegionApi api, String fixedSection)
     {
         super(false);
         this.client = client;
         this.api = api;
+        this.fixedSection = fixedSection;
         setLayout(new BorderLayout());
         setBackground(NightLegionTheme.BACKGROUND);
 
@@ -76,7 +83,14 @@ class NightLegionCommunityPanel extends PluginPanel
         status.setFont(status.getFont().deriveFont(Font.BOLD, 10f));
         status.setAlignmentX(Component.LEFT_ALIGNMENT);
         header.add(status);
-        add(header, BorderLayout.NORTH);
+        if (fixedSection == null)
+        {
+            add(header, BorderLayout.NORTH);
+        }
+        else
+        {
+            section.setSelectedItem(fixedSection);
+        }
 
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
         body.setBackground(NightLegionTheme.BACKGROUND);
@@ -90,7 +104,6 @@ class NightLegionCommunityPanel extends PluginPanel
         add(scroll, BorderLayout.CENTER);
 
         section.addActionListener(e -> render());
-        refresh();
     }
 
     void refresh()
@@ -119,7 +132,7 @@ class NightLegionCommunityPanel extends PluginPanel
             repaintBody();
             return;
         }
-        String selected = String.valueOf(section.getSelectedItem());
+        String selected = fixedSection == null ? String.valueOf(section.getSelectedItem()) : fixedSection;
         switch (selected)
         {
             case "ANNOUNCEMENTS":

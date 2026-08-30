@@ -7,6 +7,7 @@ on:
       - runelite-companion-v2
       - purple-ui-v3
       - polish-live-on-inspired-ui
+      - liveon-exact-nightlegion
   workflow_dispatch:
 
 jobs:
