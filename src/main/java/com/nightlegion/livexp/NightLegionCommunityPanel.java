@@ -90,7 +90,6 @@ class NightLegionCommunityPanel extends PluginPanel
         add(scroll, BorderLayout.CENTER);
 
         section.addActionListener(e -> render());
-        refresh();
     }
 
     void refresh()
