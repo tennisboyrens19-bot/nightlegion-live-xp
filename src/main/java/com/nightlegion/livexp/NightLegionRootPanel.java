@@ -31,6 +31,7 @@ import net.runelite.client.ui.PluginPanel;
 class NightLegionRootPanel extends PluginPanel
 {
     private final Client client;
+    private final NightLegionApi api;
     private final NightLegionPanel clanPanel;
     private final NightLegionRankPanel rankPanel;
     private final NightLegionCommunityPanel communityPanel;
@@ -49,6 +50,7 @@ class NightLegionRootPanel extends PluginPanel
     {
         super(false);
         this.client = client;
+        this.api = api;
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         setBackground(NightLegionTheme.BACKGROUND);
@@ -79,11 +81,11 @@ class NightLegionRootPanel extends PluginPanel
         welcome.setLayout(new BoxLayout(welcome, BoxLayout.Y_AXIS));
         welcome.add(Box.createVerticalGlue());
 
-        JLabel logo = new JLabel(NightLegionTheme.markIcon(150, NightLegionTheme.PURPLE_BRIGHT));
+        JLabel logo = new JLabel(NightLegionTheme.markIcon(180, NightLegionTheme.PURPLE_BRIGHT));
         logo.setHorizontalAlignment(JLabel.CENTER);
         logo.setAlignmentX(Component.CENTER_ALIGNMENT);
         welcome.add(logo);
-        welcome.add(Box.createVerticalStrut(10));
+        welcome.add(Box.createVerticalStrut(8));
 
         JLabel title = new JLabel("Welcome to NightLegion", SwingConstants.CENTER);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
@@ -91,7 +93,9 @@ class NightLegionRootPanel extends PluginPanel
         welcome.add(title);
         welcome.add(Box.createVerticalStrut(12));
 
-        NightLegionTheme.styleButton(verifyButton, true, false);
+        verifyButton.setBackground(new java.awt.Color(190, 104, 0));
+        verifyButton.setForeground(java.awt.Color.WHITE);
+        verifyButton.setFocusPainted(false);
         verifyButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         verifyButton.setMaximumSize(new Dimension(190, 30));
         welcome.add(verifyButton);
@@ -114,7 +118,7 @@ class NightLegionRootPanel extends PluginPanel
         welcome.add(Box.createVerticalStrut(9));
 
         JLabel membersOnly = new JLabel("Exclusive to NightLegion members", SwingConstants.CENTER);
-        membersOnly.setForeground(NightLegionTheme.GOLD);
+        membersOnly.setForeground(new java.awt.Color(210, 160, 55));
         membersOnly.setAlignmentX(Component.CENTER_ALIGNMENT);
         welcome.add(membersOnly);
         welcome.add(Box.createVerticalGlue());
@@ -198,11 +202,11 @@ class NightLegionRootPanel extends PluginPanel
         for (JButton button : navigationButtons)
         {
             boolean active = page.equals(button.getName());
-            button.setForeground(active ? NightLegionTheme.GOLD : new java.awt.Color(210, 210, 210));
+            button.setForeground(active ? new java.awt.Color(255, 152, 0) : new java.awt.Color(210, 210, 210));
             button.setBackground(active ? new java.awt.Color(50, 50, 50) : new java.awt.Color(35, 35, 35));
             button.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, active ? 2 : 1, 0,
-                    active ? NightLegionTheme.GOLD : NightLegionTheme.BORDER),
+                    active ? new java.awt.Color(255, 152, 0) : new java.awt.Color(55, 55, 55)),
                 BorderFactory.createEmptyBorder(3, 3, active ? 2 : 3, 3)));
         }
         if ("RANK".equals(page)) rankPanel.refresh();
@@ -222,18 +226,41 @@ class NightLegionRootPanel extends PluginPanel
             return;
         }
 
-        // Membership/account data is already validated by the existing NightLegion
-        // companion endpoints. Render the same member-first flow as Live On while
-        // preserving the existing API and features.
-        navigationGrid.setVisible(true);
-        if ("ACCESS".equals(selected))
-        {
-            showPage("HOME");
-        }
-        else
-        {
-            showPage(selected);
-        }
+        verifyButton.setEnabled(false);
+        verifyButton.setText("Checking...");
+        accessMessage.setText("<html><center>Checking NightLegion membership...</center></html>");
+        api.action("overview", rsn, new com.google.gson.JsonObject(), result ->
+            javax.swing.SwingUtilities.invokeLater(() ->
+            {
+                verifyButton.setEnabled(true);
+                verifyButton.setText("Verify now");
+                navigationGrid.setVisible(true);
+                if ("ACCESS".equals(selected))
+                {
+                    showPage("HOME");
+                }
+                else
+                {
+                    showPage(selected);
+                }
+            }), error -> javax.swing.SwingUtilities.invokeLater(() ->
+            {
+                verifyButton.setEnabled(true);
+                verifyButton.setText("Verify now");
+                navigationGrid.setVisible(false);
+                accessMessage.setText("<html><center>Member not identified.<br>"
+                    + escapeHtml(error) + "</center></html>");
+                cards.show(content, "ACCESS");
+                footerStatus.setText("Not authenticated");
+                revalidate();
+                repaint();
+            }));
+    }
+
+    private static String escapeHtml(String value)
+    {
+        if (value == null) return "";
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     private String currentRsn()
