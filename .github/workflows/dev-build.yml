@@ -6,6 +6,7 @@ on:
       - main
       - runelite-companion-v2
       - purple-ui-v3
+      - polish-live-on-inspired-ui
   workflow_dispatch:
 
 jobs:
