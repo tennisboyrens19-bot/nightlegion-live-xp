@@ -122,10 +122,10 @@ class NightLegionPanel extends PluginPanel
         JPanel names = new JPanel();
         names.setLayout(new BoxLayout(names, BoxLayout.Y_AXIS));
         names.setBackground(NightLegionTheme.HEADER);
-        JLabel title = new JLabel("CLAN EVENTS");
+        JLabel title = new JLabel("NightLegion");
         title.setForeground(NightLegionTheme.PURPLE_BRIGHT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
-        JLabel subtitle = new JLabel("BOTW · SOTW · GIVEAWAY · GROUP FINDER");
+        JLabel subtitle = new JLabel("Find your next clan activity");
         subtitle.setForeground(NightLegionTheme.MUTED);
         subtitle.setFont(subtitle.getFont().deriveFont(9.5f));
         names.add(title);
