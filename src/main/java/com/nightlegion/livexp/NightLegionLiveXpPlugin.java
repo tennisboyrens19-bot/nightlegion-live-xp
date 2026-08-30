@@ -21,6 +21,7 @@ import net.runelite.api.events.StatChanged;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.NpcLootReceived;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -38,8 +39,8 @@ import org.slf4j.LoggerFactory;
 
 @PluginDescriptor(
     name = "NightLegion",
-    description = "NightLegion SOTW, BOTW, Giveaways, Group Finder and clan rank tracking",
-    tags = {"nightlegion", "sotw", "botw", "giveaway", "group finder", "rank", "clan", "xp", "bossing", "skilling"},
+    description = "NightLegion clan tools, events, Group Finder, ranks and community hub",
+    tags = {"nightlegion", "sotw", "botw", "giveaway", "group finder", "rank", "clan", "xp", "bossing", "skilling", "pb", "drops"},
     enabledByDefault = true
 )
 public class NightLegionLiveXpPlugin extends Plugin
@@ -81,6 +82,7 @@ public class NightLegionLiveXpPlugin extends Plugin
     private NightLegionRootPanel panel;
     private NightLegionNotifier notifier;
     private NightLegionRankTracker rankTracker;
+    private NightLegionCommunityTracker communityTracker;
 
     @Override
     protected void startUp()
@@ -99,6 +101,7 @@ public class NightLegionLiveXpPlugin extends Plugin
 
         rankTracker = new NightLegionRankTracker(client, okHttpClient, sender, config, gson);
         rankTracker.start();
+        communityTracker = new NightLegionCommunityTracker(client, api, config, itemManager);
 
         SwingUtilities.invokeLater(() ->
         {
@@ -125,6 +128,7 @@ public class NightLegionLiveXpPlugin extends Plugin
         }
         panel = null;
         notifier = null;
+        communityTracker = null;
 
         if (rankTracker != null)
         {
@@ -189,6 +193,21 @@ public class NightLegionLiveXpPlugin extends Plugin
         if (currentRankTracker != null)
         {
             currentRankTracker.onChatMessage(event);
+        }
+        NightLegionCommunityTracker currentCommunityTracker = communityTracker;
+        if (currentCommunityTracker != null)
+        {
+            currentCommunityTracker.onChatMessage(event);
+        }
+    }
+
+    @Subscribe
+    public void onNpcLootReceived(NpcLootReceived event)
+    {
+        NightLegionCommunityTracker currentCommunityTracker = communityTracker;
+        if (currentCommunityTracker != null)
+        {
+            currentCommunityTracker.onNpcLootReceived(event);
         }
     }
 
