@@ -60,6 +60,8 @@ class NightLegionCommunityPanel extends PluginPanel
         JLabel title = new JLabel("NIGHTLEGION HUB");
         title.setForeground(NightLegionTheme.PURPLE_BRIGHT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 15f));
+        title.setIcon(NightLegionTheme.markIcon(18, NightLegionTheme.PURPLE_BRIGHT));
+        title.setIconTextGap(7);
         title.setAlignmentX(Component.LEFT_ALIGNMENT);
         header.add(title);
         header.add(Box.createVerticalStrut(5));
@@ -452,6 +454,8 @@ class NightLegionCommunityPanel extends PluginPanel
         JLabel heading = new JLabel(name);
         heading.setForeground(NightLegionTheme.PURPLE_BRIGHT);
         heading.setFont(heading.getFont().deriveFont(Font.BOLD, 14f));
+        heading.setIcon(NightLegionTheme.markIcon(14, NightLegionTheme.PURPLE_BRIGHT));
+        heading.setIconTextGap(6);
         heading.setAlignmentX(Component.LEFT_ALIGNMENT);
         body.add(heading);
         JLabel sub = new JLabel(subtitle);
@@ -468,8 +472,10 @@ class NightLegionCommunityPanel extends PluginPanel
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(NightLegionTheme.SURFACE);
         panel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(NightLegionTheme.SURFACE_ALT.brighter()),
-            BorderFactory.createEmptyBorder(8, 8, 8, 8)));
+            BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 3, 0, 0, NightLegionTheme.PURPLE),
+                BorderFactory.createLineBorder(NightLegionTheme.BORDER)),
+            BorderFactory.createEmptyBorder(8, 9, 8, 8)));
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
         return panel;
