@@ -13,6 +13,8 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JPasswordField;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
@@ -21,6 +23,7 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.Player;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.config.ConfigManager;
 import net.runelite.client.ui.PluginPanel;
 
 /**
@@ -32,6 +35,8 @@ class NightLegionRootPanel extends PluginPanel
 {
     private final Client client;
     private final NightLegionApi api;
+    private final NightLegionLiveXpConfig config;
+    private final ConfigManager configManager;
     private final NightLegionPanel clanPanel;
     private final NightLegionRankPanel rankPanel;
     private final NightLegionCommunityPanel communityPanel;
@@ -46,11 +51,13 @@ class NightLegionRootPanel extends PluginPanel
     private final JButton verifyButton = new JButton("Verify now");
     private String selected = "ACCESS";
 
-    NightLegionRootPanel(Client client, NightLegionApi api, ItemManager itemManager)
+    NightLegionRootPanel(Client client, NightLegionApi api, ItemManager itemManager, NightLegionLiveXpConfig config, ConfigManager configManager)
     {
         super(false);
         this.client = client;
         this.api = api;
+        this.config = config;
+        this.configManager = configManager;
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         setBackground(NightLegionTheme.BACKGROUND);
@@ -66,8 +73,8 @@ class NightLegionRootPanel extends PluginPanel
         add(content, BorderLayout.CENTER);
         add(buildFooter(), BorderLayout.SOUTH);
 
-        verifyButton.addActionListener(event -> refresh());
-        showAccess("Checking your linked account...");
+        verifyButton.addActionListener(event -> verifyMembership(true));
+        showAccess("Checking your NightLegion membership...");
         refresh();
     }
 
@@ -219,11 +226,59 @@ class NightLegionRootPanel extends PluginPanel
 
     void refresh()
     {
+        verifyMembership(false);
+    }
+
+    private void verifyMembership(boolean allowPrompt)
+    {
         String rsn = currentRsn();
+        if (!config.enabled())
+        {
+            showAccess("Enable <b>Connect to clan</b> in the NightLegion settings.");
+            footerStatus.setText("Connection disabled");
+            return;
+        }
         if (client.getGameState() != GameState.LOGGED_IN || rsn.isEmpty())
         {
             showAccess("Log in to RuneScape to verify your NightLegion membership.");
             return;
+        }
+
+        String token = config.token() == null ? "" : config.token().trim();
+        if (token.isEmpty())
+        {
+            showAccess("Member not identified.<br>Click <b>Verify now</b> to link NightLegion.");
+            footerStatus.setText("Not authenticated");
+            if (!allowPrompt)
+            {
+                return;
+            }
+
+            JPasswordField field = new JPasswordField();
+            field.setPreferredSize(new Dimension(220, 26));
+            JPanel prompt = new JPanel(new BorderLayout(0, 6));
+            prompt.add(new JLabel("<html>Run <b>/runelite_link</b> in NightLegion Discord,<br>then paste the Personal Link Token here.</html>"), BorderLayout.NORTH);
+            prompt.add(field, BorderLayout.CENTER);
+            int choice = JOptionPane.showConfirmDialog(
+                this, prompt, "Link NightLegion", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            if (choice != JOptionPane.OK_OPTION)
+            {
+                return;
+            }
+            char[] password = field.getPassword();
+            try
+            {
+                token = new String(password).trim();
+            }
+            finally
+            {
+                java.util.Arrays.fill(password, '\0');
+            }
+            if (token.isEmpty())
+            {
+                return;
+            }
+            configManager.setConfiguration("nightlegionlivexp", "token", token);
         }
 
         verifyButton.setEnabled(false);
