@@ -17,7 +17,9 @@ import net.runelite.api.Player;
 import net.runelite.api.Skill;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.StatChanged;
+import net.runelite.api.events.WidgetLoaded;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -154,6 +156,7 @@ public class NightLegionLiveXpPlugin extends Plugin
     {
         NightLegionNotifier currentNotifier = notifier;
         NightLegionRankTracker currentRankTracker = rankTracker;
+        NightLegionCommunityTracker currentCommunityTracker = communityTracker;
         if (currentRankTracker != null)
         {
             currentRankTracker.onGameStateChanged(event.getGameState());
@@ -164,6 +167,10 @@ public class NightLegionLiveXpPlugin extends Plugin
             if (currentNotifier != null)
             {
                 currentNotifier.onLoggedOut();
+            }
+            if (currentCommunityTracker != null)
+            {
+                currentCommunityTracker.onLoggedOut();
             }
             return;
         }
@@ -198,6 +205,26 @@ public class NightLegionLiveXpPlugin extends Plugin
         if (currentCommunityTracker != null)
         {
             currentCommunityTracker.onChatMessage(event);
+        }
+    }
+
+    @Subscribe
+    public void onWidgetLoaded(WidgetLoaded event)
+    {
+        NightLegionCommunityTracker currentCommunityTracker = communityTracker;
+        if (currentCommunityTracker != null)
+        {
+            currentCommunityTracker.onWidgetLoaded(event);
+        }
+    }
+
+    @Subscribe
+    public void onGameTick(GameTick event)
+    {
+        NightLegionCommunityTracker currentCommunityTracker = communityTracker;
+        if (currentCommunityTracker != null)
+        {
+            currentCommunityTracker.onGameTick();
         }
     }
 
