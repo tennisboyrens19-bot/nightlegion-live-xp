@@ -55,7 +55,7 @@ class NightLegionRootPanel extends PluginPanel
     private final NightLegionCommunityPanel mvpPanel;
     private final NightLegionCommunityPanel pbPanel;
     private final NightLegionPanel eventsPanel;
-    private final NightLegionPanel groupsPanel;
+    private final NightLegionGroupFinderPanel groupsPanel;
 
     private final CardLayout cards = new CardLayout();
     private final JPanel content = new JPanel(cards);
@@ -90,7 +90,7 @@ class NightLegionRootPanel extends PluginPanel
         mvpPanel = new NightLegionCommunityPanel(client, api, "MVP");
         pbPanel = new NightLegionCommunityPanel(client, api, "PB LEADERBOARD");
         eventsPanel = new NightLegionPanel(client, api, itemManager);
-        groupsPanel = new NightLegionPanel(client, api, itemManager, "GROUP FINDER");
+        groupsPanel = new NightLegionGroupFinderPanel(client, api, itemManager);
 
         createAccessTab();
         createAuthenticatedPages();
