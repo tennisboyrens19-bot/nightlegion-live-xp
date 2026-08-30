@@ -3,6 +3,7 @@ package com.nightlegion.livexp;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.geom.Path2D;
@@ -24,6 +25,9 @@ final class NightLegionTheme
     static final Color SILVER = new Color(232, 226, 239);
     static final Color MUTED = new Color(174, 160, 187);
     static final Color DANGER = new Color(160, 62, 88);
+    static final Color SUCCESS = new Color(76, 196, 128);
+    static final Color GOLD = new Color(232, 184, 76);
+    static final Color BORDER = new Color(79, 53, 98);
 
     private NightLegionTheme()
     {
@@ -34,11 +38,12 @@ final class NightLegionTheme
         Color background = danger ? DANGER : primary ? PURPLE : SURFACE_ALT;
         button.setFocusPainted(false);
         button.setOpaque(true);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         button.setBackground(background);
         button.setForeground(Color.WHITE);
         button.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(primary ? PURPLE_BRIGHT : background.brighter()),
-            BorderFactory.createEmptyBorder(4, 8, 4, 8)));
+            BorderFactory.createLineBorder(primary ? PURPLE_BRIGHT : BORDER),
+            BorderFactory.createEmptyBorder(5, 9, 5, 9)));
     }
 
     static void styleCombo(JComboBox<?> combo)
@@ -46,7 +51,7 @@ final class NightLegionTheme
         combo.setOpaque(true);
         combo.setBackground(SURFACE_ALT);
         combo.setForeground(Color.WHITE);
-        combo.setBorder(BorderFactory.createLineBorder(SURFACE_ALT.brighter()));
+        combo.setBorder(BorderFactory.createLineBorder(BORDER));
     }
 
     static void styleField(JComponent component)
@@ -55,7 +60,7 @@ final class NightLegionTheme
         component.setBackground(SURFACE_ALT);
         component.setForeground(Color.WHITE);
         component.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(SURFACE_ALT.brighter()),
+            BorderFactory.createLineBorder(BORDER),
             BorderFactory.createEmptyBorder(4, 6, 4, 6)));
     }
 
