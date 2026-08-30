@@ -82,6 +82,9 @@ class NightLegionRankPanel extends JPanel
         progress.setValue(0);
         progress.setStringPainted(true);
         progress.setString("0%");
+        progress.setForeground(NightLegionTheme.PURPLE);
+        progress.setBackground(NightLegionTheme.SURFACE_ALT);
+        progress.setBorder(BorderFactory.createLineBorder(NightLegionTheme.BORDER));
         progress.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
         nextCard.add(progress);
         content.add(nextCard);
@@ -119,11 +122,16 @@ class NightLegionRankPanel extends JPanel
         content.add(refresh);
         content.add(Box.createVerticalStrut(8));
 
-        JLabel help = new JLabel("Need linking? Discord: /rank link · /rank set-rsn");
+        JPanel helpCard = card();
+        helpCard.setLayout(new BoxLayout(helpCard, BoxLayout.Y_AXIS));
+        helpCard.add(smallTitle("ACCOUNT LINK"));
+        helpCard.add(Box.createVerticalStrut(3));
+        JLabel help = new JLabel("Discord: /rank link · /rank set-rsn");
         help.setForeground(NightLegionTheme.MUTED);
         help.setFont(help.getFont().deriveFont(9f));
         help.setAlignmentX(LEFT_ALIGNMENT);
-        content.add(help);
+        helpCard.add(help);
+        content.add(helpCard);
 
         add(content, BorderLayout.NORTH);
         refresh();
@@ -215,8 +223,10 @@ class NightLegionRankPanel extends JPanel
         JPanel panel = new JPanel();
         panel.setBackground(NightLegionTheme.SURFACE);
         panel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(NightLegionTheme.SURFACE_ALT.brighter()),
-            BorderFactory.createEmptyBorder(8, 8, 8, 8)));
+            BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 3, 0, 0, NightLegionTheme.PURPLE),
+                BorderFactory.createLineBorder(NightLegionTheme.BORDER)),
+            BorderFactory.createEmptyBorder(8, 9, 8, 8)));
         panel.setAlignmentX(LEFT_ALIGNMENT);
         panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
         return panel;
