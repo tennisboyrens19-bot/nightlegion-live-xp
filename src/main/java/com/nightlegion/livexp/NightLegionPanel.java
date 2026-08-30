@@ -122,10 +122,10 @@ class NightLegionPanel extends PluginPanel
         JPanel names = new JPanel();
         names.setLayout(new BoxLayout(names, BoxLayout.Y_AXIS));
         names.setBackground(NightLegionTheme.HEADER);
-        JLabel title = new JLabel("NightLegion");
+        JLabel title = new JLabel("CLAN EVENTS");
         title.setForeground(NightLegionTheme.PURPLE_BRIGHT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
-        JLabel subtitle = new JLabel("Own the night");
+        JLabel subtitle = new JLabel("BOTW · SOTW · GIVEAWAY · GROUP FINDER");
         subtitle.setForeground(NightLegionTheme.MUTED);
         subtitle.setFont(subtitle.getFont().deriveFont(9.5f));
         names.add(title);
@@ -870,8 +870,10 @@ class NightLegionPanel extends PluginPanel
         JPanel card = card();
         card.setBackground(NightLegionTheme.HEADER);
         card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createMatteBorder(0, 0, 2, 0, NightLegionTheme.PURPLE),
-            BorderFactory.createEmptyBorder(7, 8, 7, 8)));
+            BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 3, 0, 0, NightLegionTheme.PURPLE_BRIGHT),
+                BorderFactory.createLineBorder(NightLegionTheme.BORDER)),
+            BorderFactory.createEmptyBorder(8, 9, 8, 8)));
         return card;
     }
 
@@ -881,8 +883,10 @@ class NightLegionPanel extends PluginPanel
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setBackground(NightLegionTheme.SURFACE);
         card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(NightLegionTheme.SURFACE_ALT.brighter()),
-            BorderFactory.createEmptyBorder(6, 7, 6, 7)));
+            BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 3, 0, 0, NightLegionTheme.PURPLE),
+                BorderFactory.createLineBorder(NightLegionTheme.BORDER)),
+            BorderFactory.createEmptyBorder(7, 8, 7, 8)));
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
         card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 210));
         return card;
@@ -893,7 +897,9 @@ class NightLegionPanel extends PluginPanel
         JPanel tile = new JPanel();
         tile.setLayout(new BoxLayout(tile, BoxLayout.Y_AXIS));
         tile.setBackground(NightLegionTheme.SURFACE_ALT);
-        tile.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
+        tile.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(NightLegionTheme.BORDER),
+            BorderFactory.createEmptyBorder(4, 6, 4, 6)));
         JLabel top = new JLabel(label);
         top.setForeground(NightLegionTheme.MUTED);
         top.setFont(top.getFont().deriveFont(Font.BOLD, 8.5f));
@@ -923,6 +929,8 @@ class NightLegionPanel extends PluginPanel
         JLabel title = new JLabel(text);
         title.setForeground(NightLegionTheme.PURPLE_BRIGHT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 10f));
+        title.setIcon(NightLegionTheme.markIcon(12, NightLegionTheme.PURPLE_BRIGHT));
+        title.setIconTextGap(5);
         title.setAlignmentX(Component.LEFT_ALIGNMENT);
         return title;
     }
