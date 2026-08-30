@@ -58,12 +58,19 @@ class NightLegionPanel extends PluginPanel
     private JsonObject latest;
     private List<String> activities = new ArrayList<>();
     private boolean syncingActivities;
+    private final String fixedSection;
 
     NightLegionPanel(Client client, NightLegionApi api, ItemManager itemManager)
+    {
+        this(client, api, itemManager, null);
+    }
+
+    NightLegionPanel(Client client, NightLegionApi api, ItemManager itemManager, String fixedSection)
     {
         this.client = client;
         this.api = api;
         this.itemManager = itemManager;
+        this.fixedSection = fixedSection;
 
         setLayout(new BorderLayout());
         setBackground(NightLegionTheme.BACKGROUND);
@@ -90,6 +97,10 @@ class NightLegionPanel extends PluginPanel
         scroll.getViewport().setBackground(NightLegionTheme.BACKGROUND);
 
         add(buildHeader(), BorderLayout.NORTH);
+        if (fixedSection != null)
+        {
+            section.setSelectedItem(fixedSection);
+        }
         add(scroll, BorderLayout.CENTER);
 
         section.addActionListener(e -> render());
@@ -121,10 +132,10 @@ class NightLegionPanel extends PluginPanel
         JPanel names = new JPanel();
         names.setLayout(new BoxLayout(names, BoxLayout.Y_AXIS));
         names.setBackground(NightLegionTheme.HEADER);
-        JLabel title = new JLabel("NightLegion");
+        JLabel title = new JLabel("GROUP FINDER".equals(fixedSection) ? "NightLegion Groups" : "NightLegion");
         title.setForeground(NightLegionTheme.PURPLE_BRIGHT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
-        JLabel subtitle = new JLabel("Find your next clan activity");
+        JLabel subtitle = new JLabel("GROUP FINDER".equals(fixedSection) ? "Find your next PvM team" : "Find your next clan activity");
         subtitle.setForeground(NightLegionTheme.MUTED);
         subtitle.setFont(subtitle.getFont().deriveFont(9.5f));
         names.add(title);
@@ -137,8 +148,11 @@ class NightLegionPanel extends PluginPanel
 
         header.add(brand);
         header.add(Box.createVerticalStrut(5));
-        header.add(section);
-        header.add(Box.createVerticalStrut(5));
+        if (fixedSection == null)
+        {
+            header.add(section);
+            header.add(Box.createVerticalStrut(5));
+        }
         header.add(connection);
         return header;
     }
@@ -254,7 +268,7 @@ class NightLegionPanel extends PluginPanel
             return;
         }
 
-        String selected = String.valueOf(section.getSelectedItem());
+        String selected = fixedSection == null ? String.valueOf(section.getSelectedItem()) : fixedSection;
         if ("BOTW".equals(selected))
         {
             renderEvent("botw", "JOIN BOTW", "Boss of the Week");
