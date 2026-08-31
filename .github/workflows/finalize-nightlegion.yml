@@ -1,16 +1,13 @@
 name: Finalize NightLegion exact release
 
 on:
-  push:
-    branches:
-      - liveon-exact-nightlegion-v2
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   finalize:
-    if: ${{ !contains(github.event.head_commit.message || '', '[finalize-nightlegion]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,18 +24,5 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.14.3'
-      - name: Final English cleanup
-        run: python scripts/finalize_english_nightlegion.py
-      - name: Build exact release
-        run: gradle clean build --stacktrace
-      - name: Commit finalized source
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/main/java/com/liveon TRANSLATION_REVIEW.md
-          if git diff --cached --quiet; then
-            echo "NightLegion exact release already finalized."
-            exit 0
-          fi
-          git commit -m "[finalize-nightlegion] Finalize exact NightLegion English release"
-          git push origin HEAD:liveon-exact-nightlegion-v2
+      - run: python scripts/finalize_english_nightlegion.py
+      - run: gradle clean build --stacktrace
