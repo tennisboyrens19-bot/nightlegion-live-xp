@@ -42,6 +42,16 @@ class NightLegionNotifier
     NightLegionNotifier(
         Client client,
         ClientThread clientThread,
+        NightLegionApi api,
+        NightLegionLiveXpConfig config,
+        ScheduledExecutorService executor)
+    {
+        this(client, clientThread, null, api, config, executor);
+    }
+
+    NightLegionNotifier(
+        Client client,
+        ClientThread clientThread,
         ChatMessageManager chatMessageManager,
         NightLegionApi api,
         NightLegionLiveXpConfig config,
@@ -441,9 +451,9 @@ class NightLegionNotifier
     }
 
     /**
-     * Copied from Live On's working delivery path: queue a RuneLite-formatted
-     * CLAN_MESSAGE instead of adding a purple GAMEMESSAGE. RuneLite supplies the
-     * normal clan prefix; the green NightLegion tag is the plugin/system tag.
+     * Same delivery style as Live On: a RuneLite-formatted CLAN_MESSAGE. This
+     * puts NightLegion system notices in the Clan tab with the normal clan
+     * prefix and a green plugin tag, instead of purple game messages.
      */
     private void clanSystem(String message)
     {
@@ -452,10 +462,17 @@ class NightLegionNotifier
             ChatMessageBuilder builder = new ChatMessageBuilder()
                 .append(Color.GREEN, "[NightLegion] ")
                 .append(Color.WHITE, safeText(message));
-            chatMessageManager.queue(QueuedMessage.builder()
-                .type(ChatMessageType.CLAN_MESSAGE)
-                .runeLiteFormattedMessage(builder.build())
-                .build());
+            if (chatMessageManager != null)
+            {
+                chatMessageManager.queue(QueuedMessage.builder()
+                    .type(ChatMessageType.CLAN_MESSAGE)
+                    .runeLiteFormattedMessage(builder.build())
+                    .build());
+            }
+            else
+            {
+                client.addChatMessage(ChatMessageType.CLAN_MESSAGE, "", builder.build(), null);
+            }
         });
     }
 
