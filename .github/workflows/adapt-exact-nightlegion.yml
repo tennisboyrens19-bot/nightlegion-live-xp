@@ -29,6 +29,10 @@ jobs:
           gradle-version: '8.14.3'
       - name: Adapt exact source
         run: python scripts/adapt_exact_nightlegion.py
+      - name: Preserve Lombok Data annotation
+        run: |
+          sed -i 's/import lombok.Date;/import lombok.Data;/' src/main/java/com/liveon/DropRarityService.java
+          sed -i 's/@Date/@Data/g' src/main/java/com/liveon/DropRarityService.java
       - name: Build adapted plugin
         run: gradle clean build --stacktrace
       - name: Commit final adapted source
