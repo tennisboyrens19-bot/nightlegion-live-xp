@@ -3,6 +3,7 @@ package com.nightlegion.livexp;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import java.awt.Color;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -13,15 +14,17 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatMessageBuilder;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.QueuedMessage;
 
 class NightLegionNotifier
 {
     private static final long POLL_SECONDS = 20L;
-    private static final String PURPLE = "7b16c9";
-    private static final String MUTED = "2f1638";
 
     private final Client client;
     private final ClientThread clientThread;
+    private final ChatMessageManager chatMessageManager;
     private final NightLegionApi api;
     private final NightLegionLiveXpConfig config;
     private final ScheduledExecutorService executor;
@@ -39,12 +42,14 @@ class NightLegionNotifier
     NightLegionNotifier(
         Client client,
         ClientThread clientThread,
+        ChatMessageManager chatMessageManager,
         NightLegionApi api,
         NightLegionLiveXpConfig config,
         ScheduledExecutorService executor)
     {
         this.client = client;
         this.clientThread = clientThread;
+        this.chatMessageManager = chatMessageManager;
         this.api = api;
         this.config = config;
         this.executor = executor;
@@ -131,8 +136,8 @@ class NightLegionNotifier
         {
             if (config.eventAlerts())
             {
-                announceEvent(botw, "BOTW", "⚔", false);
-                announceEvent(sotw, "SOTW", "🏆", false);
+                announceEvent(botw, "BOTW", false);
+                announceEvent(sotw, "SOTW", false);
             }
             if (config.giveawayAlerts())
             {
@@ -153,11 +158,11 @@ class NightLegionNotifier
         {
             if (botw != null && !currentBotw.isEmpty() && !currentBotw.equals(seenBotwId))
             {
-                announceEvent(botw, "BOTW", "⚔", true);
+                announceEvent(botw, "BOTW", true);
             }
             if (sotw != null && !currentSotw.isEmpty() && !currentSotw.equals(seenSotwId))
             {
-                announceEvent(sotw, "SOTW", "🏆", true);
+                announceEvent(sotw, "SOTW", true);
             }
         }
         seenBotwId = currentBotw;
@@ -184,7 +189,7 @@ class NightLegionNotifier
         seenGroups.addAll(currentGroups);
     }
 
-    private void announceEvent(JsonObject event, String section, String emoji, boolean isNew)
+    private void announceEvent(JsonObject event, String section, boolean isNew)
     {
         if (event == null || id(event).isEmpty())
         {
@@ -197,19 +202,19 @@ class NightLegionNotifier
         String action;
         if (entered)
         {
-            action = "You're entered — open NightLegion → " + section + " for progress.";
+            action = "You're entered - open NightLegion > " + section + " for progress.";
         }
         else if (pending)
         {
-            action = "Your buy-in is pending — open NightLegion → " + section + ".";
+            action = "Your buy-in is pending - open NightLegion > " + section + ".";
         }
         else
         {
-            action = "Open NightLegion → " + section + " to join.";
+            action = "Open NightLegion > " + section + " to join.";
         }
 
-        chat(emoji + " " + (isNew ? "New " : "") + section + " active: "
-            + (label.isEmpty() ? section : label) + " — " + action);
+        clanSystem((isNew ? "New " : "") + section + " active: "
+            + (label.isEmpty() ? section : label) + " - " + action);
     }
 
     private void announceGiveaway(JsonObject giveaway, boolean isNew)
@@ -231,17 +236,17 @@ class NightLegionNotifier
         }
         else if (eligible)
         {
-            suffix = "Open NightLegion → Giveaway to enter.";
+            suffix = "Open NightLegion > Giveaway to enter.";
         }
         else
         {
             suffix = rank.isEmpty()
-                ? "Open NightLegion → Giveaway for details."
+                ? "Open NightLegion > Giveaway for details."
                 : "Requires Discord rank: " + rank + ".";
         }
 
-        chat("🎁 " + (isNew ? "New Giveaway" : "Giveaway active") + ": "
-            + (prize.isEmpty() ? "NightLegion giveaway" : prize) + " — " + suffix);
+        clanSystem((isNew ? "New Giveaway" : "Giveaway active") + ": "
+            + (prize.isEmpty() ? "NightLegion giveaway" : prize) + " - " + suffix);
     }
 
     private void broadcastNewGroups(JsonArray groups)
@@ -263,7 +268,7 @@ class NightLegionNotifier
             String activity = text(group, "activity");
             String host = text(group, "host_name");
             String world = group.has("world") && !group.get("world").isJsonNull()
-                ? " · World " + group.get("world").getAsInt()
+                ? " - World " + group.get("world").getAsInt()
                 : "";
             int members = group.has("members") && group.get("members").isJsonArray()
                 ? group.getAsJsonArray("members").size()
@@ -272,10 +277,10 @@ class NightLegionNotifier
                 ? group.get("max_players").getAsInt()
                 : 1;
 
-            chat("👥 New " + (activity.isEmpty() ? "Group Finder" : activity)
+            clanSystem("New " + (activity.isEmpty() ? "Group Finder" : activity)
                 + " group by " + (host.isEmpty() ? "a clan member" : host)
-                + " — " + members + "/" + max + world
-                + ". Open NightLegion → Group Finder.");
+                + " - " + members + "/" + max + world
+                + ". Open NightLegion > Group Finder.");
         }
     }
 
@@ -310,9 +315,9 @@ class NightLegionNotifier
 
             for (Long userId : difference(currentPending, previousPending))
             {
-                chat("👤 " + pendingNames.getOrDefault(userId, "A clan member")
+                clanSystem(pendingNames.getOrDefault(userId, "A clan member")
                     + " requested to join your " + title
-                    + " group — open NightLegion → Group Finder → Requests.");
+                    + " group - open NightLegion > Group Finder > Requests.");
             }
 
             for (Long userId : difference(currentMembers, previousMembers))
@@ -324,8 +329,8 @@ class NightLegionNotifier
                 int max = group.has("max_players") && !group.get("max_players").isJsonNull()
                     ? group.get("max_players").getAsInt()
                     : currentMembers.size();
-                chat("✅ " + memberNames.getOrDefault(userId, "A clan member")
-                    + " joined your " + title + " group — "
+                clanSystem(memberNames.getOrDefault(userId, "A clan member")
+                    + " joined your " + title + " group - "
                     + currentMembers.size() + "/" + max + " players.");
             }
 
@@ -435,13 +440,23 @@ class NightLegionNotifier
             : client.getLocalPlayer().getName().trim();
     }
 
-    private void chat(String message)
+    /**
+     * Copied from Live On's working delivery path: queue a RuneLite-formatted
+     * CLAN_MESSAGE instead of adding a purple GAMEMESSAGE. RuneLite supplies the
+     * normal clan prefix; the green NightLegion tag is the plugin/system tag.
+     */
+    private void clanSystem(String message)
     {
-        clientThread.invokeLater(() -> client.addChatMessage(
-            ChatMessageType.GAMEMESSAGE,
-            "",
-            "<col=" + PURPLE + ">[NightLegion]</col> <col=" + MUTED + ">" + escapeTags(message) + "</col>",
-            null));
+        clientThread.invokeLater(() ->
+        {
+            ChatMessageBuilder builder = new ChatMessageBuilder()
+                .append(Color.GREEN, "[NightLegion] ")
+                .append(Color.WHITE, safeText(message));
+            chatMessageManager.queue(QueuedMessage.builder()
+                .type(ChatMessageType.CLAN_MESSAGE)
+                .runeLiteFormattedMessage(builder.build())
+                .build());
+        });
     }
 
     private static JsonObject object(JsonObject parent, String key)
@@ -490,8 +505,8 @@ class NightLegionNotifier
         }
     }
 
-    private static String escapeTags(String value)
+    private static String safeText(String value)
     {
-        return value == null ? "" : value.replace("<", "[").replace(">", "]");
+        return value == null ? "" : value.replace('<', '[').replace('>', ']');
     }
 }
