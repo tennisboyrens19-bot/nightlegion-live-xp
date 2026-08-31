@@ -786,7 +786,7 @@ final class MvpPanel extends JPanel
 		MvpDropDetail[] drops = entry.getTopDrops();
 		if (drops == null || drops.length == 0)
 		{
-			JLabel unavailable = new JLabel("Top 3 ainda sem registros");
+			JLabel unavailable = new JLabel("Top 3 has no entries yet");
 			unavailable.setForeground(new Color(175, 175, 175));
 			unavailable.setFont(unavailable.getFont().deriveFont(Font.BOLD, 14f));
 			unavailable.setHorizontalAlignment(SwingConstants.LEFT);

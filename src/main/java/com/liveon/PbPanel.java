@@ -103,7 +103,7 @@ final class PbPanel extends JPanel
 		searchRow.add(clearSearch, BorderLayout.EAST);
 		top.add(searchRow);
 		top.add(Box.createVerticalStrut(6));
-		JLabel selectionLabel = new JLabel("Ou selecione nos menus abaixo");
+		JLabel selectionLabel = new JLabel("Or select from the menus below");
 		selectionLabel.setForeground(new Color(145, 145, 145));
 		selectionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		top.add(selectionLabel);
@@ -477,7 +477,7 @@ final class PbPanel extends JPanel
 		if (bossNames.isEmpty() && raidNames.isEmpty())
 		{
 			ranking.removeAll();
-			ranking.add(centered("No PB sincronizado nesta categoria."));
+			ranking.add(centered("No PB synced in this category."));
 			setTutorialExpanded(true);
 			ownPb.setText("<html><div style='text-align:center'>Open the Adventure Log<br>to import your PBs</div></html>");
 			ranking.revalidate();

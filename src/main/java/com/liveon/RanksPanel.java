@@ -285,7 +285,7 @@ final class RanksPanel extends JPanel
 				requirementsTitle.setText("Promotion automática");
 				helper.setText(wrapped("Soldier is granted automatically after 30 days in the clan. No request is required.", REQUIREMENT_TEXT_WIDTH));
 				setWrappedText(nextRank, "Soldier • automatic promotion");
-				nextMissing.setText(wrapped("Concedido após 30 dias in the clan.", REQUIREMENT_TEXT_WIDTH));
+				nextMissing.setText(wrapped("Granted after 30 days in the clan.", REQUIREMENT_TEXT_WIDTH));
 			}
 			else if (currentIndex >= progressionIndex("Colonel"))
 			{
@@ -345,7 +345,7 @@ final class RanksPanel extends JPanel
 			else
 			{
 				requestRank.setEnabled(canRequest);
-				requestRank.setText("Solicitar " + (canRequest ? requestCandidate : requestTarget));
+				requestRank.setText("Request " + (canRequest ? requestCandidate : requestTarget));
 				requestRank.setToolTipText(canRequest ? "Enviar request para a staff"
 					: "Complete or verify the highlighted requirements before requesting");
 			}

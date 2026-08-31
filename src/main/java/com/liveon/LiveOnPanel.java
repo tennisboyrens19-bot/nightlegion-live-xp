@@ -118,7 +118,7 @@ final class LiveOnPanel extends JPanel
 			int row = table.getSelectedRow();
 			if (row < 0 || row >= managedChannels.size())
 			{
-				setStatus("Select um canal");
+				setStatus("Select a channel");
 				return;
 			}
 			deleteAction.accept(managedChannels.get(row));
@@ -477,7 +477,7 @@ final class LiveOnPanel extends JPanel
 			{
 				model.addRow(new Object[]{channel.playerName, channel.twitchLogin, channel.online ? "LIVE" : "Offline"});
 			}
-			status.setText(managedChannels.size() + " canal(is)");
+			status.setText(managedChannels.size() + " channel(s)");
 		});
 	}
 
