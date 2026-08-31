@@ -24,12 +24,14 @@ jobs:
       - name: Copy exact upstream source
         run: python scripts/sync_liveon_reference.py
       - name: Inventory exact upstream HTTP behavior
-        run: python scripts/analyze_liveon_http.py
+        run: |
+          python scripts/analyze_liveon_http.py
+          python scripts/extract_liveon_routes.py
       - name: Commit vendored source
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/main/java/com/liveon src/main/resources vendor/live-on-clan LIVEON_SOURCE_INVENTORY.md LIVEON_HTTP_CALLS.md
+          git add src/main/java/com/liveon src/main/resources vendor/live-on-clan LIVEON_SOURCE_INVENTORY.md LIVEON_HTTP_CALLS.md LIVEON_REST_CONTRACT.md
           if git diff --cached --quiet; then
             echo "Live On source already synchronized."
             exit 0
