@@ -6,14 +6,24 @@ import com.google.gson.JsonObject;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Container;
+import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.GridLayout;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
@@ -22,145 +32,380 @@ import net.runelite.api.Client;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.LinkBrowser;
 
-/** Home page intentionally follows Live On Clan's panel composition. */
+/** Live On home panel copied to NightLegion and translated to English. */
 final class NightLegionHomePanel extends PluginPanel
 {
-    private static final Color ORANGE = new Color(255, 152, 0);
-    private static final Color GREEN = new Color(70, 220, 100);
-    private static final Color BLUE = new Color(90, 190, 245);
-    private static final Color MUTED = new Color(155, 155, 155);
+    private static final Pattern RECORD_TIME_PATTERN = Pattern.compile(
+        "(?:\\s*[·•|-]\\s*|\\s+)(\\d{1,2}(?::\\d{2}){1,2}(?:\\.\\d{1,2})?)$");
 
     private final Client client;
     private final NightLegionApi api;
-    private final JPanel body = new JPanel();
-    private JsonObject snapshot;
+    private final JPanel onlineChannels = new JPanel();
+    private final JLabel pinnedNotice = new JLabel("<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'>No pinned announcement.</font></html>");
+    private final JPanel recentActivities = new JPanel();
+    private final Set<String> expandedActivities = new HashSet<>();
+    private List<Activity> currentActivities = Collections.emptyList();
 
     NightLegionHomePanel(Client client, NightLegionApi api)
     {
         super(false);
         this.client = client;
         this.api = api;
-        setLayout(new BorderLayout());
+        setLayout(new BorderLayout(6, 8));
         setBorder(BorderFactory.createEmptyBorder(7, 7, 7, 7));
-        setBackground(NightLegionTheme.BACKGROUND);
 
-        body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
-        body.setBackground(NightLegionTheme.BACKGROUND);
-        JScrollPane scroll = new JScrollPane(body);
+        JPanel home = new JPanel();
+        home.setLayout(new BoxLayout(home, BoxLayout.Y_AXIS));
+
+        JPanel notice = new JPanel(new BorderLayout());
+        notice.setAlignmentX(LEFT_ALIGNMENT);
+        notice.setMaximumSize(new Dimension(Integer.MAX_VALUE, 58));
+        notice.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 3, 0, 0, new Color(75, 170, 235)),
+            BorderFactory.createEmptyBorder(7, 8, 7, 6)));
+        notice.add(pinnedNotice);
+        home.add(notice);
+        home.add(Box.createVerticalStrut(8));
+        home.add(createSectionDivider());
+        home.add(Box.createVerticalStrut(8));
+
+        JLabel title = new JLabel("ONLINE ON TWITCH");
+        title.setForeground(new Color(70, 220, 100));
+        title.setAlignmentX(LEFT_ALIGNMENT);
+        home.add(title);
+        home.add(Box.createVerticalStrut(5));
+        onlineChannels.setLayout(new BoxLayout(onlineChannels, BoxLayout.Y_AXIS));
+        onlineChannels.setAlignmentX(LEFT_ALIGNMENT);
+        onlineChannels.setMinimumSize(new Dimension(0, 0));
+        onlineChannels.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+        home.add(onlineChannels);
+        home.add(Box.createVerticalStrut(8));
+        home.add(createSectionDivider());
+        home.add(Box.createVerticalStrut(8));
+
+        JLabel recentTitle = new JLabel("RECENT CLAN ACTIVITY");
+        recentTitle.setForeground(new Color(255, 152, 0));
+        recentTitle.setAlignmentX(LEFT_ALIGNMENT);
+        home.add(recentTitle);
+        recentActivities.setLayout(new BoxLayout(recentActivities, BoxLayout.Y_AXIS));
+        recentActivities.setAlignmentX(LEFT_ALIGNMENT);
+        home.add(recentActivities);
+
+        JScrollPane scroll = new JScrollPane(home);
         scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
         scroll.getVerticalScrollBar().setUnitIncrement(16);
-        scroll.getViewport().setBackground(NightLegionTheme.BACKGROUND);
         add(scroll, BorderLayout.CENTER);
+
+        updatePinnedNotice(null);
+        updateOnline(Collections.emptyList());
+        updateRecent(Collections.emptyList());
     }
 
     void refresh()
     {
         api.action("community_snapshot", rsn(), new JsonObject(), json -> SwingUtilities.invokeLater(() ->
         {
-            snapshot = json;
-            render();
+            JsonArray notices = array(json, "notices");
+            String notice = null;
+            if (notices.size() > 0 && notices.get(0).isJsonObject())
+            {
+                notice = text(notices.get(0).getAsJsonObject(), "text", "");
+            }
+            updatePinnedNotice(notice);
+
+            List<Stream> streams = new ArrayList<>();
+            for (JsonElement element : array(json, "streams"))
+            {
+                if (!element.isJsonObject()) continue;
+                JsonObject row = element.getAsJsonObject();
+                if (!bool(row, "is_live")) continue;
+                Stream stream = new Stream();
+                stream.playerName = text(row, "player_name", text(row, "rsn", text(row, "display_name", "Streamer")));
+                stream.url = text(row, "url", "https://www.twitch.tv/" + text(row, "channel_login", ""));
+                stream.viewerCount = integer(row, "viewer_count", 0);
+                stream.game = text(row, "game_name", "");
+                streams.add(stream);
+            }
+            updateOnline(streams);
+
+            List<Activity> activities = new ArrayList<>();
+            for (JsonElement element : array(json, "recent_activity"))
+            {
+                if (!element.isJsonObject()) continue;
+                JsonObject row = element.getAsJsonObject();
+                Activity activity = new Activity();
+                activity.type = text(row, "type", "");
+                activity.playerName = text(row, "player_name", "");
+                activity.title = text(row, "title", "Clan activity");
+                activities.add(activity);
+            }
+            updateRecent(activities);
         }), error -> SwingUtilities.invokeLater(() ->
         {
-            body.removeAll();
-            JLabel label = new JLabel("Could not load NightLegion: " + error);
-            label.setForeground(MUTED);
-            body.add(label);
-            repaintBody();
+            updatePinnedNotice("Could not load NightLegion: " + error);
+            updateOnline(Collections.emptyList());
+            updateRecent(Collections.emptyList());
         }));
     }
 
-    private void render()
+    private void updateOnline(List<Stream> channels)
     {
-        body.removeAll();
-        renderNotice();
-        body.add(Box.createVerticalStrut(8));
-        body.add(divider());
-        body.add(Box.createVerticalStrut(8));
-        renderLive();
-        body.add(Box.createVerticalStrut(8));
-        body.add(divider());
-        body.add(Box.createVerticalStrut(8));
-        renderRecent();
-        repaintBody();
-    }
-
-    private void renderNotice()
-    {
-        JsonArray notices = array(snapshot, "notices");
-        JsonObject notice = notices.size() > 0 && notices.get(0).isJsonObject()
-            ? notices.get(0).getAsJsonObject() : null;
-
-        JPanel card = new JPanel(new BorderLayout(5, 5));
-        card.setAlignmentX(Component.LEFT_ALIGNMENT);
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, isOwner() ? 100 : 64));
-        card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createMatteBorder(0, 3, 0, 0, BLUE),
-            BorderFactory.createEmptyBorder(7, 8, 7, 6)));
-
-        String message = notice == null ? "No pinned announcement." : escape(text(notice, "text", ""));
-        JLabel label = new JLabel("<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'><div style='width:160px'>" + message + "</div></font></html>");
-        card.add(label, BorderLayout.CENTER);
-
-        if (isOwner())
+        SwingUtilities.invokeLater(() ->
         {
-            JPanel controls = new JPanel(new GridLayout(1, notice == null ? 1 : 3, 3, 0));
-            controls.setOpaque(false);
-            JButton post = smallButton(notice == null ? "Post" : "New");
-            post.addActionListener(e -> postNotice());
-            controls.add(post);
-            if (notice != null)
+            onlineChannels.removeAll();
+            List<Stream> displayed = channels == null ? new ArrayList<>() : new ArrayList<>(channels);
+            if (displayed.isEmpty())
             {
-                JButton edit = smallButton("Edit");
-                edit.addActionListener(e -> editNotice(notice));
-                JButton remove = smallButton("Delete");
-                remove.addActionListener(e -> deleteNotice(notice));
-                controls.add(edit);
-                controls.add(remove);
+                JLabel empty = new JLabel("No active streams right now.");
+                empty.setHorizontalAlignment(JLabel.CENTER);
+                empty.setForeground(new Color(155, 155, 155));
+                empty.setBorder(BorderFactory.createEmptyBorder(18, 4, 18, 4));
+                onlineChannels.add(empty);
             }
-            card.add(controls, BorderLayout.SOUTH);
-        }
-        body.add(card);
+            else
+            {
+                for (Stream channel : displayed)
+                {
+                    onlineChannels.add(createLiveCard(channel));
+                }
+            }
+            onlineChannels.revalidate();
+            onlineChannels.repaint();
+        });
     }
 
-    private void renderLive()
+    private void updatePinnedNotice(String message)
     {
-        JLabel title = new JLabel("LIVE ON TWITCH");
-        title.setForeground(GREEN);
-        title.setAlignmentX(Component.LEFT_ALIGNMENT);
-        body.add(title);
-        body.add(Box.createVerticalStrut(5));
+        SwingUtilities.invokeLater(() -> pinnedNotice.setText(message == null || message.trim().isEmpty()
+            ? "<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'>No pinned announcement.</font></html>"
+            : "<html><b>ANNOUNCEMENTS</b><br><div style='width:150px'>" + escapeHtml(message.trim()) + "</div></html>"));
+    }
 
-        JsonArray streams = array(snapshot, "streams");
-        int liveCount = 0;
-        for (JsonElement element : streams)
+    private void updateRecent(List<Activity> activities)
+    {
+        SwingUtilities.invokeLater(() ->
         {
-            if (!element.isJsonObject()) continue;
-            JsonObject stream = element.getAsJsonObject();
-            if (!bool(stream, "is_live")) continue;
-            liveCount++;
-            body.add(liveCard(stream));
-            body.add(Box.createVerticalStrut(4));
+            recentActivities.removeAll();
+            List<Activity> displayed = activities == null ? new ArrayList<>() : new ArrayList<>(activities);
+            displayed.removeIf(activity -> activity == null || !isFeedActivity(activity.type));
+            if (displayed.size() > 10)
+            {
+                displayed = new ArrayList<>(displayed.subList(0, 10));
+            }
+            currentActivities = new ArrayList<>(displayed);
+            Set<String> visibleKeys = new HashSet<>();
+            for (Activity activity : displayed)
+            {
+                visibleKeys.add(activityKey(activity));
+            }
+            expandedActivities.retainAll(visibleKeys);
+
+            if (displayed.isEmpty())
+            {
+                JLabel empty = new JLabel("No recent clan activity.");
+                empty.setForeground(new Color(155, 155, 155));
+                empty.setBorder(BorderFactory.createEmptyBorder(8, 4, 8, 4));
+                recentActivities.add(empty);
+            }
+            else
+            {
+                for (Activity activity : displayed)
+                {
+                    JPanel row = new JPanel(new BorderLayout(5, 0));
+                    row.setAlignmentX(LEFT_ALIGNMENT);
+                    Color accent = "CLAN_RECORD".equals(activity.type) ? new Color(90, 190, 245)
+                        : new Color(235, 185, 45);
+                    row.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(0, 3, 1, 0, accent),
+                        BorderFactory.createEmptyBorder(5, 7, 5, 4)));
+
+                    String icon = "CLAN_RECORD".equals(activity.type) ? "◷"
+                        : "MVP_LEADER".equals(activity.type) || "MVP_WINNER".equals(activity.type) ? "♛" : "★";
+                    JLabel marker = new JLabel(icon);
+                    marker.setForeground(accent);
+
+                    String player = activity.playerName == null ? "" : activity.playerName;
+                    String detail = activity.title == null ? "Clan activity" : activity.title;
+                    String recordTime = "";
+                    if ("CLAN_RECORD".equals(activity.type))
+                    {
+                        Matcher timeMatcher = RECORD_TIME_PATTERN.matcher(detail);
+                        if (timeMatcher.find())
+                        {
+                            recordTime = timeMatcher.group(1);
+                            detail = detail.substring(0, timeMatcher.start()).trim();
+                        }
+                        detail = detail.replaceFirst("(?i)^new clan best time in\\s+", "New clan best time in ");
+                    }
+
+                    boolean collective = player.isEmpty();
+                    boolean clanRecord = "CLAN_RECORD".equals(activity.type);
+                    String key = activityKey(activity);
+                    boolean expanded = expandedActivities.contains(key);
+                    boolean expandable = (!collective && (player.length() > 22 || detail.length() > 29))
+                        || (collective && detail.length() > 50);
+                    JPanel text = createActivityText(player, detail, recordTime, collective, clanRecord, expanded);
+                    int collapsedHeight = clanRecord ? 59 : 43;
+                    int rowHeight = expanded ? Math.max(collapsedHeight, text.getPreferredSize().height + 10) : collapsedHeight;
+                    row.setPreferredSize(new Dimension(210, rowHeight));
+                    row.setMaximumSize(new Dimension(Integer.MAX_VALUE, rowHeight));
+                    row.add(marker, BorderLayout.WEST);
+                    row.add(text, BorderLayout.CENTER);
+
+                    if (expandable)
+                    {
+                        Runnable toggleActivity = () ->
+                        {
+                            if (!expandedActivities.remove(key))
+                            {
+                                expandedActivities.add(key);
+                            }
+                            updateRecent(currentActivities);
+                        };
+                        JButton toggle = new JButton(new ActivityToggleIcon(expanded));
+                        toggle.setToolTipText(expanded ? "Collapse activity" : "Expand activity");
+                        toggle.setMargin(new java.awt.Insets(0, 1, 0, 1));
+                        toggle.setFocusable(false);
+                        toggle.setPreferredSize(new Dimension(22, 22));
+                        toggle.addActionListener(event -> toggleActivity.run());
+                        row.add(toggle, BorderLayout.EAST);
+                        makeClickable(row, toggleActivity);
+                    }
+                    recentActivities.add(row);
+                }
+            }
+            recentActivities.revalidate();
+            recentActivities.repaint();
+        });
+    }
+
+    private static void makeClickable(Component component, Runnable action)
+    {
+        if (!(component instanceof AbstractButton))
+        {
+            component.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            component.addMouseListener(new MouseAdapter()
+            {
+                @Override
+                public void mouseClicked(MouseEvent event)
+                {
+                    if (event.getButton() == MouseEvent.BUTTON1)
+                    {
+                        action.run();
+                    }
+                }
+            });
         }
-        if (liveCount == 0)
+        if (component instanceof Container)
         {
-            JLabel empty = new JLabel("No active streams right now.");
-            empty.setForeground(MUTED);
-            empty.setHorizontalAlignment(JLabel.CENTER);
-            empty.setAlignmentX(Component.LEFT_ALIGNMENT);
-            empty.setBorder(BorderFactory.createEmptyBorder(18, 4, 18, 4));
-            empty.setMaximumSize(new Dimension(Integer.MAX_VALUE, 58));
-            body.add(empty);
+            for (Component child : ((Container) component).getComponents())
+            {
+                makeClickable(child, action);
+            }
         }
     }
 
-    private JPanel liveCard(JsonObject stream)
+    private static JPanel createActivityText(String player, String detail, String recordTime,
+        boolean collective, boolean clanRecord, boolean expanded)
+    {
+        JPanel text = new JPanel();
+        text.setOpaque(false);
+        text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
+        String timeSuffix = recordTime.isEmpty() ? "" : " · " + recordTime;
+        String tooltip = collective ? escapeHtml(detail + timeSuffix)
+            : "<html><b>" + escapeHtml(player) + "</b><br>" + escapeHtml(detail + timeSuffix) + "</html>";
+
+        if (clanRecord && !recordTime.isEmpty())
+        {
+            JPanel heading = new JPanel(new BorderLayout(4, 0));
+            heading.setOpaque(false);
+            heading.setAlignmentX(LEFT_ALIGNMENT);
+            JLabel name = new JLabel("<html><b>" + escapeHtml(abbreviate(player, 16)) + "</b></html>");
+            name.setToolTipText(tooltip);
+            heading.add(name, BorderLayout.CENTER);
+            JLabel time = new JLabel(recordTime);
+            time.setForeground(new Color(90, 190, 245));
+            time.setToolTipText(tooltip);
+            heading.add(time, BorderLayout.EAST);
+            text.add(heading);
+
+            JLabel recordLabel = new JLabel("New clan best time");
+            recordLabel.setToolTipText(tooltip);
+            text.add(recordLabel);
+            String boss = detail.replaceFirst("(?i)^new clan best time in\\s+", "").trim();
+            JLabel bossLabel = expanded
+                ? new JLabel("<html><div style='width:125px'><b>" + escapeHtml(boss) + "</b></div></html>")
+                : new JLabel("<html><b>" + escapeHtml(abbreviate(boss, 24)) + "</b></html>");
+            bossLabel.setForeground(new Color(185, 205, 220));
+            bossLabel.setToolTipText(tooltip);
+            text.add(bossLabel);
+            return text;
+        }
+
+        if (expanded)
+        {
+            JLabel full = new JLabel("<html><div style='width:125px'>"
+                + (collective ? "<b>" + escapeHtml(detail) + "</b>"
+                    : "<b>" + escapeHtml(player) + "</b><br>" + escapeHtml(detail))
+                + "</div></html>");
+            full.setToolTipText(tooltip);
+            text.add(full);
+            return text;
+        }
+
+        if (!collective)
+        {
+            JLabel name = new JLabel("<html><b>" + escapeHtml(abbreviate(player, 22)) + "</b></html>");
+            name.setToolTipText(tooltip);
+            text.add(name);
+        }
+        JLabel summary = new JLabel(abbreviate(detail, collective ? 50 : 29));
+        summary.setToolTipText(tooltip);
+        text.add(summary);
+        return text;
+    }
+
+    private static String activityKey(Activity activity)
+    {
+        return String.valueOf(activity.type) + '\u0000' + String.valueOf(activity.playerName)
+            + '\u0000' + String.valueOf(activity.title);
+    }
+
+    private static JPanel createSectionDivider()
+    {
+        JPanel divider = new JPanel();
+        divider.setAlignmentX(LEFT_ALIGNMENT);
+        divider.setBackground(new Color(62, 62, 62));
+        divider.setPreferredSize(new Dimension(210, 1));
+        divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        return divider;
+    }
+
+    private static boolean isFeedActivity(String type)
+    {
+        return "PROMOTION".equals(type) || "CLAN_RECORD".equals(type)
+            || "MVP_LEADER".equals(type) || "MVP_WINNER".equals(type)
+            || "DROP_MILESTONE".equals(type);
+    }
+
+    private static String abbreviate(String value, int maximumLength)
+    {
+        if (value == null || value.length() <= maximumLength)
+        {
+            return value;
+        }
+        return value.substring(0, Math.max(0, maximumLength - 1)).trim() + "…";
+    }
+
+    private static JPanel createLiveCard(Stream channel)
     {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.setAlignmentX(LEFT_ALIGNMENT);
         card.setPreferredSize(new Dimension(210, 54));
+        card.setMinimumSize(new Dimension(0, 54));
         card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 54));
         card.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 3, 1, 0, new Color(40, 200, 80)),
@@ -168,120 +413,42 @@ final class NightLegionHomePanel extends PluginPanel
 
         JPanel heading = new JPanel(new BorderLayout(5, 0));
         heading.setOpaque(false);
-        String name = text(stream, "display_name", text(stream, "channel_login", text(stream, "channel", "Streamer")));
-        JLabel member = new JLabel("●  " + abbreviate(name, 20));
-        member.setForeground(GREEN);
-        heading.add(member, BorderLayout.CENTER);
-        JLabel badge = new JLabel("LIVE");
-        badge.setForeground(GREEN);
-        badge.setFont(badge.getFont().deriveFont(java.awt.Font.BOLD, 9f));
-        heading.add(badge, BorderLayout.EAST);
+        heading.setAlignmentX(LEFT_ALIGNMENT);
+        heading.setMaximumSize(new Dimension(Integer.MAX_VALUE, 21));
+        String playerName = channel.playerName == null ? "Streamer" : channel.playerName;
+        JLabel name = new JLabel("●  " + abbreviate(playerName, 20));
+        name.setToolTipText(playerName);
+        name.setForeground(new Color(70, 220, 100));
+        heading.add(name, BorderLayout.CENTER);
+        JLabel liveBadge = new JLabel("LIVE");
+        liveBadge.setForeground(new Color(85, 225, 110));
+        liveBadge.setFont(liveBadge.getFont().deriveFont(java.awt.Font.BOLD, 9f));
+        heading.add(liveBadge, BorderLayout.EAST);
         card.add(heading);
 
         JPanel details = new JPanel(new BorderLayout(5, 0));
         details.setOpaque(false);
-        String game = text(stream, "game_name", "");
-        int viewers = integer(stream, "viewer_count", 0);
-        JLabel info = new JLabel(abbreviate((game.isEmpty() ? "Twitch" : game) + " · " + viewers + " viewers", 26));
-        info.setForeground(MUTED);
-        details.add(info, BorderLayout.CENTER);
+        details.setAlignmentX(LEFT_ALIGNMENT);
+        details.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
+        String detailText = channel.game == null || channel.game.isEmpty() ? "Twitch" : channel.game;
+        if (channel.viewerCount > 0)
+        {
+            detailText += " · " + channel.viewerCount + " viewers";
+        }
+        JLabel detail = new JLabel(abbreviate(detailText, 22));
+        detail.setForeground(new Color(165, 165, 165));
+        detail.setToolTipText(channel.url);
+        details.add(detail, BorderLayout.CENTER);
         JButton open = new JButton("Open");
         open.setBackground(new Color(190, 104, 0));
         open.setForeground(Color.WHITE);
         open.setMargin(new java.awt.Insets(1, 8, 1, 8));
-        String url = text(stream, "url", "https://www.twitch.tv/" + text(stream, "channel_login", ""));
-        open.addActionListener(e -> LinkBrowser.browse(url));
+        open.setPreferredSize(new Dimension(54, 22));
+        open.setToolTipText("Open " + channel.url);
+        open.addActionListener(event -> LinkBrowser.browse(channel.url));
         details.add(open, BorderLayout.EAST);
         card.add(details);
         return card;
-    }
-
-    private void renderRecent()
-    {
-        JLabel title = new JLabel("RECENT CLAN ACTIVITY");
-        title.setForeground(ORANGE);
-        title.setAlignmentX(Component.LEFT_ALIGNMENT);
-        body.add(title);
-        body.add(Box.createVerticalStrut(5));
-
-        JsonArray rows = array(snapshot, "recent_activity");
-        if (rows.size() == 0)
-        {
-            JLabel empty = new JLabel("No recent clan activity.");
-            empty.setForeground(MUTED);
-            empty.setBorder(BorderFactory.createEmptyBorder(8, 4, 8, 4));
-            body.add(empty);
-            return;
-        }
-        int shown = 0;
-        for (JsonElement element : rows)
-        {
-            if (!element.isJsonObject() || shown++ >= 10) break;
-            JsonObject row = element.getAsJsonObject();
-            body.add(activityRow(row));
-            body.add(Box.createVerticalStrut(2));
-        }
-    }
-
-    private JPanel activityRow(JsonObject row)
-    {
-        String type = text(row, "type", "");
-        Color accent = "CLAN_RECORD".equals(type) ? BLUE : ORANGE;
-        JPanel panel = new JPanel(new BorderLayout(5, 0));
-        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
-        panel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createMatteBorder(0, 3, 1, 0, accent),
-            BorderFactory.createEmptyBorder(5, 7, 5, 4)));
-        JLabel marker = new JLabel("CLAN_RECORD".equals(type) ? "◷" : "★");
-        marker.setForeground(accent);
-        panel.add(marker, BorderLayout.WEST);
-        String player = text(row, "player_name", "");
-        String detail = text(row, "title", "Clan activity");
-        JLabel text = new JLabel("<html>" + (player.isEmpty() ? "" : "<b>" + escape(player) + "</b><br>") + escape(detail) + "</html>");
-        panel.add(text, BorderLayout.CENTER);
-        return panel;
-    }
-
-    private void postNotice()
-    {
-        String value = JOptionPane.showInputDialog(this, "Announcement text", "NightLegion Announcement", JOptionPane.PLAIN_MESSAGE);
-        if (value == null || value.trim().isEmpty()) return;
-        JsonObject data = new JsonObject();
-        data.addProperty("text", value.trim());
-        call("community_notice_post", data);
-    }
-
-    private void editNotice(JsonObject notice)
-    {
-        String current = text(notice, "text", "");
-        String value = (String) JOptionPane.showInputDialog(this, "Announcement text", "Edit Announcement",
-            JOptionPane.PLAIN_MESSAGE, null, null, current);
-        if (value == null || value.trim().isEmpty()) return;
-        JsonObject data = new JsonObject();
-        data.addProperty("id", text(notice, "id", ""));
-        data.addProperty("text", value.trim());
-        call("community_notice_update", data);
-    }
-
-    private void deleteNotice(JsonObject notice)
-    {
-        if (JOptionPane.showConfirmDialog(this, "Delete this announcement?", "NightLegion",
-            JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) return;
-        JsonObject data = new JsonObject();
-        data.addProperty("id", text(notice, "id", ""));
-        call("community_notice_delete", data);
-    }
-
-    private void call(String action, JsonObject data)
-    {
-        api.action(action, rsn(), data, ignored -> SwingUtilities.invokeLater(this::refresh),
-            error -> SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, error, "NightLegion", JOptionPane.ERROR_MESSAGE)));
-    }
-
-    private boolean isOwner()
-    {
-        return snapshot != null && bool(snapshot, "is_owner");
     }
 
     private String rsn()
@@ -290,62 +457,100 @@ final class NightLegionHomePanel extends PluginPanel
             ? "" : client.getLocalPlayer().getName().trim();
     }
 
-    private static JPanel divider()
+    private static String escapeHtml(String value)
     {
-        JPanel divider = new JPanel();
-        divider.setAlignmentX(Component.LEFT_ALIGNMENT);
-        divider.setBackground(new Color(62, 62, 62));
-        divider.setPreferredSize(new Dimension(210, 1));
-        divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
-        return divider;
-    }
-
-    private static JButton smallButton(String text)
-    {
-        JButton button = new JButton(text);
-        button.setMargin(new java.awt.Insets(1, 5, 1, 5));
-        return button;
-    }
-
-    private void repaintBody()
-    {
-        body.revalidate();
-        body.repaint();
+        if (value == null)
+        {
+            return "";
+        }
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     private static JsonArray array(JsonObject parent, String key)
     {
-        return parent != null && parent.has(key) && parent.get(key).isJsonArray()
-            ? parent.getAsJsonArray(key) : new JsonArray();
+        try
+        {
+            return parent != null && parent.has(key) && parent.get(key).isJsonArray()
+                ? parent.getAsJsonArray(key) : new JsonArray();
+        }
+        catch (Exception ignored)
+        {
+            return new JsonArray();
+        }
     }
 
     private static String text(JsonObject object, String key, String fallback)
     {
-        try { return object != null && object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsString() : fallback; }
-        catch (Exception ignored) { return fallback; }
+        try
+        {
+            return object != null && object.has(key) && !object.get(key).isJsonNull()
+                ? object.get(key).getAsString() : fallback;
+        }
+        catch (Exception ignored)
+        {
+            return fallback;
+        }
     }
 
     private static int integer(JsonObject object, String key, int fallback)
     {
-        try { return object != null && object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsInt() : fallback; }
-        catch (Exception ignored) { return fallback; }
+        try
+        {
+            return object != null && object.has(key) && !object.get(key).isJsonNull()
+                ? object.get(key).getAsInt() : fallback;
+        }
+        catch (Exception ignored)
+        {
+            return fallback;
+        }
     }
 
     private static boolean bool(JsonObject object, String key)
     {
-        try { return object != null && object.has(key) && object.get(key).getAsBoolean(); }
-        catch (Exception ignored) { return false; }
+        try
+        {
+            return object != null && object.has(key) && object.get(key).getAsBoolean();
+        }
+        catch (Exception ignored)
+        {
+            return false;
+        }
     }
 
-    private static String abbreviate(String value, int max)
+    private static final class Stream
     {
-        if (value == null || value.length() <= max) return value == null ? "" : value;
-        return value.substring(0, Math.max(0, max - 1)).trim() + "…";
+        String playerName;
+        String url;
+        String game;
+        int viewerCount;
     }
 
-    private static String escape(String value)
+    private static final class Activity
     {
-        if (value == null) return "";
-        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        String type;
+        String playerName;
+        String title;
+    }
+
+    private static final class ActivityToggleIcon implements javax.swing.Icon
+    {
+        private final boolean expanded;
+
+        private ActivityToggleIcon(boolean expanded)
+        {
+            this.expanded = expanded;
+        }
+
+        @Override
+        public void paintIcon(Component component, java.awt.Graphics graphics, int x, int y)
+        {
+            graphics.setColor(component.isEnabled() ? new Color(190, 190, 190) : new Color(105, 105, 105));
+            int[] xs = {x, x + 8, x + 4};
+            int[] ys = expanded ? new int[]{y + 6, y + 6, y + 1} : new int[]{y + 1, y + 1, y + 6};
+            graphics.fillPolygon(xs, ys, 3);
+        }
+
+        @Override public int getIconWidth() { return 9; }
+        @Override public int getIconHeight() { return 8; }
     }
 }
