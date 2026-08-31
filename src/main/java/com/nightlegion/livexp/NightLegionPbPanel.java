@@ -8,51 +8,70 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.GridLayout;
+import java.awt.Rectangle;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.TreeSet;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultComboBoxModel;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
-import javax.swing.JTextField;
-import javax.swing.ScrollPaneConstants;
+import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.JTextField;
 import net.runelite.api.Client;
 import net.runelite.client.ui.PluginPanel;
 
-/** Live On PB page, translated to English and backed by NightLegion PB data. */
+/**
+ * Live On PB panel ported directly to NightLegion. The layout, search/filter
+ * flow and narrow-sidebar sizing follow the original source; labels are English.
+ */
 final class NightLegionPbPanel extends PluginPanel
 {
     private static final Color ORANGE = new Color(255, 152, 0);
     private static final Color BLUE = new Color(90, 190, 245);
-    private static final Color GOLD = new Color(214, 174, 52);
-    private static final Color SILVER = new Color(170, 176, 185);
-    private static final Color BRONZE = new Color(190, 112, 48);
-    private static final Color MUTED = new Color(145, 145, 145);
 
     private final Client client;
     private final NightLegionApi api;
     private final NightLegionLiveXpConfig config;
-    private final JButton tutorialToggle = new JButton("▸ How to register your PBs?");
-    private final JPanel tutorial = new JPanel();
-    private final JPanel participationNotice = new JPanel(new BorderLayout());
-    private final JTextField search = new JTextField("Search");
+
+    private final JTextField globalSearch = new JTextField("Search");
+    private final JButton clearSearch = new JButton("×");
+    private final JPopupMenu searchSuggestions = new JPopupMenu();
     private final JComboBox<String> raids = new JComboBox<>();
     private final JComboBox<String> bosses = new JComboBox<>();
-    private final JPanel ranking = new JPanel();
-    private final JLabel ownPb = new JLabel(" ", SwingConstants.CENTER);
-    private JsonArray boards = new JsonArray();
-    private boolean updating;
+    private final JComboBox<String> modes = new JComboBox<>();
+    private final JComboBox<String> teams = new JComboBox<>();
+    private final JComboBox<String> timeTypes = new JComboBox<>();
+    private final JPanel filters = new JPanel(new GridLayout(1, 2, 5, 0));
+    private final JPanel filterStack = new JPanel();
+    private final JPanel raidsGroup = new JPanel();
+    private final JPanel bossesGroup = new JPanel();
+    private final List<Category> availableCategories = new ArrayList<>();
+    private final JPanel ranking = new VerticalRankingPanel();
+    private final JScrollPane rankingScroll = new JScrollPane(ranking);
+    private final JLabel ownPb = new JLabel("No PB synced", SwingConstants.CENTER);
+    private final JPanel tutorial = new JPanel();
+    private final JButton tutorialToggle = new JButton("▾ How to register your PBs?");
+    private final JPanel participationNotice = new JPanel(new BorderLayout());
+    private final JButton refresh = new JButton("↻");
+
+    private boolean updatingFilters;
+    private boolean updatingGlobalSearch;
 
     NightLegionPbPanel(Client client, NightLegionApi api, NightLegionLiveXpConfig config)
     {
@@ -60,6 +79,7 @@ final class NightLegionPbPanel extends PluginPanel
         this.client = client;
         this.api = api;
         this.config = config;
+
         setLayout(new BorderLayout(0, 7));
         setBorder(BorderFactory.createEmptyBorder(7, 5, 5, 5));
 
@@ -73,54 +93,127 @@ final class NightLegionPbPanel extends PluginPanel
         top.add(participationNotice);
         top.add(Box.createVerticalStrut(7));
 
+        JLabel title = new JLabel("BEST CLAN TIMES");
+        title.setForeground(ORANGE);
         JPanel titleRow = new JPanel(new BorderLayout(4, 0));
         titleRow.setAlignmentX(Component.LEFT_ALIGNMENT);
         titleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-        JLabel title = new JLabel("BEST CLAN TIMES");
-        title.setForeground(ORANGE);
         titleRow.add(title, BorderLayout.CENTER);
-        JButton refresh = new JButton("Refresh");
+        refresh.setToolTipText("Refresh ranking");
         refresh.setMargin(new java.awt.Insets(1, 7, 1, 7));
-        refresh.addActionListener(e -> refresh());
+        refresh.setPreferredSize(new Dimension(32, 26));
+        refresh.addActionListener(event -> refresh());
         titleRow.add(refresh, BorderLayout.EAST);
         top.add(titleRow);
         top.add(Box.createVerticalStrut(6));
 
-        configureSearchPrompt();
-        search.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-        search.setAlignmentX(Component.LEFT_ALIGNMENT);
-        search.setToolTipText("Search bosses, challenges and raids");
-        search.addActionListener(e -> selectFromSearch());
-        top.add(search);
+        globalSearch.setToolTipText("Search bosses, challenges and raids");
+        configureSearchPrompt(globalSearch, "Search");
+        configureGlobalAutocomplete();
+        clearSearch.setToolTipText("Clear search");
+        clearSearch.setMargin(new java.awt.Insets(1, 7, 1, 7));
+        clearSearch.setPreferredSize(new Dimension(30, 28));
+        clearSearch.setVisible(false);
+        clearSearch.addActionListener(event -> clearGlobalSearch());
+        JPanel searchRow = new JPanel(new BorderLayout(3, 0));
+        searchRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        searchRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        searchRow.add(globalSearch, BorderLayout.CENTER);
+        searchRow.add(clearSearch, BorderLayout.EAST);
+        top.add(searchRow);
         top.add(Box.createVerticalStrut(6));
 
-        JLabel selection = new JLabel("Or select from the menus below");
-        selection.setForeground(MUTED);
-        selection.setAlignmentX(Component.LEFT_ALIGNMENT);
-        top.add(selection);
+        JLabel selectionLabel = new JLabel("Or select from the menus below");
+        selectionLabel.setForeground(new Color(145, 145, 145));
+        selectionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        top.add(selectionLabel);
         top.add(Box.createVerticalStrut(3));
 
-        configureCombo(raids, "Raids");
-        configureCombo(bosses, "Bosses & challenges");
-        raids.addActionListener(e ->
+        raids.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        raids.setAlignmentX(Component.LEFT_ALIGNMENT);
+        raids.setToolTipText("Select a raid");
+        configureComboPlaceholder(raids, "Raids");
+        raids.addActionListener(event ->
         {
-            if (updating || raids.getSelectedItem() == null) return;
-            updating = true;
+            if (updatingFilters || raids.getSelectedItem() == null) return;
+            updatingFilters = true;
             bosses.setSelectedItem(null);
-            updating = false;
-            renderSelected(String.valueOf(raids.getSelectedItem()));
+            updatingFilters = false;
+            clearSearchAfterMenuSelection();
+            positionFilters(true);
+            rebuildCategoryFilters();
         });
-        bosses.addActionListener(e ->
-        {
-            if (updating || bosses.getSelectedItem() == null) return;
-            updating = true;
-            raids.setSelectedItem(null);
-            updating = false;
-            renderSelected(String.valueOf(bosses.getSelectedItem()));
-        });
-        top.add(raids);
+        raidsGroup.setLayout(new BoxLayout(raidsGroup, BoxLayout.Y_AXIS));
+        raidsGroup.setAlignmentX(Component.LEFT_ALIGNMENT);
+        raidsGroup.add(raids);
+        top.add(raidsGroup);
         top.add(Box.createVerticalStrut(6));
-        top.add(bosses);
+
+        javax.swing.JSeparator categorySeparator = new javax.swing.JSeparator();
+        categorySeparator.setForeground(new Color(62, 62, 62));
+        categorySeparator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        categorySeparator.setAlignmentX(Component.LEFT_ALIGNMENT);
+        top.add(categorySeparator);
+        top.add(Box.createVerticalStrut(6));
+
+        bosses.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        bosses.setAlignmentX(Component.LEFT_ALIGNMENT);
+        bosses.setToolTipText("Select a boss or challenge");
+        configureComboPlaceholder(bosses, "Bosses & challenges");
+        bosses.addActionListener(event ->
+        {
+            if (updatingFilters || bosses.getSelectedItem() == null) return;
+            updatingFilters = true;
+            raids.setSelectedItem(null);
+            updatingFilters = false;
+            clearSearchAfterMenuSelection();
+            positionFilters(false);
+            rebuildCategoryFilters();
+        });
+
+        modes.addActionListener(event ->
+        {
+            if (!updatingFilters)
+            {
+                rebuildTeamFilter();
+                renderSelection();
+            }
+        });
+        teams.addActionListener(event ->
+        {
+            if (updatingFilters) return;
+            String boss = selectedActivity();
+            String mode = modes.isVisible() ? selectedText(modes) : singleMode(boss);
+            rebuildTimeTypeFilter(boss, mode, parseTeamLabel(selectedText(teams)));
+            renderSelection();
+        });
+        timeTypes.addActionListener(event ->
+        {
+            if (!updatingFilters) renderSelection();
+        });
+
+        bossesGroup.setLayout(new BoxLayout(bossesGroup, BoxLayout.Y_AXIS));
+        bossesGroup.setAlignmentX(Component.LEFT_ALIGNMENT);
+        bossesGroup.add(bosses);
+        top.add(bossesGroup);
+
+        filterStack.setLayout(new BoxLayout(filterStack, BoxLayout.Y_AXIS));
+        filterStack.setAlignmentX(Component.LEFT_ALIGNMENT);
+        filterStack.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
+        filterStack.setMaximumSize(new Dimension(Integer.MAX_VALUE, 66));
+        filters.setAlignmentX(Component.LEFT_ALIGNMENT);
+        filters.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        filters.add(modes);
+        filters.add(teams);
+        filters.setVisible(false);
+        timeTypes.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        timeTypes.setAlignmentX(Component.LEFT_ALIGNMENT);
+        timeTypes.setVisible(false);
+        filterStack.add(filters);
+        filterStack.add(Box.createVerticalStrut(5));
+        filterStack.add(timeTypes);
+        filterStack.setVisible(false);
+        bossesGroup.add(filterStack);
 
         ownPb.setForeground(BLUE);
         ownPb.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -128,7 +221,7 @@ final class NightLegionPbPanel extends PluginPanel
         ownPb.setBorder(BorderFactory.createEmptyBorder(5, 2, 4, 2));
         top.add(ownPb);
 
-        tutorialToggle.addActionListener(e ->
+        tutorialToggle.addActionListener(event ->
         {
             tutorial.setVisible(!tutorial.isVisible());
             tutorialToggle.setText((tutorial.isVisible() ? "▾ " : "▸ ") + "How to register your PBs?");
@@ -137,47 +230,43 @@ final class NightLegionPbPanel extends PluginPanel
         add(top, BorderLayout.NORTH);
 
         ranking.setLayout(new BoxLayout(ranking, BoxLayout.Y_AXIS));
-        JScrollPane scroll = new JScrollPane(ranking);
-        scroll.setBorder(BorderFactory.createEmptyBorder());
-        scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scroll.getVerticalScrollBar().setUnitIncrement(12);
-        add(scroll, BorderLayout.CENTER);
+        rankingScroll.setBorder(BorderFactory.createEmptyBorder());
+        rankingScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        rankingScroll.getVerticalScrollBar().setUnitIncrement(24);
+        add(rankingScroll, BorderLayout.CENTER);
     }
 
     void refresh()
     {
+        refresh.setEnabled(false);
         api.action("community_snapshot", rsn(), new JsonObject(), json -> SwingUtilities.invokeLater(() ->
         {
-            boards = array(json, "pbs");
+            refresh.setEnabled(true);
             participationNotice.setVisible(!config.pbRankingEnabled());
-            rebuildMenus();
+            availableCategories.clear();
+            for (JsonElement element : array(json, "pbs"))
+            {
+                if (!element.isJsonObject()) continue;
+                JsonObject raw = element.getAsJsonObject();
+                Category category = new Category();
+                category.category = text(raw, "category", "PB");
+                category.boss = text(raw, "boss", category.category);
+                category.mode = text(raw, "mode", "");
+                category.teamSize = integer(raw, "team_size", 0);
+                category.timeType = text(raw, "time_type", "");
+                category.rows = array(raw, "rows");
+                category.own = object(raw, "own");
+                availableCategories.add(category);
+            }
+            rebuildBossLists();
         }), error -> SwingUtilities.invokeLater(() ->
         {
+            refresh.setEnabled(true);
             ranking.removeAll();
-            ranking.add(empty(error));
+            ranking.add(centered("Could not load PBs: " + escape(error)));
             ranking.revalidate();
             ranking.repaint();
         }));
-    }
-
-    private void configureTutorial()
-    {
-        tutorialToggle.setAlignmentX(Component.LEFT_ALIGNMENT);
-        tutorialToggle.setMaximumSize(new Dimension(Integer.MAX_VALUE, 27));
-        tutorialToggle.setHorizontalAlignment(SwingConstants.LEFT);
-        tutorial.setLayout(new BoxLayout(tutorial, BoxLayout.Y_AXIS));
-        tutorial.setAlignmentX(Component.LEFT_ALIGNMENT);
-        tutorial.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(62, 62, 62)),
-            BorderFactory.createEmptyBorder(6, 7, 6, 7)));
-        tutorial.setMaximumSize(new Dimension(Integer.MAX_VALUE, 105));
-        JLabel text = new JLabel("<html>Keep <b>Participate in PB rankings</b> enabled.<br>"
-            + "NightLegion reads your visible personal-best times from supported RuneLite/game surfaces and submits improvements automatically.<br><br>"
-            + "Open a supported boss/raid PB screen if a time has not synced yet.</html>");
-        text.setForeground(new Color(190, 190, 190));
-        tutorial.add(text);
-        tutorial.setVisible(false);
     }
 
     private void configureParticipationNotice()
@@ -187,15 +276,63 @@ final class NightLegionPbPanel extends PluginPanel
         participationNotice.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(BLUE),
             BorderFactory.createEmptyBorder(5, 7, 5, 7)));
-        JLabel message = new JLabel("<html><b>Participation disabled</b><br>Enable it in settings to register your PBs.</html>");
+        JLabel message = new JLabel("<html><b>Participation disabled</b><br>Enable it in settings<br>to register your PBs.</html>");
         message.setForeground(BLUE);
         participationNotice.add(message, BorderLayout.CENTER);
     }
 
-    private static void configureCombo(JComboBox<String> combo, String prompt)
+    private void configureTutorial()
     {
-        combo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-        combo.setAlignmentX(Component.LEFT_ALIGNMENT);
+        tutorial.setLayout(new BoxLayout(tutorial, BoxLayout.Y_AXIS));
+        tutorial.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 3, 0, 0, BLUE),
+            BorderFactory.createEmptyBorder(6, 8, 6, 5)));
+        JLabel instructions = new JLabel("<html><div style='width:160px'>"
+            + "1. Open your POH <b>Adventure Log</b> to import your times.<br><br>"
+            + "2. In <b>Combat Achievements</b>, open the boss page you want to register.<br><br>"
+            + "3. Supported scoreboards are also detected.<br><br>"
+            + "With <b>Participate in PB rankings</b> enabled, new PBs are submitted automatically."
+            + "</div></html>");
+        instructions.setAlignmentX(Component.LEFT_ALIGNMENT);
+        instructions.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+        tutorial.add(instructions);
+        tutorial.setVisible(true);
+        tutorialToggle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        tutorialToggle.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+    }
+
+    private static void configureSearchPrompt(JTextField field, String prompt)
+    {
+        Color normalColor = field.getForeground();
+        Color promptColor = new Color(145, 145, 145);
+        field.addFocusListener(new java.awt.event.FocusAdapter()
+        {
+            @Override
+            public void focusGained(java.awt.event.FocusEvent event)
+            {
+                if (prompt.equals(field.getText()))
+                {
+                    field.setText("");
+                    field.setForeground(normalColor);
+                }
+            }
+
+            @Override
+            public void focusLost(java.awt.event.FocusEvent event)
+            {
+                if (field.getText().trim().isEmpty())
+                {
+                    field.setText(prompt);
+                    field.setForeground(promptColor);
+                }
+            }
+        });
+        field.setForeground(promptColor);
+        field.setText(prompt);
+    }
+
+    private static void configureComboPlaceholder(JComboBox<String> combo, String prompt)
+    {
         combo.setRenderer((list, value, index, selected, focused) ->
         {
             JLabel label = (JLabel) new javax.swing.DefaultListCellRenderer()
@@ -209,206 +346,464 @@ final class NightLegionPbPanel extends PluginPanel
         });
     }
 
-    private void configureSearchPrompt()
+    private void configureGlobalAutocomplete()
     {
-        Color normal = search.getForeground();
-        Color prompt = new Color(145, 145, 145);
-        search.setForeground(prompt);
-        search.addFocusListener(new java.awt.event.FocusAdapter()
+        searchSuggestions.setFocusable(false);
+        globalSearch.getDocument().addDocumentListener(new javax.swing.event.DocumentListener()
         {
-            @Override public void focusGained(java.awt.event.FocusEvent e)
+            private void changed()
             {
-                if ("Search".equals(search.getText()))
-                {
-                    search.setText("");
-                    search.setForeground(normal);
-                }
+                if (updatingGlobalSearch) return;
+                String query = globalSearch.getText();
+                if ("Search".equals(query)) return;
+                SwingUtilities.invokeLater(() -> filterGlobalSuggestions(query));
             }
-            @Override public void focusLost(java.awt.event.FocusEvent e)
-            {
-                if (search.getText().trim().isEmpty())
-                {
-                    search.setText("Search");
-                    search.setForeground(prompt);
-                }
-            }
+
+            @Override public void insertUpdate(javax.swing.event.DocumentEvent event) { changed(); }
+            @Override public void removeUpdate(javax.swing.event.DocumentEvent event) { changed(); }
+            @Override public void changedUpdate(javax.swing.event.DocumentEvent event) { changed(); }
         });
+        globalSearch.addActionListener(event -> selectGlobalSearchResult(globalSearch.getText()));
     }
 
-    private void rebuildMenus()
+    private void filterGlobalSuggestions(String query)
     {
-        Set<String> raidNames = new LinkedHashSet<>();
-        Set<String> bossNames = new LinkedHashSet<>();
-        for (JsonElement element : boards)
-        {
-            if (!element.isJsonObject()) continue;
-            String name = text(element.getAsJsonObject(), "category", "");
-            if (name.isEmpty()) continue;
-            if (isRaid(name)) raidNames.add(name); else bossNames.add(name);
-        }
+        if (updatingGlobalSearch) return;
+        String normalized = normalizeSearch(query);
+        searchSuggestions.setVisible(false);
+        searchSuggestions.removeAll();
+        clearSearch.setVisible(!normalized.isEmpty());
+        if (normalized.isEmpty()) return;
 
-        updating = true;
-        raids.setModel(new DefaultComboBoxModel<>(raidNames.toArray(new String[0])));
-        bosses.setModel(new DefaultComboBoxModel<>(bossNames.toArray(new String[0])));
-        raids.setSelectedItem(null);
-        bosses.setSelectedItem(null);
-        updating = false;
-        ownPb.setText(" ");
-        ranking.removeAll();
-        ranking.add(empty(boards.size() == 0 ? "No clan PBs have synced yet." : "Choose a boss, challenge or raid above."));
-        ranking.revalidate();
-        ranking.repaint();
-    }
-
-    private void selectFromSearch()
-    {
-        String query = normalize(search.getText());
-        if (query.isEmpty() || "search".equals(query)) return;
-        String best = "";
-        for (JsonElement element : boards)
+        String alias = bossAlias(normalized);
+        Set<String> suggestions = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (Category category : availableCategories)
         {
-            if (!element.isJsonObject()) continue;
-            String category = text(element.getAsJsonObject(), "category", "");
-            if (normalize(category).contains(query))
+            String candidate = safe(category.boss);
+            String normalizedCandidate = normalizeSearch(candidate);
+            if (normalizedCandidate.contains(normalized) || normalizedCandidate.contains(alias))
             {
-                best = category;
-                break;
+                suggestions.add(candidate);
             }
+            if (suggestions.size() >= 5) break;
         }
-        if (best.isEmpty()) return;
-        updating = true;
-        if (isRaid(best))
+        for (String suggestion : suggestions)
         {
-            raids.setSelectedItem(best);
+            JMenuItem item = new JMenuItem(suggestion);
+            item.setFocusable(false);
+            item.setRequestFocusEnabled(false);
+            item.addActionListener(event -> selectGlobalSearchResult(suggestion));
+            searchSuggestions.add(item);
+        }
+        if (!suggestions.isEmpty() && globalSearch.isShowing())
+        {
+            searchSuggestions.show(globalSearch, 0, globalSearch.getHeight());
+            globalSearch.requestFocusInWindow();
+        }
+    }
+
+    private void selectGlobalSearchResult(String query)
+    {
+        if (updatingGlobalSearch) return;
+        String resolved = resolveBossName(query);
+        if (resolved.isEmpty() || !containsBoss(resolved)) return;
+        updatingGlobalSearch = true;
+        globalSearch.setForeground(javax.swing.UIManager.getColor("TextField.foreground"));
+        globalSearch.setText(resolved);
+        updatingGlobalSearch = false;
+        clearSearch.setVisible(true);
+        searchSuggestions.setVisible(false);
+
+        updatingFilters = true;
+        if (isRaid(resolved))
+        {
+            raids.setSelectedItem(resolved);
             bosses.setSelectedItem(null);
         }
         else
         {
-            bosses.setSelectedItem(best);
+            bosses.setSelectedItem(resolved);
             raids.setSelectedItem(null);
         }
-        updating = false;
-        renderSelected(best);
+        updatingFilters = false;
+        positionFilters(isRaid(resolved));
+        rebuildCategoryFilters();
     }
 
-    private void renderSelected(String category)
+    private void positionFilters(boolean belowRaids)
     {
-        JsonObject board = findBoard(category);
-        ranking.removeAll();
-        ownPb.setText(" ");
-        if (board == null)
+        java.awt.Container parent = filterStack.getParent();
+        if (parent != null) parent.remove(filterStack);
+        JPanel target = belowRaids ? raidsGroup : bossesGroup;
+        target.add(filterStack);
+        target.revalidate();
+        target.repaint();
+    }
+
+    private void clearGlobalSearch()
+    {
+        updatingGlobalSearch = true;
+        globalSearch.setText("");
+        globalSearch.requestFocusInWindow();
+        updatingGlobalSearch = false;
+        clearSearch.setVisible(false);
+        searchSuggestions.setVisible(false);
+    }
+
+    private void clearSearchAfterMenuSelection()
+    {
+        updatingGlobalSearch = true;
+        if (globalSearch.hasFocus())
         {
-            ranking.add(empty("No times for this category."));
-            finish();
+            globalSearch.setText("");
+            globalSearch.setForeground(javax.swing.UIManager.getColor("TextField.foreground"));
+        }
+        else
+        {
+            globalSearch.setText("Search");
+            globalSearch.setForeground(new Color(145, 145, 145));
+        }
+        updatingGlobalSearch = false;
+        clearSearch.setVisible(false);
+        searchSuggestions.setVisible(false);
+    }
+
+    private boolean containsBoss(String boss)
+    {
+        for (Category category : availableCategories)
+        {
+            if (safe(category.boss).equalsIgnoreCase(boss)) return true;
+        }
+        return false;
+    }
+
+    private void rebuildBossLists()
+    {
+        String previousBoss = selectedText(bosses);
+        String previousRaid = selectedText(raids);
+        Set<String> bossNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        Set<String> raidNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (Category value : availableCategories)
+        {
+            if (value.boss == null) continue;
+            if (isRaid(value.boss)) raidNames.add(value.boss);
+            else bossNames.add(value.boss);
+        }
+        updatingFilters = true;
+        bosses.setModel(new DefaultComboBoxModel<>(bossNames.toArray(new String[0])));
+        raids.setModel(new DefaultComboBoxModel<>(raidNames.toArray(new String[0])));
+        bosses.setSelectedItem(bossNames.contains(previousBoss) ? previousBoss : null);
+        raids.setSelectedItem(raidNames.contains(previousRaid) ? previousRaid : null);
+        updatingFilters = false;
+
+        if (bossNames.isEmpty() && raidNames.isEmpty())
+        {
+            ranking.removeAll();
+            ranking.add(centered("No PBs synced yet."));
+            setTutorialExpanded(true);
+            ownPb.setText("<html><div style='text-align:center'>Open the Adventure Log<br>to import your PBs</div></html>");
+            ranking.revalidate();
+            ranking.repaint();
             return;
         }
-        JsonArray rows = array(board, "rows");
-        List<JsonObject> values = new ArrayList<>();
-        for (JsonElement element : rows)
+
+        if (selectedActivity().isEmpty())
         {
-            if (element.isJsonObject()) values.add(element.getAsJsonObject());
+            ranking.removeAll();
+            ranking.add(centered("Choose a raid, boss or challenge above."));
+            ranking.revalidate();
+            ranking.repaint();
         }
-        values.sort(Comparator.comparingDouble(v -> decimal(v, "seconds", Double.MAX_VALUE)));
-        if (values.isEmpty())
+        else
         {
-            ranking.add(empty("No times for this category."));
-            finish();
-            return;
+            rebuildCategoryFilters();
         }
-        String local = normalize(rsn());
-        for (int i = 0; i < values.size(); i++)
+    }
+
+    private static boolean isRaid(String boss)
+    {
+        String normalized = safe(boss).toLowerCase(Locale.ROOT);
+        return normalized.contains("chambers of xeric")
+            || normalized.contains("theatre of blood")
+            || normalized.contains("tombs of amascut");
+    }
+
+    private void rebuildCategoryFilters()
+    {
+        String boss = selectedActivity();
+        Set<String> values = new LinkedHashSet<>();
+        for (Category category : availableCategories)
         {
-            JsonObject row = values.get(i);
-            ranking.add(rankRow(i + 1, row));
-            if (i + 1 < values.size()) ranking.add(Box.createVerticalStrut(3));
-            if (normalize(text(row, "rsn", "")).equals(local))
+            if (safe(category.boss).equalsIgnoreCase(boss)) values.add(safe(category.mode));
+        }
+        updatingFilters = true;
+        modes.setModel(new DefaultComboBoxModel<>(values.toArray(new String[0])));
+        modes.setVisible(values.size() > 1 || (values.size() == 1 && !values.iterator().next().isEmpty()));
+        if (values.size() == 1) modes.setSelectedIndex(0);
+        updatingFilters = false;
+        rebuildTeamFilter();
+        filterStack.setVisible(filters.isVisible() || timeTypes.isVisible());
+        renderSelection();
+        revalidate();
+    }
+
+    private void rebuildTeamFilter()
+    {
+        String boss = selectedActivity();
+        String mode = modes.isVisible() ? selectedText(modes) : singleMode(boss);
+        Set<Integer> sizes = new TreeSet<>();
+        for (Category category : availableCategories)
+        {
+            if (safe(category.boss).equalsIgnoreCase(boss) && safe(category.mode).equalsIgnoreCase(mode))
+                sizes.add(category.teamSize);
+        }
+        List<String> labels = new ArrayList<>();
+        for (Integer size : sizes)
+        {
+            if (size > 0) labels.add(size == 1 ? "Solo" : size + " players");
+        }
+        updatingFilters = true;
+        teams.setModel(new DefaultComboBoxModel<>(labels.toArray(new String[0])));
+        teams.setVisible(labels.size() > 1);
+        if (!labels.isEmpty()) teams.setSelectedIndex(0);
+        updatingFilters = false;
+        filters.setVisible(modes.isVisible() || teams.isVisible());
+        rebuildTimeTypeFilter(boss, mode, teams.isVisible() ? parseTeamLabel(selectedText(teams)) : singleTeam(boss, mode));
+        filterStack.setVisible(filters.isVisible() || timeTypes.isVisible());
+    }
+
+    private void rebuildTimeTypeFilter(String boss, String mode, int teamSize)
+    {
+        Set<String> types = new LinkedHashSet<>();
+        for (Category category : availableCategories)
+        {
+            if (safe(category.boss).equalsIgnoreCase(boss)
+                && safe(category.mode).equalsIgnoreCase(mode)
+                && category.teamSize == teamSize
+                && !safe(category.timeType).isEmpty())
             {
-                ownPb.setText("Your PB: " + formatTime(decimal(row, "seconds", 0)) + " · #" + (i + 1));
+                types.add(category.timeType.toUpperCase(Locale.ROOT));
             }
         }
-        if (ownPb.getText().trim().isEmpty()) ownPb.setText("No PB synced for this category");
-        finish();
+        List<String> labels = new ArrayList<>();
+        if (types.contains("ROOM")) labels.add("Room time");
+        if (types.contains("OVERALL")) labels.add("Overall time");
+        updatingFilters = true;
+        timeTypes.setModel(new DefaultComboBoxModel<>(labels.toArray(new String[0])));
+        timeTypes.setVisible("Theatre of Blood".equalsIgnoreCase(boss) && labels.size() > 1);
+        if (!labels.isEmpty()) timeTypes.setSelectedIndex(0);
+        updatingFilters = false;
     }
 
-    private JPanel rankRow(int position, JsonObject row)
+    private void renderSelection()
     {
-        Color accent = position == 1 ? GOLD : position == 2 ? SILVER : position == 3 ? BRONZE : new Color(82, 82, 82);
-        JPanel panel = new JPanel(new BorderLayout(7, 0));
-        panel.setBackground(position % 2 == 0 ? new Color(44, 44, 44) : new Color(35, 35, 35));
-        panel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createMatteBorder(0, position <= 3 ? 3 : 2, 0, 0, accent),
-            BorderFactory.createEmptyBorder(8, 6, 8, 7)));
-        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
-        JLabel place = new JLabel(position <= 3 ? medalLabel(position) : Integer.toString(position), SwingConstants.CENTER);
-        place.setForeground(position <= 3 ? accent : MUTED);
-        place.setPreferredSize(new Dimension(32, 20));
-        String name = text(row, "rsn", text(row, "name", "Unknown"));
-        JLabel player = new JLabel(shortName(name, 17));
-        player.setToolTipText(name);
-        player.setFont(player.getFont().deriveFont(Font.BOLD, 13f));
-        JLabel value = new JLabel(formatTime(decimal(row, "seconds", 0)));
-        value.setForeground(position <= 3 ? accent : new Color(205, 205, 205));
-        value.setFont(value.getFont().deriveFont(Font.BOLD, 12f));
-        panel.add(place, BorderLayout.WEST);
-        panel.add(player, BorderLayout.CENTER);
-        panel.add(value, BorderLayout.EAST);
-        return panel;
-    }
-
-    private JsonObject findBoard(String category)
-    {
-        for (JsonElement element : boards)
+        Category selected = selectedCategory();
+        if (selected == null)
         {
-            if (element.isJsonObject() && text(element.getAsJsonObject(), "category", "").equals(category))
-                return element.getAsJsonObject();
+            ranking.removeAll();
+            ranking.add(centered("No PB ranking is available for this selection."));
+            ownPb.setText("No PB synced for this category");
+            ranking.revalidate();
+            ranking.repaint();
+            return;
+        }
+
+        ranking.removeAll();
+        JsonArray rows = selected.rows == null ? new JsonArray() : selected.rows;
+        if (rows.size() == 0)
+        {
+            ranking.add(centered("No PBs exist in this category yet."));
+        }
+        else
+        {
+            for (JsonElement element : rows)
+            {
+                if (element.isJsonObject()) ranking.add(rankingRow(element.getAsJsonObject()));
+            }
+        }
+
+        if (selected.own == null || selected.own.size() == 0)
+        {
+            ownPb.setText("<html><div style='text-align:center'>You do not have a PB<br>in this category yet</div></html>");
+        }
+        else
+        {
+            ownPb.setText("<html><div style='text-align:center'>Your PB: "
+                + formatTime(decimal(selected.own, "seconds", 0)) + " · #"
+                + integer(selected.own, "position", 0) + "</div></html>");
+        }
+        ranking.revalidate();
+        ranking.repaint();
+        rankingScroll.getViewport().revalidate();
+    }
+
+    private Category selectedCategory()
+    {
+        String boss = selectedActivity();
+        String mode = modes.isVisible() ? selectedText(modes) : singleMode(boss);
+        int teamSize = teams.isVisible() ? parseTeamLabel(selectedText(teams)) : singleTeam(boss, mode);
+        String timeType = timeTypes.isVisible() ? selectedTimeType() : singleTimeType(boss, mode, teamSize);
+        for (Category value : availableCategories)
+        {
+            if (safe(value.boss).equalsIgnoreCase(boss)
+                && safe(value.mode).equalsIgnoreCase(mode)
+                && value.teamSize == teamSize
+                && safe(value.timeType).equalsIgnoreCase(timeType))
+            {
+                return value;
+            }
         }
         return null;
     }
 
-    private static boolean isRaid(String value)
+    private JPanel rankingRow(JsonObject entry)
     {
-        String v = normalize(value);
-        return v.contains("chambers of xeric") || v.contains("cox")
-            || v.contains("theatre of blood") || v.contains("tob")
-            || v.contains("tombs of amascut") || v.contains("toa")
-            || v.contains("raid");
+        int position = integer(entry, "position", 0);
+        JPanel row = new JPanel(new BorderLayout(6, 0));
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, position <= 3 ? 38 : 30));
+        row.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, position <= 3 ? 3 : 1, 1, 0, medalColor(position)),
+            BorderFactory.createEmptyBorder(5, 6, 5, 6)));
+        JLabel place = new JLabel(position + getOrdinalSuffix(position));
+        place.setPreferredSize(new Dimension(position <= 3 ? 48 : 30, 24));
+        if (position <= 3)
+        {
+            place.setIcon(medalIcon(position));
+            place.setIconTextGap(3);
+            place.setForeground(medalColor(position));
+        }
+        String playerName = text(entry, "rsn", text(entry, "name", "—"));
+        JLabel player = new JLabel(playerName);
+        player.setToolTipText(playerName);
+        JLabel time = new JLabel(formatTime(decimal(entry, "seconds", 0)), SwingConstants.RIGHT);
+        if (position <= 3) time.setForeground(medalColor(position));
+        row.add(place, BorderLayout.WEST);
+        row.add(player, BorderLayout.CENTER);
+        row.add(time, BorderLayout.EAST);
+        return row;
     }
 
-    private static String medalLabel(int position)
+    private static String getOrdinalSuffix(int n)
     {
-        if (position == 1) return "1st";
-        if (position == 2) return "2nd";
-        if (position == 3) return "3rd";
-        return Integer.toString(position);
+        if (n == 1) return "st";
+        if (n == 2) return "nd";
+        if (n == 3) return "rd";
+        return "th";
     }
 
-    private static String formatTime(double seconds)
+    private void setTutorialExpanded(boolean expanded)
     {
-        long cs = Math.round(Math.max(0, seconds) * 100.0);
-        long hours = cs / 360000;
-        long minutes = (cs / 6000) % 60;
-        long secs = (cs / 100) % 60;
-        long fraction = cs % 100;
-        return hours > 0
-            ? String.format(Locale.ROOT, "%d:%02d:%02d.%02d", hours, minutes, secs, fraction)
-            : String.format(Locale.ROOT, "%d:%02d.%02d", minutes, secs, fraction);
+        tutorial.setVisible(expanded);
+        tutorialToggle.setText((expanded ? "▾ " : "▸ ") + "How to register your PBs?");
     }
 
-    private static JLabel empty(String message)
+    private String selectedActivity()
     {
-        JLabel label = new JLabel("<html><center>" + message + "</center></html>", SwingConstants.CENTER);
-        label.setForeground(new Color(155, 155, 155));
-        label.setBorder(BorderFactory.createEmptyBorder(18, 5, 5, 5));
-        label.setAlignmentX(Component.LEFT_ALIGNMENT);
-        label.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
+        String raid = selectedText(raids);
+        return raid.isEmpty() ? selectedText(bosses) : raid;
+    }
+
+    private String resolveBossName(String query)
+    {
+        String normalizedQuery = normalizeSearch(query);
+        if (normalizedQuery.isEmpty()) return "";
+        String alias = bossAlias(normalizedQuery);
+        for (Category category : availableCategories)
+        {
+            String candidate = safe(category.boss);
+            String normalizedCandidate = normalizeSearch(candidate);
+            if (normalizedCandidate.equals(normalizedQuery)
+                || normalizedCandidate.equals(alias)
+                || normalizedCandidate.contains(alias)
+                || normalizedCandidate.contains(normalizedQuery)) return candidate;
+        }
+        return query;
+    }
+
+    private static String bossAlias(String query)
+    {
+        switch (query)
+        {
+            case "dusk": case "dawn": case "gargs": case "ggs": case "gg": return "grotesque guardians";
+            case "jad": case "tztok jad": return "tzhaar fight cave";
+            case "zuk": case "tzkal zuk": return "inferno";
+            case "cox": case "xeric": case "chambers": case "olm": case "raids": return "chambers of xeric";
+            case "tob": case "theatre": case "verzik": case "verzik vitur": case "raids 2": return "theatre of blood";
+            case "toa": case "tombs": case "amascut": case "warden": case "wardens": case "raids 3": return "tombs of amascut";
+            case "cg": case "cgaunt": case "cgauntlet": case "the corrupted gauntlet": return "corrupted gauntlet";
+            case "gaunt": case "gauntlet": case "the gauntlet": return "gauntlet";
+            case "sire": return "abyssal sire";
+            case "cerb": return "cerberus";
+            case "thermy": case "smoke devil": return "thermonuclear smoke devil";
+            case "hydra": return "alchemical hydra";
+            case "kbd": return "king black dragon";
+            case "corp": return "corporeal beast";
+            case "kq": return "kalphite queen";
+            case "vork": return "vorkath";
+            case "mole": return "giant mole";
+            case "phantom": case "muspah": case "pm": return "phantom muspah";
+            case "sara": case "saradomin": case "zily": case "zilyana": return "commander zilyana";
+            case "zammy": case "zamorak": case "kril": return "k ril tsutsaroth";
+            case "arma": case "kree": case "kreearra": case "armadyl": return "kree arra";
+            case "bandos": case "bando": case "graardor": return "general graardor";
+            case "duke": case "duke awakened": return "duke sucellus";
+            case "levi": case "levi awakened": return "the leviathan";
+            case "vard": case "vard awakened": return "vardorvis";
+            case "wisp": case "whisp": case "whisperer awakened": return "the whisperer";
+            case "sol": case "colo": case "colosseum": return "sol heredit";
+            default: return query;
+        }
+    }
+
+    private static String normalizeSearch(String value)
+    {
+        return safe(value).trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", " ").trim();
+    }
+
+    private String singleMode(String boss)
+    {
+        for (Category value : availableCategories)
+            if (safe(value.boss).equalsIgnoreCase(boss)) return safe(value.mode);
+        return "";
+    }
+
+    private int singleTeam(String boss, String mode)
+    {
+        for (Category value : availableCategories)
+            if (safe(value.boss).equalsIgnoreCase(boss) && safe(value.mode).equalsIgnoreCase(mode)) return value.teamSize;
+        return 0;
+    }
+
+    private String singleTimeType(String boss, String mode, int teamSize)
+    {
+        for (Category value : availableCategories)
+            if (safe(value.boss).equalsIgnoreCase(boss) && safe(value.mode).equalsIgnoreCase(mode)
+                && value.teamSize == teamSize) return safe(value.timeType);
+        return "";
+    }
+
+    private String selectedTimeType()
+    {
+        return "Overall time".equals(selectedText(timeTypes)) ? "OVERALL" : "ROOM";
+    }
+
+    private static String selectedText(JComboBox<String> combo)
+    {
+        return combo.getSelectedItem() == null ? "" : combo.getSelectedItem().toString();
+    }
+
+    private static int parseTeamLabel(String label)
+    {
+        if ("Solo".equalsIgnoreCase(label)) return 1;
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("^(\\d+)").matcher(label);
+        return matcher.find() ? Integer.parseInt(matcher.group(1)) : 0;
+    }
+
+    private static JLabel centered(String text)
+    {
+        JLabel label = new JLabel("<html><div style='text-align:center;width:190px'>" + text + "</div></html>", SwingConstants.CENTER);
+        label.setBorder(BorderFactory.createEmptyBorder(18, 3, 18, 3));
         return label;
-    }
-
-    private void finish()
-    {
-        ranking.revalidate();
-        ranking.repaint();
     }
 
     private String rsn()
@@ -417,15 +812,44 @@ final class NightLegionPbPanel extends PluginPanel
             ? "" : client.getLocalPlayer().getName().trim();
     }
 
-    private static String shortName(String value, int max)
+    private static String safe(String value) { return value == null ? "" : value; }
+
+    private static Color medalColor(int position)
     {
-        if (value == null) return "";
-        return value.length() <= max ? value : value.substring(0, Math.max(1, max - 1)) + "…";
+        return position == 1 ? new Color(235, 190, 45)
+            : position == 2 ? new Color(175, 185, 190)
+            : position == 3 ? new Color(190, 110, 55)
+            : new Color(70, 70, 70);
     }
 
-    private static String normalize(String value)
+    private static ImageIcon medalIcon(int position)
     {
-        return value == null ? "" : value.replace('_', ' ').trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(16, 18,
+            java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D graphics = image.createGraphics();
+        graphics.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+            java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+        Color color = medalColor(position);
+        graphics.setColor(color.darker());
+        graphics.fillPolygon(new int[]{3, 7, 7, 5}, new int[]{1, 1, 9, 11}, 4);
+        graphics.fillPolygon(new int[]{9, 13, 11, 9}, new int[]{1, 1, 11, 9}, 4);
+        graphics.setColor(color);
+        graphics.fillOval(3, 6, 10, 10);
+        graphics.setColor(color.brighter());
+        graphics.drawOval(4, 7, 8, 8);
+        graphics.dispose();
+        return new ImageIcon(image);
+    }
+
+    static String formatTime(double seconds)
+    {
+        long centiseconds = Math.round(seconds * 100.0);
+        long hours = centiseconds / 360000;
+        long minutes = (centiseconds / 6000) % 60;
+        long secs = (centiseconds / 100) % 60;
+        long fraction = centiseconds % 100;
+        return hours > 0 ? String.format(Locale.ROOT, "%d:%02d:%02d.%02d", hours, minutes, secs, fraction)
+            : String.format(Locale.ROOT, "%02d:%02d.%02d", minutes, secs, fraction);
     }
 
     private static JsonArray array(JsonObject parent, String key)
@@ -434,9 +858,21 @@ final class NightLegionPbPanel extends PluginPanel
         catch (Exception ignored) { return new JsonArray(); }
     }
 
+    private static JsonObject object(JsonObject parent, String key)
+    {
+        try { return parent != null && parent.has(key) && parent.get(key).isJsonObject() ? parent.getAsJsonObject(key) : new JsonObject(); }
+        catch (Exception ignored) { return new JsonObject(); }
+    }
+
     private static String text(JsonObject object, String key, String fallback)
     {
         try { return object != null && object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsString() : fallback; }
+        catch (Exception ignored) { return fallback; }
+    }
+
+    private static int integer(JsonObject object, String key, int fallback)
+    {
+        try { return object != null && object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsInt() : fallback; }
         catch (Exception ignored) { return fallback; }
     }
 
@@ -444,5 +880,31 @@ final class NightLegionPbPanel extends PluginPanel
     {
         try { return object != null && object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsDouble() : fallback; }
         catch (Exception ignored) { return fallback; }
+    }
+
+    private static String escape(String value)
+    {
+        if (value == null) return "";
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    private static final class Category
+    {
+        String category;
+        String boss;
+        String mode;
+        int teamSize;
+        String timeType;
+        JsonArray rows = new JsonArray();
+        JsonObject own = new JsonObject();
+    }
+
+    private static final class VerticalRankingPanel extends JPanel implements Scrollable
+    {
+        @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+        @Override public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) { return 24; }
+        @Override public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) { return Math.max(24, visibleRect.height - 24); }
+        @Override public boolean getScrollableTracksViewportWidth() { return true; }
+        @Override public boolean getScrollableTracksViewportHeight() { return false; }
     }
 }
