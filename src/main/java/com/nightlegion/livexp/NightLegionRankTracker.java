@@ -2,7 +2,6 @@ package com.nightlegion.livexp;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -17,34 +16,27 @@ import net.runelite.api.Player;
 import net.runelite.api.Skill;
 import net.runelite.api.VarPlayer;
 import net.runelite.api.events.ChatMessage;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Separate rank telemetry channel. This does not use the normal NightLegion
- * companion token and cannot award points client-side; the Discord bot decides
- * all points and rank changes.
+ * NightLegion contribution telemetry.
+ *
+ * Discord messages are counted by the Discord bot. In-game Clan Chat messages
+ * are counted here and submitted using the same Personal Link Token as the rest
+ * of the plugin. Monthly MVP is a completely separate system.
  */
 class NightLegionRankTracker
 {
     private static final Logger log = LoggerFactory.getLogger(NightLegionRankTracker.class);
-    private static final String RANK_ENDPOINT = "https://nightlegion-livexp.onrender.com/rank/sync";
-    private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
     private static final Pattern KILL_COUNT = Pattern.compile("(?i)^Your (.+?) kill count is: [0-9,]+\\.?$");
-    private static final Pattern GZ = Pattern.compile("(?i)^g+z+[!1.]*$");
+    private static final Pattern GZ = Pattern.compile("(?i)^g+z+[z\\s!?.1]*$");
 
     private final Client client;
-    private final OkHttpClient http;
     private final ScheduledExecutorService executor;
     private final NightLegionLiveXpConfig config;
-    private final Gson gson;
+    private final NightLegionApi api;
     private final Map<String, Integer> bossKills = new HashMap<>();
 
     private String sessionId = "";
@@ -52,13 +44,13 @@ class NightLegionRankTracker
     private int clanMessages;
     private int clanGzMessages;
 
-    NightLegionRankTracker(Client client, OkHttpClient http, ScheduledExecutorService executor, NightLegionLiveXpConfig config, Gson gson)
+    NightLegionRankTracker(Client client, OkHttpClient http, ScheduledExecutorService executor,
+        NightLegionLiveXpConfig config, Gson gson)
     {
         this.client = client;
-        this.http = http;
         this.executor = executor;
         this.config = config;
-        this.gson = gson;
+        this.api = new NightLegionApi(http, executor, config, gson);
     }
 
     void start()
@@ -73,7 +65,10 @@ class NightLegionRankTracker
     void stop()
     {
         sessionId = "";
-        bossKills.clear();
+        synchronized (bossKills)
+        {
+            bossKills.clear();
+        }
         clanMessages = 0;
         clanGzMessages = 0;
     }
@@ -90,7 +85,10 @@ class NightLegionRankTracker
         else if (state == GameState.LOGIN_SCREEN)
         {
             sessionId = "";
-            bossKills.clear();
+            synchronized (bossKills)
+            {
+                bossKills.clear();
+            }
             clanMessages = 0;
             clanGzMessages = 0;
         }
@@ -103,6 +101,9 @@ class NightLegionRankTracker
             return;
         }
 
+        // Only count the linked player's own outgoing clan messages. Every
+        // member's plugin reports their own activity, preventing duplicates
+        // from multiple RuneLite clients seeing the same clan message.
         if (event.getType() == ChatMessageType.CLAN_CHAT && isLocalPlayer(event.getName()))
         {
             String message = plain(event.getMessage()).trim();
@@ -126,7 +127,10 @@ class NightLegionRankTracker
                 String boss = matcher.group(1).trim();
                 if (!boss.isEmpty() && boss.length() <= 80)
                 {
-                    bossKills.merge(boss, 1, Integer::sum);
+                    synchronized (bossKills)
+                    {
+                        bossKills.merge(boss, 1, Integer::sum);
+                    }
                 }
             }
         }
@@ -138,13 +142,16 @@ class NightLegionRankTracker
         sessionStartedAt = System.currentTimeMillis();
         clanMessages = 0;
         clanGzMessages = 0;
-        bossKills.clear();
+        synchronized (bossKills)
+        {
+            bossKills.clear();
+        }
     }
 
     private boolean enabled()
     {
-        String token = config.rankToken() == null ? "" : config.rankToken().trim();
-        return config.rankTrackingEnabled() && !token.isEmpty();
+        String token = config.token() == null ? "" : config.token().trim();
+        return config.enabled() && config.rankTrackingEnabled() && !token.isEmpty();
     }
 
     private void sendSnapshotSafe()
@@ -214,37 +221,9 @@ class NightLegionRankTracker
         }
         body.add("boss_kills", kills);
 
-        String token = config.rankToken().trim();
-        Request request = new Request.Builder()
-            .url(RANK_ENDPOINT)
-            .header("X-NightLegion-Rank-Token", token)
-            .post(RequestBody.create(JSON, gson.toJson(body)))
-            .build();
-
-        http.newCall(request).enqueue(new Callback()
-        {
-            @Override
-            public void onFailure(Call call, IOException e)
-            {
-                log.debug("NightLegion rank upload failed", e);
-            }
-
-            @Override
-            public void onResponse(Call call, Response response)
-            {
-                try (Response ignored = response)
-                {
-                    if (response.code() == 401)
-                    {
-                        log.warn("NightLegion Rank Secret Key was rejected. Create a new one with /rank_link.");
-                    }
-                    else if (response.code() < 200 || response.code() >= 300)
-                    {
-                        log.debug("NightLegion rank service returned HTTP {}", response.code());
-                    }
-                }
-            }
-        });
+        api.action("community_rank_snapshot", player.getName().trim(), body,
+            ignored -> { },
+            error -> log.debug("NightLegion contribution upload failed: {}", error));
     }
 
     private boolean isLocalPlayer(String chatName)
