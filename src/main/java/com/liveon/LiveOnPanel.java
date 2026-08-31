@@ -43,7 +43,7 @@ final class LiveOnPanel extends JPanel
 	private final JTextField rsn = new JTextField();
 	private final JTextField twitch = new JTextField();
 	private final JLabel status = new JLabel(" ");
-	private final JLabel pinnedNotice = new JLabel("<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'>No aviso fixado.</font></html>");
+	private final JLabel pinnedNotice = new JLabel("<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'>No pinned announcement.</font></html>");
 	private final JPanel recentActivities = new JPanel();
 	private final Set<String> expandedActivities = new HashSet<>();
 	private List<RecentActivity> currentActivities = Collections.emptyList();
@@ -170,7 +170,7 @@ final class LiveOnPanel extends JPanel
 	void updatePinnedNotice(String message)
 	{
 		SwingUtilities.invokeLater(() -> pinnedNotice.setText(message == null || message.trim().isEmpty()
-			? "<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'>No aviso fixado.</font></html>"
+			? "<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'>No pinned announcement.</font></html>"
 			: "<html><b>ANNOUNCEMENTS</b><br><div style='width:150px'>" + escapeHtml(message.trim()) + "</div></html>"));
 	}
 
@@ -213,7 +213,7 @@ final class LiveOnPanel extends JPanel
 				applyActivityIcon(marker, activity);
 				marker.setForeground(accent);
 				String player = activity.player_name == null ? "" : activity.player_name;
-				String detail = activity.title == null ? "Atividade registrada" : activity.title;
+				String detail = activity.title == null ? "Activity recorded" : activity.title;
 				String recordTime = "";
 				if ("CLAN_RECORD".equals(activity.type))
 				{
@@ -225,7 +225,7 @@ final class LiveOnPanel extends JPanel
 					}
 					detail = detail.replaceFirst("(?i)^novo recorde\\s+em\\s+",
 						"New clan best time em ");
-					detail = detail.replaceFirst("(?i)^novo best tempo\\s+em\\s+",
+					detail = detail.replaceFirst("(?i)^new best time\\s+em\\s+",
 						"New clan best time em ");
 				}
 				boolean collective = player.isEmpty();
@@ -249,7 +249,7 @@ final class LiveOnPanel extends JPanel
 						updateRecent(currentActivities);
 					};
 					JButton toggle = new JButton(new ActivityToggleIcon(expanded));
-					toggle.setToolTipText(expanded ? "Collapse atividade" : "Expand atividade");
+					toggle.setToolTipText(expanded ? "Collapse activity" : "Expand activity");
 					toggle.setMargin(new java.awt.Insets(0, 1, 0, 1));
 					toggle.setFocusable(false);
 					toggle.setPreferredSize(new Dimension(22, 22));
@@ -314,7 +314,7 @@ final class LiveOnPanel extends JPanel
 			JLabel recordLabel = new JLabel("New clan best time");
 			recordLabel.setToolTipText(tooltip);
 			text.add(recordLabel);
-			String boss = detail.replaceFirst("(?i)^novo best tempo do clan em\\s+", "").trim();
+			String boss = detail.replaceFirst("(?i)^new best time in the clan em\\s+", "").trim();
 			JLabel bossLabel = expanded
 				? new JLabel("<html><div style='width:125px'><b>" + escapeHtml(boss) + "</b></div></html>")
 				: new JLabel("<html><b>" + escapeHtml(abbreviate(boss, 24)) + "</b></html>");

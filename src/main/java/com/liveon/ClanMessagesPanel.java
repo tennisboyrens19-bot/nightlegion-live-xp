@@ -509,7 +509,7 @@ final class ClanMessagesPanel extends PluginPanel
 		modeSelector.setBorder(BorderFactory.createEmptyBorder(4, 0, 2, 0));
 		modeSelector.add(broadcastMode);
 		modeSelector.add(clanMode);
-		pinBroadcast.setToolTipText("Entregar este broadcast também aos próximos players que entrarem");
+		pinBroadcast.setToolTipText("Also deliver this broadcast to players who join later");
 		JPanel composerOptions = new JPanel(new BorderLayout());
 		composerOptions.add(modeSelector, BorderLayout.NORTH);
 		composerOptions.add(pinBroadcast, BorderLayout.SOUTH);
@@ -544,7 +544,7 @@ final class ClanMessagesPanel extends PluginPanel
 		clear.setPreferredSize(new Dimension(36, 26));
 		clear.addActionListener(event ->
 		{
-			int result = JOptionPane.showConfirmDialog(this, "Apagar todas as messages do clan?", "Confirm limpeza", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			int result = JOptionPane.showConfirmDialog(this, "Apagar todas as messages in the clan?", "Confirm limpeza", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
 			if (result == JOptionPane.YES_OPTION) clearMessagesAction.run();
 		});
 		JPanel publishActions = new JPanel(new BorderLayout(4, 0));
@@ -651,16 +651,16 @@ final class ClanMessagesPanel extends PluginPanel
 		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 		panel.setBorder(BorderFactory.createEmptyBorder(8, 6, 8, 6));
 		JLabel explanation = new JLabel("<html><div style='width:175px'><b>Pinned Home announcement</b><br><br>"
-			+ "Este aviso ficará visível<br>"
+			+ "This announcement will remain visible<br>"
 			+ "no topo da aba Home.<br><br>"
-			+ "Ao publicar um novo aviso,<br>"
-			+ "o current será substituído.</div></html>");
+			+ "When you publish a new announcement,<br>"
+			+ "the current one will be replaced.</div></html>");
 		explanation.setAlignmentX(Component.LEFT_ALIGNMENT);
 		panel.add(explanation);
 		panel.add(Box.createVerticalStrut(7));
 		noticeComposer.setLineWrap(true);
 		noticeComposer.setWrapStyleWord(true);
-		noticeComposer.setToolTipText("Texto que será exibido na seção Announcements da página Início");
+		noticeComposer.setToolTipText("Text shown in the Announcements section on Home");
 		JScrollPane noticeScroll = new JScrollPane(noticeComposer);
 		noticeScroll.setPreferredSize(new Dimension(PluginPanel.PANEL_WIDTH - 24, 72));
 		noticeScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
@@ -674,7 +674,7 @@ final class ClanMessagesPanel extends PluginPanel
 			String text = noticeComposer.getText().trim();
 			if (text.isEmpty())
 			{
-				noticeStatus.setText("Digite o aviso antes de publicar");
+				noticeStatus.setText("Enter the announcement before publishing");
 				return;
 			}
 			noticeStatus.setText("Publishing...");
@@ -729,14 +729,14 @@ final class ClanMessagesPanel extends PluginPanel
 	{
 		java.awt.Component selected = staffSections.getSelectedComponent();
 		staffSections.removeAll();
-		addStaffSection("Ranks", rankRequestsTab, "Solicitações de rank", "requests");
+		addStaffSection("Ranks", rankRequestsTab, "Rank requests", "requests");
 		addStaffSection("Broadcast", messagesStaffSection, "Enviar broadcasts e messages", "message");
 		addStaffSection("Lives", livesStaffSection, "Gerenciar canais da Twitch", "live");
 		if (deputyOwner)
 		{
-			addStaffSection("Tags", clanTagsTab, "Gerenciar etiquetas do clan", "tag");
+			addStaffSection("Tags", clanTagsTab, "Gerenciar etiquetas in the clan", "tag");
 		}
-		addStaffSection("Aviso painel", noticesStaffSection, "Gerenciar aviso fixo do Home", "pin");
+		addStaffSection("Home announcement", noticesStaffSection, "Manage the pinned Home announcement", "pin");
 		int selectedIndex = selected == null ? -1 : staffSections.indexOfComponent(selected);
 		if (selectedIndex >= 0) staffSections.setSelectedIndex(selectedIndex);
 	}
@@ -772,8 +772,8 @@ final class ClanMessagesPanel extends PluginPanel
 				mainArea.repaint();
 				return;
 			}
-			addNavigationButton("Home", "home", liveOnTab, "home", "Home principal do clan");
-			addNavigationButton("Ranks", "star", ranksTab, "ranks", "Request de ranks");
+			addNavigationButton("Home", "home", liveOnTab, "home", "Home principal in the clan");
+			addNavigationButton("Ranks", "star", ranksTab, "ranks", "Request ranks");
 			addNavigationButton("MVPs", "crown", mvpTab, "mvp", "Rankings MVP");
 			addNavigationButton("PBs", "trophy", pbTab, "pbs", "Clan personal bests");
 			addNavigationButton("BOTW", "star", botwTab, "botw", "Boss of the Week");
@@ -823,8 +823,8 @@ final class ClanMessagesPanel extends PluginPanel
 		{
 			connectionWarningAttempts++;
 			connectionWarningLabel.setText(connectionWarningAttempts == 1
-				? "<html><center>Ative <b>Conectar ao clan</b><br>nas configurações do plugin.</center></html>"
-				: "<html><center>A conexão continua desativada.<br>Ative a opção e tente novamente.</center></html>");
+				? "<html><center>Enable <b>Connect to clan server</b><br>in the plugin settings.</center></html>"
+				: "<html><center>The connection is still disabled.<br>Enable it and try again.</center></html>");
 			connectionWarningPanel.setVisible(true);
 			accessMessage.setVisible(false);
 			footerStatus.setText("Connection disabled");

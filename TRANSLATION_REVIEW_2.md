@@ -1,0 +1,67 @@
+# Remaining visible Portuguese review
+
+- `ClanMessagesPanel.java:574` — `Fixar ou desfixar broadcast selecionado`
+- `ClanMessagesPlugin.java:1209` — `Passo 3: abra a categoria/tier desejada e clique novamente em Sincronizar.`
+- `ClanMessagesPlugin.java:1212` — `Combat Achievements: sincronize com a aba correspondente aberta.`
+- `ClanMessagesPlugin.java:1523` — `abra o Character Summary`
+- `ClanMessagesPlugin.java:1527` — `abra o Character Summary`
+- `ClanMessagesPlugin.java:1532` — `abra o Character Summary`
+- `ClanMessagesPlugin.java:1586` — `: abra o menu Combat Achievements`
+- `ClanMessagesPlugin.java:1765` — ` pontos`
+- `ClanMessagesPlugin.java:1912` — `<br>Requirements faltantes: `
+- `ClanMessagesPlugin.java:1931` — `Quest points pendentes`
+- `ClanMessagesPlugin.java:3434` — `Informe RSN e canal da Twitch`
+- `ClanMessagesPlugin.java:3446` — `Failed ao associar canal`
+- `ClanMessagesPlugin.java:3484` — `Channel removido`
+- `ClanMessagesPlugin.java:3538` — `Informe o nome do member`
+- `ClanMessagesPlugin.java:3556` — `MVP adicionado`
+- `ClanMessagesPlugin.java:3589` — `MVP removido`
+- `ClanMessagesPlugin.java:3797` — `Apenas Deputy Owner pode alterar`
+- `ClanMessagesPlugin.java:3804` — `Etiqueta criada`
+- `ClanMessagesPlugin.java:3811` — `Informe o nome do member`
+- `ClanMessagesPlugin.java:3811` — `Apenas Deputy Owner pode alterar`
+- `ClanMessagesPlugin.java:3824` — `Etiqueta removida`
+- `ClanMessagesPlugin.java:3840` — `Failed ao salvar`
+- `ClanMessagesPlugin.java:4137` — `Failed ao publicar`
+- `ClanMessagesPlugin.java:4152` — `Publicado`
+- `ClanMessagesPlugin.java:4323` — `Failed ao alterar message fixada`
+- `ClanMessagesPlugin.java:4350` — `Failed ao limpar messages`
+- `ClanMessagesPlugin.java:5013` — `Acesso staff ausente`
+- `ClanMessagesPlugin.java:5102` — `Acesso staff ausente`
+- `ClanTagsPanel.java:28` — `Criar etiqueta`
+- `ClanTagsPanel.java:30` — `Delete etiqueta`
+- `ClanTagsPanel.java:33` — `Etiqueta`
+- `ClanTagsPanel.java:49` — `Criar etiqueta`
+- `ClanTagsPanel.java:61` — `Etiqueta`
+- `ClanTagsPanel.java:70` — `Crie ou selecione uma etiqueta`
+- `ClanTagsPanel.java:86` — `Select uma etiqueta`
+- `ClanTagsPanel.java:96` — `Remove o member selecionado da etiqueta`
+- `ClanTagsPanel.java:137` — ` etiqueta(s)`
+- `LiveOnPanel.java:115` — `Remove canal selecionado`
+- `LiveOnPanel.java:226` — `(?i)^novo recorde\\s+em\\s+`
+- `LiveOnPanel.java:442` — `AO VIVO`
+- `LiveOnPanel.java:478` — `AO VIVO`
+- `MvpManagementPanel.java:37` — `Cargo MVP`
+- `MvpManagementPanel.java:53` — `Remove member MVP selecionado`
+- `PbPanel.java:431` — `1. Abra o <b>Adventure Log</b> da sua POH para importar todos os seus tempos.<br><br>`
+- `PbPanel.java:432` — `2. Nos <b>Combat Achievements</b>, abra a página do boss que quiser registrar.<br><br>`
+- `PbPanel.java:482` — `<html><div style='text-align:center'>Abra o Adventure Log<br>para importar seus PBs</div></html>`
+- `PbPanel.java:706` — `Ainda não existem PBs nesta categoria.`
+- `PbPanel.java:712` — `Você ainda não possui PB<br>nesta categoria`
+- `RanksPanel.java:286` — `Soldier é concedido após 30 dias in the clan. No é necessário solicitar.`
+- `RanksPanel.java:292` — `Next cargo`
+- `RanksPanel.java:293` — `General • somente via Discord`
+- `RanksPanel.java:299` — `General • somente via Discord`
+- `RanksPanel.java:306` — `No rank novo available`
+- `RanksPanel.java:308` — `Conclua as pendências abaixo e verifique novamente.`
+- `RanksPanel.java:350` — `Complete ou verifique os requirements destacados antes de solicitar`
+- `RanksPanel.java:452` — `Necessário: 200 Quest points e Fire cape.`
+- `RanksPanel.java:453` — `Necessário: 250 Quest points, Fire cape e Easy Combat Achievements.`
+- `RanksPanel.java:454` — `Necessário: 300 Quest points, Fire cape e Medium Combat Achievements.`
+- `RanksPanel.java:455` — `Necessário: Quest cape, Fire cape e Hard Combat Achievements.`
+- `RanksPanel.java:456` — `Necessário: Quest cape, Dizana's quiver ou Infernal cape e Elite Combat Achievements.`
+- `RanksPanel.java:457` — `Necessário: Diary cape, Dizana's quiver, Infernal cape e Master Combat Achievements.`
+- `RanksPanel.java:458` — `Necessário: requirements de Captain e 2300 total level.`
+- `RanksPanel.java:459` — `Necessário: Diary cape, Max cape e Grandmaster Combat Achievements.`
+- `RanksPanel.java:460` — `Check os requirements pendentes antes de solicitar.`
+- `RanksPanel.java:493` — `! abra o banco`

@@ -283,9 +283,9 @@ final class RanksPanel extends JPanel
 				availableRankIcon.setIcon(nextRankSuppliedIcon != null ? nextRankSuppliedIcon : rankIconFor("Soldier"));
 				nextRankIcon.setIcon(nextRankSuppliedIcon != null ? nextRankSuppliedIcon : rankIconFor("Soldier"));
 				requirementsTitle.setText("Promotion automática");
-				helper.setText(wrapped("Soldier é concedido após 30 dias no clan. No é necessário solicitar.", REQUIREMENT_TEXT_WIDTH));
+				helper.setText(wrapped("Soldier é concedido após 30 dias in the clan. No é necessário solicitar.", REQUIREMENT_TEXT_WIDTH));
 				setWrappedText(nextRank, "Soldier • automatic promotion");
-				nextMissing.setText(wrapped("Concedido após 30 dias no clan.", REQUIREMENT_TEXT_WIDTH));
+				nextMissing.setText(wrapped("Concedido após 30 dias in the clan.", REQUIREMENT_TEXT_WIDTH));
 			}
 			else if (currentIndex >= progressionIndex("Colonel"))
 			{
@@ -394,7 +394,7 @@ final class RanksPanel extends JPanel
 	private static int progressionIndex(String rankName)
 	{
 		String normalized = normalize(rankName);
-		if (normalized.equals("helper") || normalized.equals("membro") || normalized.equals("member")) return 0;
+		if (normalized.equals("helper") || normalized.equals("member") || normalized.equals("member")) return 0;
 		if (normalized.equals("recruit") || normalized.equals("soldier") || normalized.equals("private")) return 1;
 		if (normalized.equals("corporal")) return 2;
 		if (normalized.equals("novice")) return 3;
