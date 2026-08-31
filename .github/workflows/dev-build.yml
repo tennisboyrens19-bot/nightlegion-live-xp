@@ -9,6 +9,7 @@ on:
       - polish-live-on-inspired-ui
       - liveon-exact-nightlegion
       - live-on-exact-english
+      - liveon-exact-nightlegion-v2
   workflow_dispatch:
 
 jobs:
