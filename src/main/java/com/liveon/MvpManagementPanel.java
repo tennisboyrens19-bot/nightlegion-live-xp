@@ -47,7 +47,7 @@ final class MvpManagementPanel extends JPanel
 		table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		add(new JScrollPane(table), BorderLayout.CENTER);
 
-		JButton refresh = new JButton("Atualizar");
+		JButton refresh = new JButton("Refresh");
 		refresh.addActionListener(event -> refreshAction.run());
 		JButton remove = new JButton("Remover");
 		remove.setToolTipText("Remover membro MVP selecionado");

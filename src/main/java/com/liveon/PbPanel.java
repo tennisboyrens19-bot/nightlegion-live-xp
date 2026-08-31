@@ -31,7 +31,7 @@ final class PbPanel extends JPanel
 {
 	private static final Color ORANGE = new Color(255, 152, 0);
 	private static final Color BLUE = new Color(90, 190, 245);
-	private final javax.swing.JTextField globalSearch = new javax.swing.JTextField("Pesquisar");
+	private final javax.swing.JTextField globalSearch = new javax.swing.JTextField("Search");
 	private final JButton clearSearch = new JButton("×");
 	private final javax.swing.JPopupMenu searchSuggestions = new javax.swing.JPopupMenu();
 	private final JComboBox<String> raids = new JComboBox<>();
@@ -48,7 +48,7 @@ final class PbPanel extends JPanel
 	private final JScrollPane rankingScroll = new JScrollPane(ranking);
 	private final JLabel ownPb = new JLabel("Nenhum PB sincronizado", SwingConstants.CENTER);
 	private final JPanel tutorial = new JPanel();
-	private final JButton tutorialToggle = new JButton("▾ Como registrar seus PBs?");
+	private final JButton tutorialToggle = new JButton("▾ How to register your PBs?");
 	private final JPanel participationNotice = new JPanel(new BorderLayout());
 	private final JButton refresh = new JButton("↻");
 	private final Consumer<PbCategory> selectionAction;
@@ -77,7 +77,7 @@ final class PbPanel extends JPanel
 		titleRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 		titleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
 		titleRow.add(title, BorderLayout.CENTER);
-		refresh.setToolTipText("Atualizar classificação");
+		refresh.setToolTipText("Refresh classificação");
 		refresh.setMargin(new java.awt.Insets(1, 7, 1, 7));
 		refresh.setPreferredSize(new Dimension(32, 26));
 		titleRow.add(refresh, BorderLayout.EAST);
@@ -89,7 +89,7 @@ final class PbPanel extends JPanel
 		});
 
 		globalSearch.setToolTipText("Pesquise em bosses, desafios e raids");
-		configureSearchPrompt(globalSearch, "Pesquisar");
+		configureSearchPrompt(globalSearch, "Search");
 		configureGlobalAutocomplete();
 		clearSearch.setToolTipText("Limpar pesquisa");
 		clearSearch.setMargin(new java.awt.Insets(1, 7, 1, 7));
@@ -185,7 +185,7 @@ final class PbPanel extends JPanel
 		top.add(ownPb);
 		tutorialToggle.addActionListener(event -> {
 			tutorial.setVisible(!tutorial.isVisible());
-			tutorialToggle.setText((tutorial.isVisible() ? "▾ " : "▸ ") + "Como registrar seus PBs?");
+			tutorialToggle.setText((tutorial.isVisible() ? "▾ " : "▸ ") + "How to register your PBs?");
 			revalidate();
 		});
 		add(top, BorderLayout.NORTH);
@@ -288,7 +288,7 @@ final class PbPanel extends JPanel
 			{
 				if (updatingGlobalSearch) return;
 				String query = globalSearch.getText();
-				if ("Pesquisar".equals(query)) return;
+				if ("Search".equals(query)) return;
 				SwingUtilities.invokeLater(() -> filterGlobalSuggestions(query));
 			}
 			@Override public void insertUpdate(javax.swing.event.DocumentEvent event) { changed(); }
@@ -388,7 +388,7 @@ final class PbPanel extends JPanel
 		}
 		else
 		{
-			globalSearch.setText("Pesquisar");
+			globalSearch.setText("Search");
 			globalSearch.setForeground(new Color(145, 145, 145));
 		}
 		updatingGlobalSearch = false;
@@ -532,7 +532,7 @@ final class PbPanel extends JPanel
 		for (PbCategory category : availableCategories)
 			if (safe(category.boss).equalsIgnoreCase(boss) && safe(category.mode).equalsIgnoreCase(mode)) sizes.add(category.team_size);
 		List<String> labels = new ArrayList<>();
-		for (Integer size : sizes) if (size > 0) labels.add(size == 1 ? "Solo" : size + " jogadores");
+		for (Integer size : sizes) if (size > 0) labels.add(size == 1 ? "Solo" : size + " players");
 		updatingFilters = true;
 		teams.setModel(new DefaultComboBoxModel<>(labels.toArray(new String[0])));
 		teams.setVisible(labels.size() > 1);
@@ -729,7 +729,7 @@ final class PbPanel extends JPanel
 	private void setTutorialExpanded(boolean expanded)
 	{
 		tutorial.setVisible(expanded);
-		tutorialToggle.setText((expanded ? "▾ " : "▸ ") + "Como registrar seus PBs?");
+		tutorialToggle.setText((expanded ? "▾ " : "▸ ") + "How to register your PBs?");
 	}
 
 	private JPanel rankingRow(PbRankingResponse.Entry entry)

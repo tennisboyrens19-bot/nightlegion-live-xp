@@ -27,7 +27,7 @@ final class ClanTagsPanel extends JPanel
 	private final JTextField rsn = new JTextField();
 	private final JButton create = new JButton("Criar etiqueta");
 	private final JButton addMember = new JButton("Adicionar membro");
-	private final JButton deleteTag = new JButton("Excluir etiqueta");
+	private final JButton deleteTag = new JButton("Delete etiqueta");
 	private final JButton removeMember = new JButton("Remover membro");
 	private final JLabel status = new JLabel(" ");
 	private final DefaultTableModel model = new DefaultTableModel(new String[]{"Etiqueta", "Membro"}, 0)
@@ -78,7 +78,7 @@ final class ClanTagsPanel extends JPanel
 		table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		add(new JScrollPane(table), BorderLayout.CENTER);
 
-		JButton refresh = new JButton("Atualizar");
+		JButton refresh = new JButton("Refresh");
 		refresh.addActionListener(event -> refreshAction.run());
 		deleteTag.addActionListener(event ->
 		{
@@ -86,7 +86,7 @@ final class ClanTagsPanel extends JPanel
 			if (selected == null) setStatus("Selecione uma etiqueta");
 			else deleteTagAction.accept(selected);
 		});
-		deleteTag.setToolTipText("Excluir a etiqueta selecionada e suas associações");
+		deleteTag.setToolTipText("Delete a etiqueta selecionada e suas associações");
 		removeMember.addActionListener(event ->
 		{
 			int selectedRow = table.getSelectedRow();

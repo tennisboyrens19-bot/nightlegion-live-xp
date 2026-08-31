@@ -22,18 +22,18 @@ final class RankVisuals
 {
 	private static final int CHAT_ICON_SIZE = 11;
 	private static final String[][] CUSTOM_RANKS = {
-		{"coronel", "Coronel", "coronel.png"},
+		{"colonel", "Colonel", "colonel.png"},
 		{"major", "Major", "major.png"},
-		{"capitão", "Capitão", "capitao.png"},
-		{"capitao", "Capitão", "capitao.png"},
-		{"tenente", "Tenente", "tenente.png"},
-		{"cadete", "Cadete", "cadete.png"},
-		{"sargento", "Sargento", "sargento.png"},
-		{"aluno", "Aluno", "aluno.png"},
-		{"cabo", "Cabo", "cabo.png"}
+		{"captain", "Captain", "captain.png"},
+		{"captain", "Captain", "captain.png"},
+		{"lieutenant", "Lieutenant", "lieutenant.png"},
+		{"cadet", "Cadet", "cadet.png"},
+		{"sergeant", "Sergeant", "sergeant.png"},
+		{"student", "Student", "student.png"},
+		{"corporal", "Corporal", "corporal.png"}
 	};
 	private static final Map<String, Integer> CHAT_ICON_IDS = new LinkedHashMap<>();
-	private static final Pattern RANK_PATTERN = Pattern.compile("(?iu)(?<!\\p{L})(Coronel|Major|Capitão|Capitao|Tenente|Cadete|Sargento|Aluno|Cabo)(?!\\p{L})");
+	private static final Pattern RANK_PATTERN = Pattern.compile("(?iu)(?<!\\p{L})(Colonel|Major|Captain|Captain|Lieutenant|Cadet|Sergeant|Student|Corporal)(?!\\p{L})");
 
 	private RankVisuals()
 	{
@@ -126,13 +126,13 @@ final class RankVisuals
 		if (rank.contains("administrator")) return new Color(177, 75, 220);
 		if (rank.contains("deputy")) return new Color(220, 150, 60);
 		if (rank.contains("guest")) return new Color(140, 140, 140);
-		if (rank.contains("coronel")) return new Color(184, 135, 42);
+		if (rank.contains("colonel")) return new Color(184, 135, 42);
 		if (rank.contains("major")) return new Color(142, 98, 190);
 		if (rank.contains("capit")) return new Color(205, 126, 42);
-		if (rank.contains("tenente")) return new Color(70, 125, 190);
-		if (rank.contains("cadete")) return new Color(80, 155, 95);
-		if (rank.contains("sargento")) return new Color(110, 145, 175);
-		if (rank.contains("aluno") || rank.contains("cabo")) return new Color(125, 125, 125);
+		if (rank.contains("lieutenant")) return new Color(70, 125, 190);
+		if (rank.contains("cadet")) return new Color(80, 155, 95);
+		if (rank.contains("sergeant")) return new Color(110, 145, 175);
+		if (rank.contains("student") || rank.contains("corporal")) return new Color(125, 125, 125);
 		return new Color(70, 180, 90);
 	}
 

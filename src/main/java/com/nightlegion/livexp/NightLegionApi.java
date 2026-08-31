@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.MediaType;
@@ -25,14 +26,19 @@ class NightLegionApi
 
     private final OkHttpClient client;
     private final ScheduledExecutorService executor;
-    private final NightLegionLiveXpConfig config;
+    private final Supplier<String> tokenSupplier;
     private final Gson gson;
 
     NightLegionApi(OkHttpClient client, ScheduledExecutorService executor, NightLegionLiveXpConfig config, Gson gson)
     {
+        this(client, executor, () -> config.token(), gson);
+    }
+
+    NightLegionApi(OkHttpClient client, ScheduledExecutorService executor, Supplier<String> tokenSupplier, Gson gson)
+    {
         this.client = client;
         this.executor = executor;
-        this.config = config;
+        this.tokenSupplier = tokenSupplier;
         this.gson = gson;
     }
 
@@ -161,7 +167,8 @@ class NightLegionApi
 
     private String token()
     {
-        return config.token() == null ? "" : config.token().trim();
+        String value = tokenSupplier == null ? "" : tokenSupplier.get();
+        return value == null ? "" : value.trim();
     }
 
     private String errorText(String text, int code)

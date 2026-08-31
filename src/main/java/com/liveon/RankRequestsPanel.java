@@ -35,12 +35,12 @@ final class RankRequestsPanel extends JPanel
 		JPanel header = new JPanel(new BorderLayout(5, 5));
 		statusLabel = new JLabel("");
 		header.add(statusLabel, BorderLayout.CENTER);
-		JButton refresh = new JButton("Atualizar");
+		JButton refresh = new JButton("Refresh");
 		refresh.addActionListener(event -> refreshAction.run());
 		header.add(refresh, BorderLayout.EAST);
 		add(header, BorderLayout.NORTH);
 
-		tableModel = new DefaultTableModel(new String[]{"Jogador", "Rank", "Data"}, 0)
+		tableModel = new DefaultTableModel(new String[]{"Player", "Rank", "Data"}, 0)
 		{
 			@Override
 			public boolean isCellEditable(int row, int column)
@@ -68,11 +68,11 @@ final class RankRequestsPanel extends JPanel
 		add(scrollPane, BorderLayout.CENTER);
 
 		JPanel actions = new JPanel(new GridLayout(1, 3, 3, 0));
-		JButton confirm = new JButton("Aceitar");
+		JButton confirm = new JButton("Accept");
 		confirm.setMargin(new java.awt.Insets(3, 2, 3, 2));
 		confirm.setBackground(new Color(190, 104, 0));
 		confirm.setForeground(Color.WHITE);
-		confirm.setToolTipText("Aceitar solicitação selecionada");
+		confirm.setToolTipText("Accept request selecionada");
 		confirm.addActionListener(event ->
 		{
 			int selectedRow = requestsTable.getSelectedRow();
@@ -82,12 +82,12 @@ final class RankRequestsPanel extends JPanel
 			}
 			else
 			{
-				setStatus("Selecione uma solicitação");
+				setStatus("Selecione uma request");
 			}
 		});
-		JButton delete = new JButton("Excluir");
+		JButton delete = new JButton("Delete");
 		delete.setMargin(new java.awt.Insets(3, 2, 3, 2));
-		delete.setToolTipText("Excluir solicitação selecionada");
+		delete.setToolTipText("Delete request selecionada");
 		delete.addActionListener(event ->
 		{
 			int selectedRow = requestsTable.getSelectedRow();
@@ -97,12 +97,12 @@ final class RankRequestsPanel extends JPanel
 			}
 			else
 			{
-				setStatus("Selecione uma solicitação");
+				setStatus("Selecione uma request");
 			}
 		});
-		JButton decline = new JButton("Recusar");
+		JButton decline = new JButton("Decline");
 		decline.setMargin(new java.awt.Insets(3, 2, 3, 2));
-		decline.setToolTipText("Recusar solicitação selecionada");
+		decline.setToolTipText("Decline request selecionada");
 		decline.addActionListener(event ->
 		{
 			int selectedRow = requestsTable.getSelectedRow();
@@ -112,7 +112,7 @@ final class RankRequestsPanel extends JPanel
 			}
 			else
 			{
-				setStatus("Selecione uma solicitação");
+				setStatus("Selecione uma request");
 			}
 		});
 		actions.add(confirm);
@@ -123,7 +123,7 @@ final class RankRequestsPanel extends JPanel
 		activityLog.setLineWrap(true);
 		activityLog.setWrapStyleWord(true);
 		JScrollPane activityScrollPane = new JScrollPane(activityLog);
-		activityScrollPane.setBorder(BorderFactory.createTitledBorder("Atualizações recentes"));
+		activityScrollPane.setBorder(BorderFactory.createTitledBorder("Recent updates"));
 		activityScrollPane.setPreferredSize(new Dimension(220, 105));
 
 		JPanel footer = new JPanel(new BorderLayout(5, 5));
@@ -163,7 +163,7 @@ statusLabel.setText("");
 				text.append(activity.playerName)
 					.append(" / ").append(activity.rankName)
 					.append(" — ").append(decision)
-					.append(" por ").append(activity.staffName)
+					.append(" by ").append(activity.staffName)
 					.append('\n');
 			}
 			activityLog.setText(text.toString());

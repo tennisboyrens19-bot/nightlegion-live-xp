@@ -187,9 +187,9 @@ final class MvpPanel extends JPanel
 		JLabel kicker = new JLabel("MVP DROPS");
 		kicker.setForeground(new Color(255, 176, 0));
 		kicker.setFont(kicker.getFont().deriveFont(Font.BOLD, 13f));
-		JLabel title = new JLabel("Ranking mensal");
+		JLabel title = new JLabel("Monthly ranking");
 		title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
-		JLabel meta = new JLabel(monthLabel() + "  •  Drops de 1m+");
+		JLabel meta = new JLabel(monthLabel() + "  •  Drops 1m+");
 		meta.setForeground(new Color(180, 180, 180));
 		meta.setFont(meta.getFont().deriveFont(Font.PLAIN, 13f));
 		kicker.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -229,7 +229,7 @@ final class MvpPanel extends JPanel
 		JLabel kicker = new JLabel("MVP " + category);
 		kicker.setForeground(new Color(255, 176, 0));
 		kicker.setFont(kicker.getFont().deriveFont(Font.BOLD, 13f));
-		JLabel title = new JLabel("Ranking mensal");
+		JLabel title = new JLabel("Monthly ranking");
 		title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
 		JLabel meta = new JLabel(monthLabel() + "  •  Wise Old Man");
 		meta.setForeground(new Color(180, 180, 180));
@@ -297,7 +297,7 @@ final class MvpPanel extends JPanel
 				}
 				if (topTen.size() > 3)
 				{
-					JLabel classification = new JLabel("CLASSIFICAÇÃO");
+					JLabel classification = new JLabel("RANKING");
 					classification.setForeground(new Color(155, 155, 155));
 					classification.setFont(classification.getFont().deriveFont(Font.BOLD, 13f));
 					classification.setBorder(BorderFactory.createEmptyBorder(0, 4, 6, 0));
@@ -356,7 +356,7 @@ final class MvpPanel extends JPanel
 				}
 				if (topTen.size() > 3)
 				{
-					JLabel classification = new JLabel("CLASSIFICAÇÃO");
+					JLabel classification = new JLabel("RANKING");
 					classification.setForeground(new Color(155, 155, 155));
 					classification.setFont(classification.getFont().deriveFont(Font.BOLD, 13f));
 					classification.setBorder(BorderFactory.createEmptyBorder(0, 4, 6, 0));
@@ -393,7 +393,7 @@ final class MvpPanel extends JPanel
 		JLabel name = new JLabel(entry.getPlayerName());
 		applyAccountIcon(name, entry.getAccountType());
 		name.setFont(name.getFont().deriveFont(Font.BOLD, 16f));
-		JLabel caption = new JLabel("Líder do mês");
+		JLabel caption = new JLabel("Month leader");
 		caption.setFont(caption.getFont().deriveFont(Font.BOLD, 15f));
 		caption.setForeground(new Color(180, 161, 110));
 		JPanel identity = new JPanel(new GridLayout(0, 1, 0, 1));
@@ -599,7 +599,7 @@ final class MvpPanel extends JPanel
 		JLabel name = new JLabel(entry.getPlayerName());
 		applyAccountIcon(name, entry.getAccountType());
 		name.setFont(name.getFont().deriveFont(Font.BOLD, 16f));
-		JLabel caption = new JLabel("Líder do mês");
+		JLabel caption = new JLabel("Month leader");
 		caption.setFont(caption.getFont().deriveFont(Font.BOLD, 15f));
 		caption.setForeground(new Color(180, 161, 110));
 		JPanel identity = new JPanel(new GridLayout(0, 1, 0, 1));

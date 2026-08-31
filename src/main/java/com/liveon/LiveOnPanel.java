@@ -43,7 +43,7 @@ final class LiveOnPanel extends JPanel
 	private final JTextField rsn = new JTextField();
 	private final JTextField twitch = new JTextField();
 	private final JLabel status = new JLabel(" ");
-	private final JLabel pinnedNotice = new JLabel("<html><b>AVISOS</b><br><font color='#aaaaaa'>Nenhum aviso fixado.</font></html>");
+	private final JLabel pinnedNotice = new JLabel("<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'>Nenhum aviso fixado.</font></html>");
 	private final JPanel recentActivities = new JPanel();
 	private final Set<String> expandedActivities = new HashSet<>();
 	private List<RecentActivity> currentActivities = Collections.emptyList();
@@ -72,7 +72,7 @@ final class LiveOnPanel extends JPanel
 		home.add(javax.swing.Box.createVerticalStrut(8));
 		home.add(createSectionDivider());
 		home.add(javax.swing.Box.createVerticalStrut(8));
-		JLabel title = new JLabel("ONLINE NA TWITCH");
+		JLabel title = new JLabel("LIVE ON TWITCH");
 		title.setForeground(new Color(70, 220, 100));
 		title.setAlignmentX(LEFT_ALIGNMENT);
 		home.add(title);
@@ -85,7 +85,7 @@ final class LiveOnPanel extends JPanel
 		home.add(javax.swing.Box.createVerticalStrut(8));
 		home.add(createSectionDivider());
 		home.add(javax.swing.Box.createVerticalStrut(8));
-		JLabel recentTitle = new JLabel("ATIVIDADE RECENTE DO CLÃ");
+		JLabel recentTitle = new JLabel("RECENT CLAN ACTIVITY");
 		recentTitle.setForeground(new Color(255, 152, 0));
 		recentTitle.setAlignmentX(LEFT_ALIGNMENT);
 		home.add(recentTitle);
@@ -100,7 +100,7 @@ final class LiveOnPanel extends JPanel
 		fields.add(rsn);
 		fields.add(new JLabel("Canal da Twitch"));
 		fields.add(twitch);
-		JButton save = new JButton("Associar / Atualizar");
+		JButton save = new JButton("Associar / Refresh");
 		save.setBackground(new Color(190, 104, 0));
 		save.setForeground(Color.WHITE);
 		save.addActionListener(event -> saveAction.accept(rsn.getText().trim(), twitch.getText().trim()));
@@ -109,7 +109,7 @@ final class LiveOnPanel extends JPanel
 
 		table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		staffManagement.add(new JScrollPane(table), BorderLayout.CENTER);
-		JButton refresh = new JButton("Atualizar");
+		JButton refresh = new JButton("Refresh");
 		refresh.addActionListener(event -> refreshAction.run());
 		JButton remove = new JButton("Remover");
 		remove.setToolTipText("Remover canal selecionado");
@@ -149,7 +149,7 @@ final class LiveOnPanel extends JPanel
 			List<LiveChannel> displayed = channels == null ? new ArrayList<>() : new ArrayList<>(channels);
 			if (displayed.isEmpty())
 			{
-				JLabel empty = new JLabel("Nenhuma live ativa no momento.");
+				JLabel empty = new JLabel("No active streams right now.");
 				empty.setHorizontalAlignment(JLabel.CENTER);
 				empty.setForeground(new Color(155, 155, 155));
 				empty.setBorder(BorderFactory.createEmptyBorder(18, 4, 18, 4));
@@ -170,8 +170,8 @@ final class LiveOnPanel extends JPanel
 	void updatePinnedNotice(String message)
 	{
 		SwingUtilities.invokeLater(() -> pinnedNotice.setText(message == null || message.trim().isEmpty()
-			? "<html><b>AVISOS</b><br><font color='#aaaaaa'>Nenhum aviso fixado.</font></html>"
-			: "<html><b>AVISOS</b><br><div style='width:150px'>" + escapeHtml(message.trim()) + "</div></html>"));
+			? "<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'>Nenhum aviso fixado.</font></html>"
+			: "<html><b>ANNOUNCEMENTS</b><br><div style='width:150px'>" + escapeHtml(message.trim()) + "</div></html>"));
 	}
 
 	private static String escapeHtml(String value)
@@ -249,7 +249,7 @@ final class LiveOnPanel extends JPanel
 						updateRecent(currentActivities);
 					};
 					JButton toggle = new JButton(new ActivityToggleIcon(expanded));
-					toggle.setToolTipText(expanded ? "Recolher atividade" : "Expandir atividade");
+					toggle.setToolTipText(expanded ? "Collapse atividade" : "Expand atividade");
 					toggle.setMargin(new java.awt.Insets(0, 1, 0, 1));
 					toggle.setFocusable(false);
 					toggle.setPreferredSize(new Dimension(22, 22));
@@ -403,9 +403,9 @@ final class LiveOnPanel extends JPanel
 		if ("PROMOTION".equals(activity.type) && activity.title != null)
 		{
 			String normalized = activity.title.toLowerCase(java.util.Locale.ROOT);
-			for (String rank : new String[]{"cabo", "aluno", "sargento", "cadete", "tenente", "capitao", "major", "coronel"})
+			for (String rank : new String[]{"corporal", "student", "sergeant", "cadet", "lieutenant", "captain", "major", "colonel"})
 			{
-				String display = "capitao".equals(rank) ? "capitão" : rank;
+				String display = "captain".equals(rank) ? "captain" : rank;
 				if (normalized.endsWith(display)) { resource = "/ranks/" + rank + ".png"; break; }
 			}
 		}

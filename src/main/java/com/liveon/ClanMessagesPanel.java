@@ -36,15 +36,15 @@ final class ClanMessagesPanel extends PluginPanel
 	private final JTextArea messages = new JTextArea();
 	private final JTextArea composer = new JTextArea(2, 20);
 	private final JButton publish = new JButton("Publicar");
-	private final JButton publishNotice = new JButton("Publicar aviso fixado");
-	private final JButton removeNotice = new JButton("Remover aviso atual");
+	private final JButton publishNotice = new JButton("Publish pinned announcement");
+	private final JButton removeNotice = new JButton("Remove current announcement");
 	private final JTextArea noticeComposer = new JTextArea(4, 20);
-	private final JLabel noticeStatus = new JLabel("Nenhum aviso carregado");
-	private final javax.swing.JCheckBox pinBroadcast = new javax.swing.JCheckBox("Fixar broadcast");
+	private final JLabel noticeStatus = new JLabel("No announcement loaded");
+	private final javax.swing.JCheckBox pinBroadcast = new javax.swing.JCheckBox("Pin broadcast");
 	private final javax.swing.JToggleButton broadcastMode = new javax.swing.JToggleButton("Broadcast", true);
 	private final javax.swing.JToggleButton clanMode = new javax.swing.JToggleButton("Clan channel");
-	private final JLabel status = new JLabel("Desconectado");
-	private final JLabel footerStatus = new JLabel("Desconectado", SwingConstants.CENTER);
+	private final JLabel status = new JLabel("Disconnected");
+	private final JLabel footerStatus = new JLabel("Disconnected", SwingConstants.CENTER);
 	private final java.awt.CardLayout mainCardsLayout = new java.awt.CardLayout();
 	private final JPanel mainCards = new JPanel(mainCardsLayout);
 	private final JPanel navigationGrid = new JPanel(new java.awt.GridBagLayout());
@@ -61,11 +61,15 @@ final class ClanMessagesPanel extends PluginPanel
 	private final LiveOnPanel liveOnTab;
 	private final MvpManagementPanel mvpManagementTab;
 	private final ClanTagsPanel clanTagsTab;
+	private final JPanel botwTab;
+	private final JPanel sotwTab;
+	private final JPanel giveawayTab;
+	private final JPanel groupsTab;
 	private final JTabbedPane staffSections = new JTabbedPane();
 	private JPanel messagesStaffSection;
 	private JPanel noticesStaffSection;
 	private JPanel livesStaffSection;
-	private final DefaultTableModel sentMessagesModel = new DefaultTableModel(new String[]{"Staff", "Tipo", "Mensagem"}, 0)
+	private final DefaultTableModel sentMessagesModel = new DefaultTableModel(new String[]{"Staff", "Type", "Message"}, 0)
 	{
 		@Override public boolean isCellEditable(int row, int column) { return false; }
 	};
@@ -78,9 +82,13 @@ final class ClanMessagesPanel extends PluginPanel
 	private final JLabel connectionWarningLabel = new JLabel("", SwingConstants.CENTER);
 	private int connectionWarningAttempts;
 
-	ClanMessagesPanel(Runnable publishBroadcastAction, Runnable publishClanAction, Runnable verifyTokenAction, Runnable clearMessagesAction, Runnable refreshRanksAction, Runnable resetRanksAction, Runnable requestRankAction, Runnable refreshRankRequestsAction, java.util.function.Consumer<Integer> deleteRankRequestAction, java.util.function.Consumer<RankRequestsPanel.RankRequest> confirmRankRequestAction, java.util.function.Consumer<RankRequestsPanel.RankRequest> declineRankRequestAction, Runnable refreshSentMessagesAction, java.util.function.Consumer<StaffSentMessage> deleteSentMessageAction, java.util.function.Consumer<StaffSentMessage> resendSentMessageAction, java.util.function.Consumer<StaffSentMessage> togglePinnedMessageAction, java.util.function.Consumer<String> publishPanelNoticeAction, Runnable removePanelNoticeAction, Runnable refreshLivesAction, java.util.function.BiConsumer<String, String> saveLiveChannelAction, java.util.function.Consumer<LiveChannel> deleteLiveChannelAction, Runnable refreshMvpMembersAction, java.util.function.Consumer<String> saveMvpMemberAction, java.util.function.Consumer<MvpMember> deleteMvpMemberAction, Runnable refreshClanTagsAction, java.util.function.BiConsumer<String, String> createClanTagAction, java.util.function.BiConsumer<ClanTag, String> addClanTagMemberAction, java.util.function.Consumer<ClanTag> deleteClanTagAction, java.util.function.BiConsumer<ClanTag, ClanTagMember> removeClanTagMemberAction, Runnable refreshPbCategoriesAction, java.util.function.Consumer<PbCategory> selectPbCategoryAction, String initialStaffAccessKey, java.util.function.Consumer<String> saveStaffAccessKeyAction)
+	ClanMessagesPanel(Runnable publishBroadcastAction, Runnable publishClanAction, Runnable verifyTokenAction, Runnable clearMessagesAction, Runnable refreshRanksAction, Runnable resetRanksAction, Runnable requestRankAction, Runnable refreshRankRequestsAction, java.util.function.Consumer<Integer> deleteRankRequestAction, java.util.function.Consumer<RankRequestsPanel.RankRequest> confirmRankRequestAction, java.util.function.Consumer<RankRequestsPanel.RankRequest> declineRankRequestAction, Runnable refreshSentMessagesAction, java.util.function.Consumer<StaffSentMessage> deleteSentMessageAction, java.util.function.Consumer<StaffSentMessage> resendSentMessageAction, java.util.function.Consumer<StaffSentMessage> togglePinnedMessageAction, java.util.function.Consumer<String> publishPanelNoticeAction, Runnable removePanelNoticeAction, Runnable refreshLivesAction, java.util.function.BiConsumer<String, String> saveLiveChannelAction, java.util.function.Consumer<LiveChannel> deleteLiveChannelAction, Runnable refreshMvpMembersAction, java.util.function.Consumer<String> saveMvpMemberAction, java.util.function.Consumer<MvpMember> deleteMvpMemberAction, Runnable refreshClanTagsAction, java.util.function.BiConsumer<String, String> createClanTagAction, java.util.function.BiConsumer<ClanTag, String> addClanTagMemberAction, java.util.function.Consumer<ClanTag> deleteClanTagAction, java.util.function.BiConsumer<ClanTag, ClanTagMember> removeClanTagMemberAction, Runnable refreshPbCategoriesAction, java.util.function.Consumer<PbCategory> selectPbCategoryAction, String initialStaffAccessKey, java.util.function.Consumer<String> saveStaffAccessKeyAction, JPanel botwTab, JPanel sotwTab, JPanel giveawayTab, JPanel groupsTab)
 	{
 		super(false);
+		this.botwTab = botwTab;
+		this.sotwTab = sotwTab;
+		this.giveawayTab = giveawayTab;
+		this.groupsTab = groupsTab;
 		setLayout(new BorderLayout());
 		setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 		createAccessTab(verifyTokenAction);
@@ -111,15 +119,15 @@ final class ClanMessagesPanel extends PluginPanel
 
 		JButton discord = new JButton("Discord");
 		discord.setIcon(loadIcon("/links/discord.png", 16));
-		discord.setToolTipText("Abrir Discord do Live ON");
+		discord.setToolTipText("Abrir Discord do NightLegion");
 		discord.setMargin(new java.awt.Insets(3, 6, 3, 6));
-		discord.addActionListener(event -> LinkBrowser.browse("https://www.discord.gg/liveon"));
+		discord.addActionListener(event -> LinkBrowser.browse("https://discord.gg/AP2aK742SZ"));
 
 		JButton wom = new JButton("WOM");
 		wom.setIcon(loadIcon("/links/wom.png", 16));
 		wom.setToolTipText("Abrir grupo no Wise Old Man");
 		wom.setMargin(new java.awt.Insets(3, 6, 3, 6));
-		wom.addActionListener(event -> LinkBrowser.browse("https://wiseoldman.net/groups/1945"));
+		wom.addActionListener(event -> LinkBrowser.browse("https://wiseoldman.net/groups/26182"));
 
 		links.add(discord);
 		links.add(wom);
@@ -243,7 +251,7 @@ final class ClanMessagesPanel extends PluginPanel
 	private void addNavigationButton(String title, String iconType, JPanel component, String pageKey, String tooltip)
 	{
 		component.setMinimumSize(new Dimension(0, 0));
-		if (component instanceof MvpPanel || component == staffTab)
+		if (component instanceof MvpPanel || component == staffTab || Boolean.TRUE.equals(component.getClientProperty("nightlegionOwnScroll")))
 		{
 			// MVP sections already own their scrolling. Wrapping them in another
 			// scroll pane makes the inner pane consume wheel events without moving.
@@ -382,13 +390,13 @@ final class ClanMessagesPanel extends PluginPanel
 		logo.setAlignmentX(Component.CENTER_ALIGNMENT);
 		welcome.add(logo);
 		welcome.add(Box.createVerticalStrut(8));
-		JLabel title = new JLabel("Bem-vindo ao Live On Clan", SwingConstants.CENTER);
+		JLabel title = new JLabel("Welcome to NightLegion", SwingConstants.CENTER);
 		title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
 		title.setAlignmentX(Component.CENTER_ALIGNMENT);
 		welcome.add(title);
 		welcome.add(Box.createVerticalStrut(12));
 		// Authentication via RSN + WOM group verification. Use default button size so countdown fits.
-		verifyButton = new JButton("Verificar agora");
+		verifyButton = new JButton("Verify now");
 		verifyButton.setBackground(new java.awt.Color(190, 104, 0));
 		verifyButton.setForeground(java.awt.Color.WHITE);
 		verifyButton.addActionListener(event -> verifyTokenAction.run());
@@ -414,17 +422,17 @@ final class ClanMessagesPanel extends PluginPanel
 		welcome.add(accessMessage);
 		welcome.add(Box.createVerticalStrut(14));
 		JLabel description = new JLabel(
-			"<html><center>Acompanhe a disputa pelos MVPs<br>"
-				+ "Confira os melhores PBs do clã<br>"
-				+ "Saiba quem está ao vivo na Twitch<br>"
-				+ "Atualize seu rank automaticamente<br>"
-				+ "Receba os comunicados oficiais do clã.</center></html>",
+			"<html><center>Follow the monthly MVP race<br>"
+				+ "See the clan's best PBs<br>"
+				+ "See who is live on Twitch<br>"
+				+ "Track your rank automatically<br>"
+				+ "Receive official clan announcements.</center></html>",
 			SwingConstants.CENTER);
 		description.setForeground(new java.awt.Color(185, 185, 185));
 		description.setAlignmentX(Component.CENTER_ALIGNMENT);
 		welcome.add(description);
 		welcome.add(Box.createVerticalStrut(8));
-		JLabel membersOnly = new JLabel("Exclusivo para membros", SwingConstants.CENTER);
+		JLabel membersOnly = new JLabel("Exclusive to NightLegion members", SwingConstants.CENTER);
 		membersOnly.setForeground(new java.awt.Color(210, 160, 55));
 		membersOnly.setAlignmentX(Component.CENTER_ALIGNMENT);
 		welcome.add(membersOnly);
@@ -439,7 +447,7 @@ final class ClanMessagesPanel extends PluginPanel
 			if (verifyButton != null)
 			{
 				verifyButton.setEnabled(enabled);
-				if (enabled) verifyButton.setText("Verificar agora");
+				if (enabled) verifyButton.setText("Verify now");
 			}
 		});
 	}
@@ -459,14 +467,14 @@ final class ClanMessagesPanel extends PluginPanel
 				{
 					timer.stop();
 					verifyButton.setEnabled(true);
-					verifyButton.setText("Verificar agora");
+					verifyButton.setText("Verify now");
 				}
 				else
 				{
-					verifyButton.setText("Verificar em " + remaining[0] + "s");
+					verifyButton.setText("Verify in " + remaining[0] + "s");
 				}
 			});
-			verifyButton.setText("Verificar em " + remaining[0] + "s");
+			verifyButton.setText("Verify in " + remaining[0] + "s");
 			timer.setInitialDelay(1000);
 			timer.start();
 		});
@@ -487,8 +495,8 @@ final class ClanMessagesPanel extends PluginPanel
 		staffTab.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new java.awt.Color(122, 82, 24)));
 		JPanel publisher = new JPanel(new BorderLayout(5, 5));
 		JPanel composerHeader = new JPanel(new BorderLayout());
-		JLabel composerTitle = new JLabel("Mensagem para o clã");
-		JButton expandComposer = new JButton("Expandir");
+		JLabel composerTitle = new JLabel("Message to clan");
+		JButton expandComposer = new JButton("Expand");
 		expandComposer.setMargin(new java.awt.Insets(1, 5, 1, 5));
 		JPanel composerTitleRow = new JPanel(new BorderLayout(4, 0));
 		composerTitleRow.add(composerTitle, BorderLayout.CENTER);
@@ -501,7 +509,7 @@ final class ClanMessagesPanel extends PluginPanel
 		modeSelector.setBorder(BorderFactory.createEmptyBorder(4, 0, 2, 0));
 		modeSelector.add(broadcastMode);
 		modeSelector.add(clanMode);
-		pinBroadcast.setToolTipText("Entregar este broadcast também aos próximos jogadores que entrarem");
+		pinBroadcast.setToolTipText("Entregar este broadcast também aos próximos players que entrarem");
 		JPanel composerOptions = new JPanel(new BorderLayout());
 		composerOptions.add(modeSelector, BorderLayout.NORTH);
 		composerOptions.add(pinBroadcast, BorderLayout.SOUTH);
@@ -515,15 +523,15 @@ final class ClanMessagesPanel extends PluginPanel
 		composerScrollPane.setPreferredSize(new Dimension(PluginPanel.PANEL_WIDTH - 20, 48));
 		expandComposer.addActionListener(event ->
 		{
-			boolean expanded = "Expandir".equals(expandComposer.getText());
-			expandComposer.setText(expanded ? "Recolher" : "Expandir");
+			boolean expanded = "Expand".equals(expandComposer.getText());
+			expandComposer.setText(expanded ? "Collapse" : "Expand");
 			composerScrollPane.setPreferredSize(new Dimension(
 				PluginPanel.PANEL_WIDTH - 20, expanded ? 120 : 48));
 			publisher.setMaximumSize(new Dimension(Integer.MAX_VALUE, publisher.getPreferredSize().height));
 			publisher.revalidate();
 		});
 		publisher.add(composerScrollPane, BorderLayout.CENTER);
-		publish.setText("Enviar mensagem");
+		publish.setText("Send message");
 		publish.setBackground(new java.awt.Color(190, 104, 0));
 		publish.setForeground(java.awt.Color.WHITE);
 		publish.addActionListener(event ->
@@ -546,7 +554,7 @@ final class ClanMessagesPanel extends PluginPanel
 		publisher.add(publishActions, BorderLayout.SOUTH);
 
 		JPanel history = new JPanel(new BorderLayout(5, 5));
-		history.setBorder(BorderFactory.createTitledBorder("Mensagens enviadas"));
+		history.setBorder(BorderFactory.createTitledBorder("Sent messages"));
 		sentMessagesTable.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
 		sentMessagesTable.getColumnModel().getColumn(0).setPreferredWidth(55);
 		sentMessagesTable.getColumnModel().getColumn(0).setMaxWidth(70);
@@ -554,7 +562,7 @@ final class ClanMessagesPanel extends PluginPanel
 		sentMessagesTable.getColumnModel().getColumn(1).setMaxWidth(72);
 		history.add(new JScrollPane(sentMessagesTable), BorderLayout.CENTER);
 		JButton refresh = new JButton(createUiIcon("refresh"));
-		refresh.setToolTipText("Atualizar mensagens");
+		refresh.setToolTipText("Refresh mensagens");
 		refresh.addActionListener(event -> refreshSentMessagesAction.run());
 		JButton resend = new JButton(createUiIcon("resend"));
 		resend.setToolTipText("Reenviar mensagem selecionada");
@@ -596,12 +604,12 @@ final class ClanMessagesPanel extends PluginPanel
 
 		JPanel security = new JPanel(new BorderLayout(4, 4));
 		security.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new java.awt.Color(55, 55, 55)));
-		JButton securityToggle = new JButton("▸ Segurança da staff");
+		JButton securityToggle = new JButton("▸ Staff security");
 		securityToggle.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
 		JPasswordField staffAccessKey = new JPasswordField(
 			initialStaffAccessKey == null ? "" : initialStaffAccessKey);
 		staffAccessKey.setToolTipText("Chave administrativa configurada no servidor");
-		JButton saveStaffKey = new JButton("Salvar chave");
+		JButton saveStaffKey = new JButton("Save key");
 		JLabel staffKeyStatus = new JLabel(" ");
 		saveStaffKey.addActionListener(event ->
 		{
@@ -609,7 +617,7 @@ final class ClanMessagesPanel extends PluginPanel
 			try
 			{
 				saveStaffAccessKeyAction.accept(new String(password).trim());
-				staffKeyStatus.setText(password.length == 0 ? "Chave removida" : "Chave salva");
+				staffKeyStatus.setText(password.length == 0 ? "Key removed" : "Key saved");
 			}
 			finally
 			{
@@ -628,7 +636,7 @@ final class ClanMessagesPanel extends PluginPanel
 		{
 			boolean show = !securityContent.isVisible();
 			securityContent.setVisible(show);
-			securityToggle.setText(show ? "▾ Segurança da staff" : "▸ Segurança da staff");
+			securityToggle.setText(show ? "▾ Staff security" : "▸ Staff security");
 			security.revalidate();
 		});
 		security.add(securityToggle, BorderLayout.NORTH);
@@ -642,9 +650,9 @@ final class ClanMessagesPanel extends PluginPanel
 		JPanel panel = new JPanel();
 		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 		panel.setBorder(BorderFactory.createEmptyBorder(8, 6, 8, 6));
-		JLabel explanation = new JLabel("<html><div style='width:175px'><b>Aviso fixo no painel</b><br><br>"
+		JLabel explanation = new JLabel("<html><div style='width:175px'><b>Pinned Home announcement</b><br><br>"
 			+ "Este aviso ficará visível<br>"
-			+ "no topo da aba Painel.<br><br>"
+			+ "no topo da aba Home.<br><br>"
 			+ "Ao publicar um novo aviso,<br>"
 			+ "o atual será substituído.</div></html>");
 		explanation.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -652,7 +660,7 @@ final class ClanMessagesPanel extends PluginPanel
 		panel.add(Box.createVerticalStrut(7));
 		noticeComposer.setLineWrap(true);
 		noticeComposer.setWrapStyleWord(true);
-		noticeComposer.setToolTipText("Texto que será exibido na seção Avisos da página Início");
+		noticeComposer.setToolTipText("Texto que será exibido na seção Announcements da página Início");
 		JScrollPane noticeScroll = new JScrollPane(noticeComposer);
 		noticeScroll.setPreferredSize(new Dimension(PluginPanel.PANEL_WIDTH - 24, 72));
 		noticeScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
@@ -669,12 +677,12 @@ final class ClanMessagesPanel extends PluginPanel
 				noticeStatus.setText("Digite o aviso antes de publicar");
 				return;
 			}
-			noticeStatus.setText("Publicando...");
+			noticeStatus.setText("Publishing...");
 			publishPanelNoticeAction.accept(text);
 		});
 		removeNotice.addActionListener(event ->
 		{
-			noticeStatus.setText("Removendo...");
+			noticeStatus.setText("Removing...");
 			removePanelNoticeAction.run();
 		});
 		JPanel actions = new JPanel(new GridLayout(0, 1, 4, 0));
@@ -726,10 +734,9 @@ final class ClanMessagesPanel extends PluginPanel
 		addStaffSection("Lives", livesStaffSection, "Gerenciar canais da Twitch", "live");
 		if (deputyOwner)
 		{
-			addStaffSection("MVP", mvpManagementTab, "Gerenciar membros MVP", "trophy");
 			addStaffSection("Tags", clanTagsTab, "Gerenciar etiquetas do clã", "tag");
 		}
-		addStaffSection("Aviso painel", noticesStaffSection, "Gerenciar aviso fixo do Painel", "pin");
+		addStaffSection("Aviso painel", noticesStaffSection, "Gerenciar aviso fixo do Home", "pin");
 		int selectedIndex = selected == null ? -1 : staffSections.indexOfComponent(selected);
 		if (selectedIndex >= 0) staffSections.setSelectedIndex(selectedIndex);
 	}
@@ -765,10 +772,14 @@ final class ClanMessagesPanel extends PluginPanel
 				mainArea.repaint();
 				return;
 			}
-			addNavigationButton("Painel", "home", liveOnTab, "home", "Painel principal do clã");
+			addNavigationButton("Home", "home", liveOnTab, "home", "Home principal do clã");
 			addNavigationButton("Ranks", "star", ranksTab, "ranks", "Solicitação de ranks");
 			addNavigationButton("MVPs", "crown", mvpTab, "mvp", "Rankings MVP");
 			addNavigationButton("PBs", "trophy", pbTab, "pbs", "Recordes pessoais do clã");
+			addNavigationButton("BOTW", "star", botwTab, "botw", "Boss of the Week");
+			addNavigationButton("SOTW", "star", sotwTab, "sotw", "Skill of the Week");
+			addNavigationButton("Giveaways", "trophy", giveawayTab, "giveaways", "NightLegion giveaways");
+			addNavigationButton("Groups", "live", groupsTab, "groups", "NightLegion Group Finder");
 			if (staff)
 			{
 				addNavigationButton("Staff", "key", staffTab, "staff", "Abrir painel da staff");
@@ -786,14 +797,14 @@ final class ClanMessagesPanel extends PluginPanel
 		SwingUtilities.invokeLater(() ->
 		{
 			verifyButton.setEnabled(true);
-			verifyButton.setText("Verificar agora");
+			verifyButton.setText("Verify now");
 			if (disabled)
 			{
 				connectionWarningAttempts = 0;
 				connectionWarningPanel.setVisible(false);
 				accessMessage.setText("");
 				accessMessage.setVisible(false);
-				footerStatus.setText("Aguardando verificação");
+				footerStatus.setText("Waiting for verification");
 			}
 			else
 			{
@@ -801,7 +812,7 @@ final class ClanMessagesPanel extends PluginPanel
 				connectionWarningPanel.setVisible(false);
 				accessMessage.setText("");
 				accessMessage.setVisible(false);
-				footerStatus.setText("Conectando...");
+				footerStatus.setText("Connecting...");
 			}
 		});
 	}
@@ -816,7 +827,7 @@ final class ClanMessagesPanel extends PluginPanel
 				: "<html><center>A conexão continua desativada.<br>Ative a opção e tente novamente.</center></html>");
 			connectionWarningPanel.setVisible(true);
 			accessMessage.setVisible(false);
-			footerStatus.setText("Conexão desativada");
+			footerStatus.setText("Connection disabled");
 			accessTab.revalidate();
 			accessTab.repaint();
 		});
@@ -826,7 +837,7 @@ final class ClanMessagesPanel extends PluginPanel
 	{
 		SwingUtilities.invokeLater(() -> footerStatus.setText(
 			playerName == null || playerName.trim().isEmpty()
-				? "Desconectado"
+				? "Disconnected"
 				: "Autenticado como " + playerName.trim()));
 	}
 
@@ -997,7 +1008,7 @@ final class ClanMessagesPanel extends PluginPanel
 		{
 			String value = message == null ? "" : message.trim();
 			noticeComposer.setText(value);
-			noticeStatus.setText(value.isEmpty() ? "Nenhum aviso publicado" : "Aviso atual carregado");
+			noticeStatus.setText(value.isEmpty() ? "No announcement published" : "Current announcement loaded");
 			liveOnTab.updatePinnedNotice(value.isEmpty() ? null : value);
 		});
 	}

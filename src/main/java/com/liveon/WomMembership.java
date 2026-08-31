@@ -8,7 +8,7 @@ import java.util.Set;
 
 final class WomMembership
 {
-	static final int LIVE_ON_GROUP_ID = 1945;
+	static final int LIVE_ON_GROUP_ID = 26182;
 	private static final Set<String> STAFF_ROLES = new HashSet<>(Arrays.asList(
 		"owner",
 		"deputy_owner",
