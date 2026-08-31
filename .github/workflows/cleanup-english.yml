@@ -1,16 +1,13 @@
 name: Cleanup remaining NightLegion English
 
 on:
-  push:
-    branches:
-      - liveon-exact-nightlegion-v2
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   cleanup:
-    if: ${{ !contains(github.event.head_commit.message || '', '[cleanup-english]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,18 +24,5 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.14.3'
-      - name: Cleanup remaining strings
-        run: python scripts/cleanup_remaining_english.py
-      - name: Build final source
-        run: gradle clean build --stacktrace
-      - name: Commit cleanup
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/main/java/com/liveon TRANSLATION_REVIEW_2.md
-          if git diff --cached --quiet; then
-            echo "No remaining cleanup changes."
-            exit 0
-          fi
-          git commit -m "[cleanup-english] Clean remaining NightLegion English strings"
-          git push origin HEAD:liveon-exact-nightlegion-v2
+      - run: python scripts/cleanup_remaining_english.py
+      - run: gradle clean build --stacktrace
