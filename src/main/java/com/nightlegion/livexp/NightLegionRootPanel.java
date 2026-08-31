@@ -219,7 +219,7 @@ class NightLegionRootPanel extends PluginPanel
         JButton discord = new JButton("Discord", createUiIcon("message"));
         discord.setToolTipText("Open NightLegion Discord");
         discord.setMargin(new java.awt.Insets(3, 6, 3, 6));
-        discord.addActionListener(event -> LinkBrowser.browse("https://discord.gg/EyAvTDmE3"));
+        discord.addActionListener(event -> LinkBrowser.browse("https://discord.gg/AP2aK742SZ"));
 
         JButton wom = new JButton("WOM", createUiIcon("trophy"));
         wom.setToolTipText("Open Wise Old Man");
