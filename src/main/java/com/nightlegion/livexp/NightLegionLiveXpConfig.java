@@ -11,11 +11,11 @@ public interface NightLegionLiveXpConfig extends Config
     String THIRD_PARTY_WARNING =
         "This feature submits your IP address to a 3rd-party server not controlled or verified by RuneLite developers";
 
-    // Visible settings intentionally mirror the approved Live On Clan plugin.
+    // Visible settings mirror Live On Clan, translated to English.
     @ConfigItem(
         keyName = "enabled",
-        name = "Connect to clan",
-        description = "Enable NightLegion clan features and automatic member verification",
+        name = "Connect to clan server",
+        description = "Enable NightLegion online clan features",
         warning = THIRD_PARTY_WARNING,
         position = 0
     )
@@ -26,8 +26,8 @@ public interface NightLegionLiveXpConfig extends Config
 
     @ConfigItem(
         keyName = "liveStatusEnabled",
-        name = "Show live members",
-        description = "Show configured NightLegion members who are live",
+        name = "Show live streams",
+        description = "Check linked Twitch channels and show clan members who are live",
         warning = THIRD_PARTY_WARNING,
         position = 1
     )
@@ -39,7 +39,7 @@ public interface NightLegionLiveXpConfig extends Config
     @ConfigItem(
         keyName = "statsEnabled",
         name = "Participate in monthly MVP",
-        description = "Enable NightLegion activity features used by the monthly MVP views",
+        description = "Submit eligible 1M+ drops to the monthly clan MVP ranking",
         warning = THIRD_PARTY_WARNING,
         position = 2
     )
@@ -49,11 +49,23 @@ public interface NightLegionLiveXpConfig extends Config
     }
 
     @ConfigItem(
-        keyName = "discordDropsEnabled",
-        name = "Send drops to Discord",
-        description = "Report qualifying drops to the NightLegion Discord drop feed",
+        keyName = "pbRankingEnabled",
+        name = "Participate in PB rankings",
+        description = "Submit detected PB times to the private NightLegion leaderboard",
         warning = THIRD_PARTY_WARNING,
         position = 3
+    )
+    default boolean pbRankingEnabled()
+    {
+        return true;
+    }
+
+    @ConfigItem(
+        keyName = "discordDropsEnabled",
+        name = "Send drops to Discord",
+        description = "Post your eligible rare drops to the NightLegion Discord",
+        warning = THIRD_PARTY_WARNING,
+        position = 4
     )
     default boolean discordDropsEnabled()
     {
@@ -63,17 +75,17 @@ public interface NightLegionLiveXpConfig extends Config
     @Range(min = -20, max = 20)
     @ConfigItem(
         keyName = "sidebarIconPriority",
-        name = "Sidebar icon position",
+        name = "Sidebar position",
         description = "Use the arrows to move the NightLegion icon on the RuneLite sidebar",
-        position = 4
+        position = 5
     )
     default int sidebarIconPriority()
     {
         return 0;
     }
 
-    // Existing NightLegion credentials/features are preserved but hidden from
-    // the normal settings screen so the visible configuration matches Live On.
+    // Existing NightLegion credentials/features remain compatible but are not
+    // exposed in the normal Live On-style settings screen.
     @ConfigItem(
         keyName = "token",
         name = "Personal Link Token",
@@ -123,7 +135,7 @@ public interface NightLegionLiveXpConfig extends Config
     @ConfigItem(
         keyName = "rankTrackingEnabled",
         name = "Enable rank tracking",
-        description = "Send optional NightLegion rank telemetry",
+        description = "Track in-game clan-chat activity for NightLegion contribution ranks",
         hidden = true
     )
     default boolean rankTrackingEnabled()
@@ -131,10 +143,12 @@ public interface NightLegionLiveXpConfig extends Config
         return true;
     }
 
+    // Kept only so an existing install does not lose its stored value. New
+    // builds use the normal Personal Link Token for rank telemetry as well.
     @ConfigItem(
         keyName = "rankToken",
-        name = "Rank Secret Key",
-        description = "Private NightLegion rank-system key",
+        name = "Legacy Rank Secret Key",
+        description = "Legacy NightLegion rank-system key",
         warning = THIRD_PARTY_WARNING,
         secret = true,
         hidden = true
@@ -152,18 +166,18 @@ public interface NightLegionLiveXpConfig extends Config
     )
     default boolean communityPbTracking()
     {
-        return true;
+        return pbRankingEnabled();
     }
 
     @ConfigItem(
         keyName = "communityDropTracking",
-        name = "Report valuable drops",
-        description = "Report valuable NPC drops",
+        name = "Track valuable drops",
+        description = "Detect valuable NPC drops for MVP and/or Discord",
         hidden = true
     )
     default boolean communityDropTracking()
     {
-        return discordDropsEnabled();
+        return statsEnabled() || discordDropsEnabled();
     }
 
     @Range(min = 0, max = 2000000000)
@@ -175,6 +189,6 @@ public interface NightLegionLiveXpConfig extends Config
     )
     default int communityDropThreshold()
     {
-        return 5_000_000;
+        return 1_000_000;
     }
 }
