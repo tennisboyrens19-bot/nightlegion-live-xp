@@ -1,5 +1,6 @@
 package com.nightlegion.livexp;
 
+import com.google.gson.JsonObject;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
@@ -12,6 +13,8 @@ import java.awt.GridLayout;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -32,7 +35,10 @@ import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.LinkBrowser;
 
-/** Main NightLegion shell: Live On Clan layout, English labels, NightLegion features. */
+/**
+ * NightLegion shell copied from Live On's proven RuneLite layout, translated to
+ * English. NightLegion's BOTW, SOTW, Giveaways and Groups remain intact.
+ */
 class NightLegionRootPanel extends PluginPanel
 {
     private static final Color SELECTED = new Color(255, 152, 0);
@@ -48,19 +54,21 @@ class NightLegionRootPanel extends PluginPanel
 
     private final NightLegionHomePanel homePanel;
     private final NightLegionRankPanel rankPanel;
-    private final NightLegionCommunityPanel mvpPanel;
-    private final NightLegionCommunityPanel pbPanel;
+    private final NightLegionMvpPanel mvpPanel;
+    private final NightLegionPbPanel pbPanel;
     private final NightLegionPanel eventsPanel;
     private final NightLegionGroupFinderPanel groupsPanel;
+    private final NightLegionStaffPanel staffPanel;
 
     private final CardLayout cards = new CardLayout();
     private final JPanel content = new JPanel(cards);
     private final JPanel navigationGrid = new JPanel(new GridBagLayout());
-    private final java.util.List<JButton> navigationButtons = new java.util.ArrayList<>();
+    private final List<JButton> navigationButtons = new ArrayList<>();
     private final JPanel access = new JPanel(new BorderLayout(5, 5));
     private final JLabel accessMessage = new JLabel("", SwingConstants.CENTER);
     private final JLabel footerStatus = new JLabel("Disconnected", SwingConstants.CENTER);
     private final JButton verifyButton = new JButton("Verify now");
+    private JButton staffButton;
 
     private String selected = "ACCESS";
 
@@ -79,10 +87,11 @@ class NightLegionRootPanel extends PluginPanel
 
         homePanel = new NightLegionHomePanel(client, api);
         rankPanel = new NightLegionRankPanel(client, api);
-        mvpPanel = new NightLegionCommunityPanel(client, api, "MVP");
-        pbPanel = new NightLegionCommunityPanel(client, api, "PB LEADERBOARD");
+        mvpPanel = new NightLegionMvpPanel(client, api, config);
+        pbPanel = new NightLegionPbPanel(client, api, config);
         eventsPanel = new NightLegionPanel(client, api, itemManager);
         groupsPanel = new NightLegionGroupFinderPanel(client, api, itemManager);
+        staffPanel = new NightLegionStaffPanel(client, api);
 
         createAccessTab();
         createAuthenticatedPages();
@@ -92,6 +101,10 @@ class NightLegionRootPanel extends PluginPanel
 
         verifyButton.addActionListener(event -> verifyMembership(true));
         navigationGrid.setVisible(false);
+        if (staffButton != null)
+        {
+            staffButton.setVisible(false);
+        }
         cards.show(content, "ACCESS");
         refresh();
     }
@@ -130,10 +143,9 @@ class NightLegionRootPanel extends PluginPanel
         welcome.add(Box.createVerticalStrut(14));
 
         JLabel description = new JLabel(
-            "<html><center>Receive NightLegion announcements and events.<br>"
-                + "Track rank and clan contribution.<br>"
-                + "Follow monthly MVPs and PBs.<br>"
-                + "Find your next PvM team.</center></html>", SwingConstants.CENTER);
+            "<html><center>NightLegion announcements and clan activity.<br>"
+                + "Ranks, Monthly MVPs and PB leaderboards.<br>"
+                + "BOTW, SOTW, Giveaways and Group Finder.</center></html>", SwingConstants.CENTER);
         description.setForeground(new Color(185, 185, 185));
         description.setAlignmentX(Component.CENTER_ALIGNMENT);
         welcome.add(description);
@@ -151,24 +163,33 @@ class NightLegionRootPanel extends PluginPanel
 
     private void createAuthenticatedPages()
     {
-        addNavigationButton("Home", "home", homePanel, "HOME", "NightLegion clan dashboard");
-        addNavigationButton("Ranks", "ranks", rankPanel, "RANK", "NightLegion rank progress");
-        addNavigationButton("MVPs", "crown", mvpPanel, "MVP", "Monthly NightLegion MVP rankings");
-        addNavigationButton("PBs", "trophy", pbPanel, "PBS", "NightLegion personal-best leaderboards");
-        addNavigationButton("Events", "star", eventsPanel, "EVENTS", "BOTW, SOTW and Giveaways");
-        addNavigationButton("Groups", "groups", groupsPanel, "GROUPS", "NightLegion Group Finder");
+        addNavigationButton("Home", "home", homePanel, "HOME", "NightLegion clan dashboard", false, false);
+        addNavigationButton("Ranks", "ranks", rankPanel, "RANK", "NightLegion rank progress", false, false);
+        addNavigationButton("MVPs", "crown", mvpPanel, "MVP", "Monthly NightLegion MVP rankings", false, false);
+        addNavigationButton("PBs", "trophy", pbPanel, "PBS", "NightLegion personal-best leaderboards", false, false);
+        addNavigationButton("Events", "star", eventsPanel, "EVENTS", "BOTW, SOTW and Giveaways", true, false);
+        addNavigationButton("Groups", "groups", groupsPanel, "GROUPS", "NightLegion Group Finder", true, false);
+        staffButton = addNavigationButton("Staff", "key", staffPanel, "STAFF", "Owner controls", false, true);
     }
 
-    private void addNavigationButton(String title, String iconType, JPanel component, String pageKey, String tooltip)
+    private JButton addNavigationButton(String title, String iconType, JPanel component, String pageKey,
+        String tooltip, boolean wrapInScroll, boolean fullWidth)
     {
         component.setMinimumSize(new Dimension(0, 0));
-        JScrollPane pageScroll = new JScrollPane(component);
-        pageScroll.setBorder(BorderFactory.createEmptyBorder());
-        pageScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        pageScroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-        pageScroll.getVerticalScrollBar().setUnitIncrement(16);
-        pageScroll.setMinimumSize(new Dimension(0, 0));
-        content.add(pageScroll, pageKey);
+        if (wrapInScroll)
+        {
+            JScrollPane pageScroll = new JScrollPane(component);
+            pageScroll.setBorder(BorderFactory.createEmptyBorder());
+            pageScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+            pageScroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+            pageScroll.getVerticalScrollBar().setUnitIncrement(16);
+            pageScroll.setMinimumSize(new Dimension(0, 0));
+            content.add(pageScroll, pageKey);
+        }
+        else
+        {
+            content.add(component, pageKey);
+        }
 
         JButton button = new JButton(title, createUiIcon(iconType));
         button.setName(pageKey);
@@ -180,14 +201,35 @@ class NightLegionRootPanel extends PluginPanel
         button.addActionListener(event -> selectPage(pageKey));
         navigationButtons.add(button);
 
-        int index = navigationButtons.size() - 1;
+        int normalIndex = 0;
+        for (JButton candidate : navigationButtons)
+        {
+            if (!"STAFF".equals(candidate.getName()))
+            {
+                normalIndex++;
+            }
+        }
+        normalIndex--;
+
         GridBagConstraints c = new GridBagConstraints();
-        c.gridx = index % 2;
-        c.gridy = index / 2;
+        if (fullWidth)
+        {
+            c.gridx = 0;
+            c.gridy = 3;
+            c.gridwidth = 2;
+        }
+        else
+        {
+            c.gridx = normalIndex % 2;
+            c.gridy = normalIndex / 2;
+            c.gridwidth = 1;
+        }
         c.weightx = 1.0;
         c.fill = GridBagConstraints.HORIZONTAL;
-        c.insets = new java.awt.Insets(0, index % 2 == 1 ? 2 : 0, 3, index % 2 == 0 ? 2 : 0);
+        c.insets = new java.awt.Insets(0, c.gridx == 1 ? 2 : 0, 3, c.gridx == 0 && !fullWidth ? 2 : 0);
         navigationGrid.add(button, c);
+        styleNavigationButton(button, false);
+        return button;
     }
 
     private JPanel createLinksFooter()
@@ -223,15 +265,19 @@ class NightLegionRootPanel extends PluginPanel
         cards.show(content, pageKey);
         for (JButton button : navigationButtons)
         {
-            boolean active = pageKey.equals(button.getName());
-            button.setForeground(active ? SELECTED : NAV_TEXT);
-            button.setBackground(active ? NAV_SELECTED_BG : NAV_BG);
-            button.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, active ? 2 : 1, 0, active ? SELECTED : NAV_BORDER),
-                BorderFactory.createEmptyBorder(3, 3, active ? 2 : 3, 3)));
+            styleNavigationButton(button, pageKey.equals(button.getName()));
         }
         refreshPage(pageKey);
         footerStatus.setText(currentRsn().isEmpty() ? "NightLegion" : "Authenticated as " + currentRsn());
+    }
+
+    private static void styleNavigationButton(JButton button, boolean active)
+    {
+        button.setForeground(active ? SELECTED : NAV_TEXT);
+        button.setBackground(active ? NAV_SELECTED_BG : NAV_BG);
+        button.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 0, active ? 2 : 1, 0, active ? SELECTED : NAV_BORDER),
+            BorderFactory.createEmptyBorder(3, 3, active ? 2 : 3, 3)));
     }
 
     private void refreshPage(String pageKey)
@@ -243,6 +289,7 @@ class NightLegionRootPanel extends PluginPanel
             case "MVP": mvpPanel.refresh(); break;
             case "PBS": pbPanel.refresh(); break;
             case "GROUPS": groupsPanel.refresh(); break;
+            case "STAFF": staffPanel.refresh(); break;
             default: eventsPanel.refresh(); break;
         }
     }
@@ -272,7 +319,10 @@ class NightLegionRootPanel extends PluginPanel
         {
             showAccess("Member not identified.<br>Click <b>Verify now</b> to link NightLegion.");
             footerStatus.setText("Not authenticated");
-            if (!allowPrompt) return;
+            if (!allowPrompt)
+            {
+                return;
+            }
 
             JPasswordField field = new JPasswordField();
             field.setPreferredSize(new Dimension(220, 26));
@@ -281,22 +331,35 @@ class NightLegionRootPanel extends PluginPanel
             prompt.add(field, BorderLayout.CENTER);
             int choice = JOptionPane.showConfirmDialog(this, prompt, "Link NightLegion",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-            if (choice != JOptionPane.OK_OPTION) return;
+            if (choice != JOptionPane.OK_OPTION)
+            {
+                return;
+            }
             char[] password = field.getPassword();
-            try { token = new String(password).trim(); }
-            finally { java.util.Arrays.fill(password, '\0'); }
-            if (token.isEmpty()) return;
+            try
+            {
+                token = new String(password).trim();
+            }
+            finally
+            {
+                java.util.Arrays.fill(password, '\0');
+            }
+            if (token.isEmpty())
+            {
+                return;
+            }
             configManager.setConfiguration("nightlegionlivexp", "token", token);
         }
 
         verifyButton.setEnabled(false);
         verifyButton.setText("Checking...");
         accessMessage.setText("<html><center>Checking NightLegion membership...</center></html>");
-        api.action("overview", rsn, new com.google.gson.JsonObject(), result -> javax.swing.SwingUtilities.invokeLater(() ->
+        api.action("overview", rsn, new JsonObject(), result -> javax.swing.SwingUtilities.invokeLater(() ->
         {
             verifyButton.setEnabled(true);
             verifyButton.setText("Verify now");
             navigationGrid.setVisible(true);
+            setOwnerNavigation(isOwner(result));
             selectPage("ACCESS".equals(selected) ? "HOME" : selected);
             revalidate();
             repaint();
@@ -309,10 +372,43 @@ class NightLegionRootPanel extends PluginPanel
         }));
     }
 
+    private boolean isOwner(JsonObject overview)
+    {
+        try
+        {
+            JsonObject community = overview.has("community") && overview.get("community").isJsonObject()
+                ? overview.getAsJsonObject("community") : new JsonObject();
+            return community.has("is_owner") && community.get("is_owner").getAsBoolean();
+        }
+        catch (Exception ignored)
+        {
+            return false;
+        }
+    }
+
+    private void setOwnerNavigation(boolean owner)
+    {
+        if (staffButton != null)
+        {
+            staffButton.setVisible(owner);
+        }
+        if (!owner && "STAFF".equals(selected))
+        {
+            selected = "HOME";
+            cards.show(content, "HOME");
+        }
+        navigationGrid.revalidate();
+        navigationGrid.repaint();
+    }
+
     private void showAccess(String message)
     {
         selected = "ACCESS";
         navigationGrid.setVisible(false);
+        if (staffButton != null)
+        {
+            staffButton.setVisible(false);
+        }
         accessMessage.setText("<html><center>" + message + "</center></html>");
         cards.show(content, "ACCESS");
         revalidate();
@@ -327,52 +423,76 @@ class NightLegionRootPanel extends PluginPanel
 
     private static String escapeHtml(String value)
     {
-        if (value == null) return "";
+        if (value == null)
+        {
+            return "";
+        }
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     private ImageIcon createUiIcon(String type)
     {
         BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = image.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setColor("groups".equals(type) ? new Color(50, 210, 90)
+        Graphics2D graphics = image.createGraphics();
+        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        graphics.setColor("groups".equals(type) ? new Color(50, 210, 90)
             : ("home".equals(type) || "crown".equals(type) || "trophy".equals(type)
-                || "star".equals(type) || "ranks".equals(type))
+                || "star".equals(type) || "ranks".equals(type) || "key".equals(type))
                 ? new Color(225, 170, 45) : new Color(210, 210, 210));
-        g.setStroke(new java.awt.BasicStroke(1.7f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+        graphics.setStroke(new java.awt.BasicStroke(1.7f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+
         if ("trophy".equals(type))
         {
-            g.drawRect(5, 2, 6, 7); g.drawArc(1, 3, 6, 6, 80, 200); g.drawArc(9, 3, 6, 6, -100, 200);
-            g.drawLine(8, 9, 8, 13); g.drawLine(5, 14, 11, 14);
+            graphics.drawRect(5, 2, 6, 7);
+            graphics.drawArc(1, 3, 6, 6, 80, 200);
+            graphics.drawArc(9, 3, 6, 6, -100, 200);
+            graphics.drawLine(8, 9, 8, 13);
+            graphics.drawLine(5, 14, 11, 14);
         }
         else if ("crown".equals(type))
         {
-            g.fillPolygon(new int[]{2, 4, 7, 8, 9, 12, 14, 13, 3}, new int[]{5, 9, 4, 9, 4, 9, 5, 12, 12}, 9);
-            g.fillRect(3, 12, 10, 2);
+            graphics.fillPolygon(new int[]{2, 4, 7, 8, 9, 12, 14, 13, 3},
+                new int[]{5, 9, 4, 9, 4, 9, 5, 12, 12}, 9);
+            graphics.fillRect(3, 12, 10, 2);
         }
         else if ("home".equals(type))
         {
-            g.drawPolygon(new int[]{2, 8, 14}, new int[]{8, 2, 8}, 3); g.drawRect(4, 7, 8, 7); g.drawRect(7, 10, 3, 4);
+            graphics.drawPolygon(new int[]{2, 8, 14}, new int[]{8, 2, 8}, 3);
+            graphics.drawRect(4, 7, 8, 7);
+            graphics.drawRect(7, 10, 3, 4);
         }
         else if ("ranks".equals(type))
         {
-            g.drawPolygon(new int[]{8, 14, 12, 8, 4, 2}, new int[]{1, 4, 11, 15, 11, 4}, 6);
-            g.drawLine(5, 6, 11, 6); g.drawLine(6, 9, 10, 9);
+            graphics.drawPolygon(new int[]{8, 14, 12, 8, 4, 2}, new int[]{1, 4, 11, 15, 11, 4}, 6);
+            graphics.drawLine(5, 6, 11, 6);
+            graphics.drawLine(6, 9, 10, 9);
         }
         else if ("star".equals(type))
         {
-            g.fillPolygon(new int[]{8, 10, 15, 11, 12, 8, 4, 5, 1, 6}, new int[]{1, 6, 6, 9, 14, 11, 14, 9, 6, 6}, 10);
+            graphics.fillPolygon(new int[]{8, 10, 15, 11, 12, 8, 4, 5, 1, 6},
+                new int[]{1, 6, 6, 9, 14, 11, 14, 9, 6, 6}, 10);
         }
         else if ("groups".equals(type))
         {
-            g.fillOval(2, 3, 5, 5); g.fillOval(9, 3, 5, 5); g.drawArc(1, 8, 7, 6, 20, 140); g.drawArc(8, 8, 7, 6, 20, 140);
+            graphics.fillOval(2, 3, 5, 5);
+            graphics.fillOval(9, 3, 5, 5);
+            graphics.drawArc(1, 8, 7, 6, 20, 140);
+            graphics.drawArc(8, 8, 7, 6, 20, 140);
+        }
+        else if ("key".equals(type))
+        {
+            graphics.drawOval(2, 2, 7, 7);
+            graphics.drawLine(8, 8, 14, 14);
+            graphics.drawLine(11, 11, 13, 9);
+            graphics.drawLine(13, 13, 15, 11);
         }
         else
         {
-            g.drawRoundRect(2, 3, 12, 8, 2, 2); g.drawLine(5, 11, 4, 14); g.drawLine(5, 11, 8, 11);
+            graphics.drawRoundRect(2, 3, 12, 8, 2, 2);
+            graphics.drawLine(5, 11, 4, 14);
+            graphics.drawLine(5, 11, 8, 11);
         }
-        g.dispose();
+        graphics.dispose();
         return new ImageIcon(image);
     }
 }
