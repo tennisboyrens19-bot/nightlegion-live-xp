@@ -1,0 +1,38 @@
+name: Last exact NightLegion string build
+
+on:
+  push:
+    branches:
+      - liveon-exact-nightlegion-v2
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: ${{ !contains(github.event.head_commit.message || '', '[last-strings]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: liveon-exact-nightlegion-v2
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+      - run: python scripts/cleanup_last_strings.py
+      - run: gradle clean build --stacktrace
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main/java/com/liveon
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "[last-strings] Finish exact NightLegion English strings"
+          git push origin HEAD:liveon-exact-nightlegion-v2
