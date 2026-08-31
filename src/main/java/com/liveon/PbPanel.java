@@ -428,8 +428,8 @@ final class PbPanel extends JPanel
 			BorderFactory.createMatteBorder(0, 3, 0, 0, BLUE),
 			BorderFactory.createEmptyBorder(6, 8, 6, 5)));
 		JLabel instructions = new JLabel("<html><div style='width:160px'>"
-			+ "1. Abra o <b>Adventure Log</b> da sua POH para importar todos os seus tempos.<br><br>"
-			+ "2. Nos <b>Combat Achievements</b>, abra a página do boss que quiser registrar.<br><br>"
+			+ "1. Open the <b>Adventure Log</b> in your POH to import all your times.<br><br>"
+			+ "2. In <b>Combat Achievements</b>, open the boss page you want to register.<br><br>"
 			+ "3. Scoreboards também são reconhecidos.<br><br>"
 			+ "Com <b>Participar do ranking de PBs</b> ativado, seus novos PBs serão registrados automaticamente."
 			+ "</div></html>");
@@ -479,7 +479,7 @@ final class PbPanel extends JPanel
 			ranking.removeAll();
 			ranking.add(centered("No PB sincronizado nesta categoria."));
 			setTutorialExpanded(true);
-			ownPb.setText("<html><div style='text-align:center'>Abra o Adventure Log<br>para importar seus PBs</div></html>");
+			ownPb.setText("<html><div style='text-align:center'>Open the Adventure Log<br>to import your PBs</div></html>");
 			ranking.revalidate();
 			ranking.repaint();
 		}
@@ -703,13 +703,13 @@ final class PbPanel extends JPanel
 				? new ArrayList<>() : response.ranking;
 			if (values.isEmpty())
 			{
-				ranking.add(centered("Ainda não existem PBs nesta categoria."));
+				ranking.add(centered("There are no PBs in this category yet."));
 			}
 			for (PbRankingResponse.Entry entry : values)
 			{
 				ranking.add(rankingRow(entry));
 			}
-			String ownText = response.own == null ? "Você ainda não possui PB<br>nesta categoria"
+			String ownText = response.own == null ? "You do not have a PB<br>in this category yet"
 				: "Your PB: " + formatTime(response.own.seconds) + " · " + response.own.position + "º place";
 			ownPb.setText("<html><div style='text-align:center'>" + ownText + "</div></html>");
 			ranking.revalidate();

@@ -112,7 +112,7 @@ final class LiveOnPanel extends JPanel
 		JButton refresh = new JButton("Refresh");
 		refresh.addActionListener(event -> refreshAction.run());
 		JButton remove = new JButton("Remove");
-		remove.setToolTipText("Remove canal selecionado");
+		remove.setToolTipText("Remove selected channel");
 		remove.addActionListener(event ->
 		{
 			int row = table.getSelectedRow();
@@ -439,7 +439,7 @@ final class LiveOnPanel extends JPanel
 		name.setToolTipText(playerName);
 		name.setForeground(new Color(70, 220, 100));
 		heading.add(name, BorderLayout.CENTER);
-		JLabel liveBadge = new JLabel("AO VIVO");
+		JLabel liveBadge = new JLabel("LIVE");
 		liveBadge.setForeground(new Color(85, 225, 110));
 		liveBadge.setFont(liveBadge.getFont().deriveFont(java.awt.Font.BOLD, 9f));
 		heading.add(liveBadge, BorderLayout.EAST);
@@ -475,7 +475,7 @@ final class LiveOnPanel extends JPanel
 			model.setRowCount(0);
 			for (LiveChannel channel : managedChannels)
 			{
-				model.addRow(new Object[]{channel.playerName, channel.twitchLogin, channel.online ? "AO VIVO" : "Offline"});
+				model.addRow(new Object[]{channel.playerName, channel.twitchLogin, channel.online ? "LIVE" : "Offline"});
 			}
 			status.setText(managedChannels.size() + " canal(is)");
 		});

@@ -25,12 +25,12 @@ final class ClanTagsPanel extends JPanel
 	private final JComboBox<String> color = new JComboBox<>(new String[]{"Dourado", "Vermelho", "Azul", "Verde", "Roxo", "Branco"});
 	private final JComboBox<ClanTag> tag = new JComboBox<>();
 	private final JTextField rsn = new JTextField();
-	private final JButton create = new JButton("Criar etiqueta");
+	private final JButton create = new JButton("Create tag");
 	private final JButton addMember = new JButton("Add member");
-	private final JButton deleteTag = new JButton("Delete etiqueta");
+	private final JButton deleteTag = new JButton("Delete tag");
 	private final JButton removeMember = new JButton("Remove member");
 	private final JLabel status = new JLabel(" ");
-	private final DefaultTableModel model = new DefaultTableModel(new String[]{"Etiqueta", "Member"}, 0)
+	private final DefaultTableModel model = new DefaultTableModel(new String[]{"Tag", "Member"}, 0)
 	{
 		@Override public boolean isCellEditable(int row, int column) { return false; }
 	};
@@ -46,7 +46,7 @@ final class ClanTagsPanel extends JPanel
 
 		JPanel forms = new JPanel(new GridLayout(0, 1, 3, 3));
 		JPanel createForm = new JPanel(new GridLayout(0, 1, 3, 3));
-		createForm.setBorder(BorderFactory.createTitledBorder("Criar etiqueta"));
+		createForm.setBorder(BorderFactory.createTitledBorder("Create tag"));
 		createForm.add(new JLabel("Sigla (maximum 5 caracteres)"));
 		createForm.add(code);
 		createForm.add(new JLabel("Cor"));
@@ -58,7 +58,7 @@ final class ClanTagsPanel extends JPanel
 
 		JPanel memberForm = new JPanel(new GridLayout(0, 1, 3, 3));
 		memberForm.setBorder(BorderFactory.createTitledBorder("Add member"));
-		memberForm.add(new JLabel("Etiqueta"));
+		memberForm.add(new JLabel("Tag"));
 		memberForm.add(tag);
 		memberForm.add(new JLabel("Nome do member"));
 		memberForm.add(rsn);
@@ -67,7 +67,7 @@ final class ClanTagsPanel extends JPanel
 		addMember.addActionListener(event ->
 		{
 			ClanTag selected = (ClanTag) tag.getSelectedItem();
-			if (selected == null) setStatus("Crie ou selecione uma etiqueta");
+			if (selected == null) setStatus("Create or select a tag");
 			else addMemberAction.accept(selected, rsn.getText().trim());
 		});
 		memberForm.add(addMember);
@@ -83,7 +83,7 @@ final class ClanTagsPanel extends JPanel
 		deleteTag.addActionListener(event ->
 		{
 			ClanTag selected = (ClanTag) tag.getSelectedItem();
-			if (selected == null) setStatus("Select uma etiqueta");
+			if (selected == null) setStatus("Select a tag");
 			else deleteTagAction.accept(selected);
 		});
 		deleteTag.setToolTipText("Delete the selected tag and its associations");
@@ -93,7 +93,7 @@ final class ClanTagsPanel extends JPanel
 			if (selectedRow < 0 || selectedRow >= rows.size()) setStatus("Select um member");
 			else removeMemberAction.accept(rows.get(selectedRow).tag, rows.get(selectedRow).member);
 		});
-		removeMember.setToolTipText("Remove o member selecionado da etiqueta");
+		removeMember.setToolTipText("Remove the selected member from the tag");
 		JPanel actions = new JPanel(new GridLayout(2, 2, 3, 3));
 		actions.add(refresh);
 		actions.add(removeMember);
@@ -134,7 +134,7 @@ final class ClanTagsPanel extends JPanel
 			addMember.setEnabled(canManage);
 			deleteTag.setEnabled(canManage);
 			removeMember.setEnabled(canManage);
-			status.setText(canManage ? tags.size() + " etiqueta(s)" : "Only Owner and Deputy Owner can change this");
+			status.setText(canManage ? tags.size() + " tag(s)" : "Only Owner and Deputy Owner can change this");
 		});
 	}
 

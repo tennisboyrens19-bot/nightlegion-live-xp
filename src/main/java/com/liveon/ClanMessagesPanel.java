@@ -571,7 +571,7 @@ final class ClanMessagesPanel extends PluginPanel
 		remove.setToolTipText("Remove message selecionada");
 		remove.addActionListener(event -> withSelectedSentMessage(deleteSentMessageAction));
 		JButton togglePinned = new JButton(createUiIcon("pin"));
-		togglePinned.setToolTipText("Fixar ou desfixar broadcast selecionado");
+		togglePinned.setToolTipText("Pin or unpin the selected broadcast");
 		togglePinned.addActionListener(event -> withSelectedSentMessage(togglePinnedMessageAction));
 		JPanel historyActions = new JPanel(new GridLayout(1, 4, 3, 0));
 		historyActions.add(refresh);

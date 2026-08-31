@@ -283,29 +283,29 @@ final class RanksPanel extends JPanel
 				availableRankIcon.setIcon(nextRankSuppliedIcon != null ? nextRankSuppliedIcon : rankIconFor("Soldier"));
 				nextRankIcon.setIcon(nextRankSuppliedIcon != null ? nextRankSuppliedIcon : rankIconFor("Soldier"));
 				requirementsTitle.setText("Promotion automática");
-				helper.setText(wrapped("Soldier é concedido após 30 dias in the clan. No é necessário solicitar.", REQUIREMENT_TEXT_WIDTH));
+				helper.setText(wrapped("Soldier is granted automatically after 30 days in the clan. No request is required.", REQUIREMENT_TEXT_WIDTH));
 				setWrappedText(nextRank, "Soldier • automatic promotion");
 				nextMissing.setText(wrapped("Concedido após 30 dias in the clan.", REQUIREMENT_TEXT_WIDTH));
 			}
 			else if (currentIndex >= progressionIndex("Colonel"))
 			{
-				availableTitle.setText("Next cargo");
-				setWrappedText(availableRank, "General • somente via Discord");
+				availableTitle.setText("Next rank");
+				setWrappedText(availableRank, "General • Discord only");
 				Icon generalIcon = nextRankSuppliedIcon != null ? nextRankSuppliedIcon : rankIconFor("General");
 				availableRankIcon.setIcon(generalIcon);
 				nextRankIcon.setIcon(generalIcon);
 				requirementsTitle.setText("Progressão concluída");
 				helper.setText(wrapped("General é solicitado diretamente à staff pelo Discord.", REQUIREMENT_TEXT_WIDTH));
-				setWrappedText(nextRank, "General • somente via Discord");
+				setWrappedText(nextRank, "General • Discord only");
 				nextMissing.setText(" ");
 			}
 			else
 			{
 				String target = nextRankName == null || nextRankName.trim().isEmpty()
 					? nextProgressionRank(safeClanRank) : nextRankName;
-				availableTitle.setText("No rank novo available");
+				availableTitle.setText("No new rank available");
 				availableRank.setFont(availableRank.getFont().deriveFont(Font.PLAIN, 13f));
-				setWrappedText(availableRank, "Conclua as pendências abaixo e verifique novamente.", BODY_TEXT_WIDTH);
+				setWrappedText(availableRank, "Complete the missing requirements below and check again.", BODY_TEXT_WIDTH);
 				availableRankIcon.setIcon(new RankIcon(Color.GRAY));
 				availableRankIcon.setVisible(false);
 				requirementsTitle.setText("Verified data");
@@ -347,7 +347,7 @@ final class RanksPanel extends JPanel
 				requestRank.setEnabled(canRequest);
 				requestRank.setText("Solicitar " + (canRequest ? requestCandidate : requestTarget));
 				requestRank.setToolTipText(canRequest ? "Enviar request para a staff"
-					: "Complete ou verifique os requirements destacados antes de solicitar");
+					: "Complete or verify the highlighted requirements before requesting");
 			}
 			verify.setBackground(canRequest ? new Color(52, 52, 52) : ORANGE);
 		});
@@ -449,15 +449,15 @@ final class RanksPanel extends JPanel
 	{
 		switch (normalize(rank))
 		{
-			case "corporal": return "Necessário: 200 Quest points e Fire cape.";
-			case "student": return "Necessário: 250 Quest points, Fire cape e Easy Combat Achievements.";
-			case "sergeant": return "Necessário: 300 Quest points, Fire cape e Medium Combat Achievements.";
-			case "cadet": return "Necessário: Quest cape, Fire cape e Hard Combat Achievements.";
-			case "lieutenant": return "Necessário: Quest cape, Dizana's quiver ou Infernal cape e Elite Combat Achievements.";
-			case "captain": return "Necessário: Diary cape, Dizana's quiver, Infernal cape e Master Combat Achievements.";
-			case "major": return "Necessário: requirements de Captain e 2300 total level.";
-			case "colonel": return "Necessário: Diary cape, Max cape e Grandmaster Combat Achievements.";
-			default: return "Check os requirements pendentes antes de solicitar.";
+			case "corporal": return "Required: 200 Quest points and Fire cape.";
+			case "student": return "Required: 250 Quest points, Fire cape and Easy Combat Achievements.";
+			case "sergeant": return "Required: 300 Quest points, Fire cape and Medium Combat Achievements.";
+			case "cadet": return "Required: Quest cape, Fire cape and Hard Combat Achievements.";
+			case "lieutenant": return "Required: Quest cape, Dizana's quiver or Infernal cape and Elite Combat Achievements.";
+			case "captain": return "Required: Diary cape, Dizana's quiver, Infernal cape and Master Combat Achievements.";
+			case "major": return "Required: Captain requirements and 2300 total level.";
+			case "colonel": return "Required: Diary cape, Max cape and Grandmaster Combat Achievements.";
+			default: return "Check the pending requirements before requesting.";
 		}
 	}
 
@@ -490,7 +490,7 @@ final class RanksPanel extends JPanel
 		label.setAlignmentX(Component.LEFT_ALIGNMENT);
 		label.setVerticalAlignment(JLabel.TOP);
 		String normalized = normalize(text);
-		if (normalized.startsWith("! abra o banco"))
+		if (normalized.startsWith("! open your bank"))
 		{
 			label.setText(wrapped(text, REQUIREMENT_NOTICE_TEXT_WIDTH));
 			label.setForeground(new Color(115, 195, 255));

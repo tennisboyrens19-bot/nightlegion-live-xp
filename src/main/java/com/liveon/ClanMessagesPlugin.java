@@ -1206,10 +1206,10 @@ public class ClanMessagesPlugin extends Plugin
 		checks.add("Combat Achievements Grandmaster (2671 points): " + achievementStatus(combatAchievementPoints, 2671, zukHelm, "TzKal slayer helmet"));
 		checks.add("Step 1: equip or place the required capes in your inventory so they can be detected.");
 		checks.add("Step 2: open Combat Achievements in-game to load your points.");
-		checks.add("Passo 3: abra a categoria/tier desejada e clique novamente em Sincronizar.");
+		checks.add("Step 3: open the desired Combat Achievement tier and click Sync again.");
 		checks.add("Step 4: open the Inferno page in Collection Log to verify the local record.");
 		checks.add("EHB is not used to calculate ranks.");
-		checks.add("Combat Achievements: sincronize com a aba correspondente aberta.");
+		checks.add("Combat Achievements: sync while the corresponding tab is open.");
 		String rank = highestPossibleRank(effectiveTotalLevel, effectiveQuestPoints, questCape, fireCape, infernalCape, quiver,
 			diaryCape, maxCape, easyCombatAchievements, mediumCombatAchievements, hardCombatAchievements,
 			eliteCombatAchievements, masterCombatAchievements, grandmasterCombatAchievements);
@@ -1520,16 +1520,16 @@ public class ClanMessagesPlugin extends Plugin
 				result.add("! Automatic promotion after 30 days in the clan");
 				break;
 			case "corporal":
-				result.add(pointsRequirement("Quest points", questPoints, 200, "abra o Character Summary"));
+				result.add(pointsRequirement("Quest points", questPoints, 200, "open Character Summary"));
 				result.add(itemRequirement("Fire cape", fireCape, bankLoaded));
 				break;
 			case "student":
-				result.add(pointsRequirement("Quest points", questPoints, 250, "abra o Character Summary"));
+				result.add(pointsRequirement("Quest points", questPoints, 250, "open Character Summary"));
 				result.add(itemRequirement("Fire cape", fireCape, bankLoaded));
 				result.add(caRequirement("Combat Achievements Easy", combatAchievementPoints, 41, easy));
 				break;
 			case "sergeant":
-				result.add(pointsRequirement("Quest points", questPoints, 300, "abra o Character Summary"));
+				result.add(pointsRequirement("Quest points", questPoints, 300, "open Character Summary"));
 				result.add(itemRequirement("Fire cape", fireCape, bankLoaded));
 				result.add(caRequirement("Combat Achievements Medium", combatAchievementPoints, 161, medium));
 				break;
@@ -1583,7 +1583,7 @@ public class ClanMessagesPlugin extends Plugin
 	private static String caRequirement(String label, int points, int required, boolean completed)
 	{
 		if (completed) return "✓ " + label + (points >= 0 ? ": " + points + "/" + required : " detectado");
-		if (points < 0) return "! " + label + ": abra o menu Combat Achievements";
+		if (points < 0) return "! " + label + ": open the Combat Achievements menu";
 		return "✕ " + label + ": " + points + "/" + required;
 	}
 
@@ -1762,7 +1762,7 @@ public class ClanMessagesPlugin extends Plugin
 	private static String achievementStatus(int points, int required)
 	{
 		if (points < 0) return "— open Combat Achievements and sync";
-		return points >= required ? "✓" : "— " + points + "/" + required + " pontos";
+		return points >= required ? "✓" : "— " + points + "/" + required + " points";
 	}
 
 	private static String achievementStatus(int points, int required, boolean helmet, String helmetName)
@@ -1909,7 +1909,7 @@ public class ClanMessagesPlugin extends Plugin
 		if (missing.isEmpty()) return "You can request your new rank on Discord in #ranks.";
 		boolean eligible = rank.equals("Corporal") || rank.equals("Student") || rank.equals("Sergeant")
 			|| rank.equals("Cadet") || rank.equals("Lieutenant") || rank.equals("Captain") || rank.equals("Major");
-		String nextMessage = "Next rank: " + next + "<br>Requirements faltantes: " + String.join(", ", missing);
+		String nextMessage = "Next rank: " + next + "<br>Missing requirements: " + String.join(", ", missing);
 		return eligible ? "You can request your new rank on Discord in #ranks.<br>" + nextMessage : nextMessage;
 	}
 
@@ -1928,7 +1928,7 @@ public class ClanMessagesPlugin extends Plugin
 		if (questPoints >= 200 && fireCape) return "Corporal";
 		if (!fireCape) return "Fire cape pending";
 		if (questPoints < 0) return "Quest points not synchronizeds";
-		return "Quest points pendentes";
+		return "Quest points pending";
 	}
 
 	private void submitDropStats(Collection<ItemStack> items, String source, Long singleItemValueOverride)
@@ -3431,7 +3431,7 @@ public class ClanMessagesPlugin extends Plugin
 	{
 		if (!isStaff || rsn.isEmpty() || twitchLogin.isEmpty())
 		{
-			if (panel != null) panel.setLivesStatus("Informe RSN e canal da Twitch");
+			if (panel != null) panel.setLivesStatus("Enter the RSN and Twitch channel");
 			return;
 		}
 		java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
@@ -3443,7 +3443,7 @@ public class ClanMessagesPlugin extends Plugin
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to save Twitch channel", exception);
-				if (panel != null) panel.setLivesStatus("Failed ao associar canal");
+				if (panel != null) panel.setLivesStatus("Failed to link channel");
 			}
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
 			{
@@ -3481,7 +3481,7 @@ public class ClanMessagesPlugin extends Plugin
 			{
 				try (Response ignored = response)
 				{
-					if (panel != null) panel.setLivesStatus(response.isSuccessful() ? "Channel removido" : "Error " + response.code());
+					if (panel != null) panel.setLivesStatus(response.isSuccessful() ? "Channel removed" : "Error " + response.code());
 					if (response.isSuccessful()) fetchLives();
 				}
 			}
@@ -3535,7 +3535,7 @@ public class ClanMessagesPlugin extends Plugin
 	{
 		if (!isDeputyOwner || rsn == null || rsn.trim().isEmpty())
 		{
-			if (panel != null) panel.setMvpMembersStatus("Informe o nome do member");
+			if (panel != null) panel.setMvpMembersStatus("Enter the member name");
 			return;
 		}
 		java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
@@ -3553,7 +3553,7 @@ public class ClanMessagesPlugin extends Plugin
 			{
 				try (Response ignored = response)
 				{
-					if (panel != null) panel.setMvpMembersStatus(response.isSuccessful() ? "MVP adicionado" : "Error " + response.code());
+					if (panel != null) panel.setMvpMembersStatus(response.isSuccessful() ? "MVP is automatic" : "Error " + response.code());
 					if (response.isSuccessful())
 					{
 						if (panel != null) panel.clearMvpMemberField();
@@ -3586,7 +3586,7 @@ public class ClanMessagesPlugin extends Plugin
 			{
 				try (Response ignored = response)
 				{
-					if (panel != null) panel.setMvpMembersStatus(response.isSuccessful() ? "MVP removido" : "Error " + response.code());
+					if (panel != null) panel.setMvpMembersStatus(response.isSuccessful() ? "MVP is automatic" : "Error " + response.code());
 					if (response.isSuccessful()) fetchMvpMembers();
 				}
 			}
@@ -3794,21 +3794,21 @@ public class ClanMessagesPlugin extends Plugin
 		String normalizedCode = code == null ? "" : code.trim().toUpperCase(java.util.Locale.ROOT);
 		if (!isDeputyOwner || !normalizedCode.matches("[A-Z0-9]{1,5}"))
 		{
-			if (panel != null) panel.setClanTagsStatus(isDeputyOwner ? "Use 1 to 5 letters or numbers" : "Apenas Deputy Owner pode alterar");
+			if (panel != null) panel.setClanTagsStatus(isDeputyOwner ? "Use 1 to 5 letters or numbers" : "Only Deputy Owner can change this");
 			return;
 		}
 		java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
 		payload.put("playerName", authenticatedPlayerName);
 		payload.put("code", normalizedCode);
 		payload.put("color", color);
-		postJson("admin/clan-tags", gson.toJson(payload), clanTagWriteCallback("Etiqueta criada", panel::clearClanTagCode));
+		postJson("admin/clan-tags", gson.toJson(payload), clanTagWriteCallback("Tag created", panel::clearClanTagCode));
 	}
 
 	private void addClanTagMember(ClanTag clanTag, String rsn)
 	{
 		if (!isDeputyOwner || clanTag == null || rsn == null || rsn.trim().isEmpty())
 		{
-			if (panel != null) panel.setClanTagsStatus(isDeputyOwner ? "Informe o nome do member" : "Apenas Deputy Owner pode alterar");
+			if (panel != null) panel.setClanTagsStatus(isDeputyOwner ? "Enter the member name" : "Only Deputy Owner can change this");
 			return;
 		}
 		java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
@@ -3821,7 +3821,7 @@ public class ClanMessagesPlugin extends Plugin
 	private void deleteClanTag(ClanTag clanTag)
 	{
 		if (!isDeputyOwner || clanTag == null) return;
-		deleteClanTagPath("admin/clan-tags/" + clanTag.id, "Etiqueta removida");
+		deleteClanTagPath("admin/clan-tags/" + clanTag.id, "Tag removed");
 	}
 
 	private void removeClanTagMember(ClanTag clanTag, ClanTagMember member)
@@ -3837,7 +3837,7 @@ public class ClanMessagesPlugin extends Plugin
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to update clan tags", exception);
-				if (panel != null) panel.setClanTagsStatus("Failed ao salvar");
+				if (panel != null) panel.setClanTagsStatus("Failed to save");
 			}
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
 			{
@@ -4134,7 +4134,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to publish clan message", exception);
-				if (panel != null) panel.setStatus("Failed ao publicar");
+				if (panel != null) panel.setStatus("Failed to publish");
 				if (panel != null) panel.setPublishing(false);
 			}
 
@@ -4149,7 +4149,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 						if (response.isSuccessful())
 						{
 							panel.clearDraft();
-							panel.setStatus("Publicado");
+							panel.setStatus("Published");
 							displayPublishedMessage(body, "Staff", message, mode, pinned);
 						}
 						else if (response.code() == 403 && body.contains("staff_required"))
@@ -4320,7 +4320,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to change pinned message", exception);
-				if (panel != null) panel.setSentMessagesStatus("Failed ao alterar message fixada");
+				if (panel != null) panel.setSentMessagesStatus("Failed to change pinned message");
 			}
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
 			{
@@ -4347,7 +4347,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		}
 		postJson("admin/messages/clear", "{}", new okhttp3.Callback()
 		{
-			@Override public void onFailure(okhttp3.Call call, IOException exception) { log.debug("Unable to clear clan messages", exception); if (panel != null) panel.setStatus("Failed ao limpar messages"); }
+			@Override public void onFailure(okhttp3.Call call, IOException exception) { log.debug("Unable to clear clan messages", exception); if (panel != null) panel.setStatus("Failed to clear messages"); }
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
 			{
 				try (Response ignored = response) { if (panel != null) panel.setStatus(response.isSuccessful() ? "Messages limpas" : "Error " + response.code()); }
@@ -5010,7 +5010,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 	{
 		if (request == null || !isStaff)
 		{
-			if (panel != null) panel.setRankRequestsStatus("Acesso staff ausente");
+			if (panel != null) panel.setRankRequestsStatus("Staff access missing");
 			return;
 		}
 		HttpUrl base = serverBaseUrl();
@@ -5099,7 +5099,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		}
 		if (!isStaff)
 		{
-			if (panel != null) panel.setRankRequestsStatus("Acesso staff ausente");
+			if (panel != null) panel.setRankRequestsStatus("Staff access missing");
 			return;
 		}
 		HttpUrl base = serverBaseUrl();
