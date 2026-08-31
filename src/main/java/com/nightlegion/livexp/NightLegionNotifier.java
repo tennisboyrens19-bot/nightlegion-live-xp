@@ -3,6 +3,7 @@ package com.nightlegion.livexp;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import java.awt.Color;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -12,21 +13,26 @@ import java.util.concurrent.TimeUnit;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatMessageBuilder;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.QueuedMessage;
 
 class NightLegionNotifier
 {
     private static final long POLL_SECONDS = 20L;
-    private static final String PURPLE = "7b16c9";
-    private static final String MUTED = "2f1638";
 
     private final Client client;
     private final ClientThread clientThread;
+    private final ChatMessageManager chatMessageManager;
     private final NightLegionApi api;
     private final NightLegionLiveXpConfig config;
     private final ScheduledExecutorService executor;
 
     private final Set<String> seenGroups = new HashSet<>();
+    private final Set<String> seenNoticeIds = new HashSet<>();
+    private final Set<String> seenActivityKeys = new HashSet<>();
     private final Map<String, Set<Long>> hostMembers = new HashMap<>();
     private final Map<String, Set<Long>> hostPending = new HashMap<>();
 
@@ -43,8 +49,20 @@ class NightLegionNotifier
         NightLegionLiveXpConfig config,
         ScheduledExecutorService executor)
     {
+        this(client, clientThread, RuneLite.getInjector().getInstance(ChatMessageManager.class), api, config, executor);
+    }
+
+    NightLegionNotifier(
+        Client client,
+        ClientThread clientThread,
+        ChatMessageManager chatMessageManager,
+        NightLegionApi api,
+        NightLegionLiveXpConfig config,
+        ScheduledExecutorService executor)
+    {
         this.client = client;
         this.clientThread = clientThread;
+        this.chatMessageManager = chatMessageManager;
         this.api = api;
         this.config = config;
         this.executor = executor;
@@ -108,6 +126,8 @@ class NightLegionNotifier
         seenSotwId = "";
         seenGiveawayId = "";
         seenGroups.clear();
+        seenNoticeIds.clear();
+        seenActivityKeys.clear();
         hostMembers.clear();
         hostPending.clear();
     }
@@ -117,22 +137,21 @@ class NightLegionNotifier
         JsonObject botw = object(overview, "botw");
         JsonObject sotw = object(overview, "sotw");
         JsonObject giveaway = object(overview, "giveaway");
+        JsonObject community = object(overview, "community");
 
         String currentBotw = id(botw);
         String currentSotw = id(sotw);
         String currentGiveaway = id(giveaway);
 
-        JsonArray groups = overview.has("groups") && overview.get("groups").isJsonArray()
-            ? overview.getAsJsonArray("groups")
-            : new JsonArray();
+        JsonArray groups = array(overview, "groups");
         Set<String> currentGroups = groupIds(groups);
 
         if (!primed)
         {
             if (config.eventAlerts())
             {
-                announceEvent(botw, "BOTW", "⚔", false);
-                announceEvent(sotw, "SOTW", "🏆", false);
+                announceEvent(botw, "BOTW", false);
+                announceEvent(sotw, "SOTW", false);
             }
             if (config.giveawayAlerts())
             {
@@ -145,6 +164,7 @@ class NightLegionNotifier
             seenGroups.clear();
             seenGroups.addAll(currentGroups);
             primeHostState(groups);
+            primeCommunityState(community);
             primed = true;
             return;
         }
@@ -153,11 +173,11 @@ class NightLegionNotifier
         {
             if (botw != null && !currentBotw.isEmpty() && !currentBotw.equals(seenBotwId))
             {
-                announceEvent(botw, "BOTW", "⚔", true);
+                announceEvent(botw, "BOTW", true);
             }
             if (sotw != null && !currentSotw.isEmpty() && !currentSotw.equals(seenSotwId))
             {
-                announceEvent(sotw, "SOTW", "🏆", true);
+                announceEvent(sotw, "SOTW", true);
             }
         }
         seenBotwId = currentBotw;
@@ -168,6 +188,8 @@ class NightLegionNotifier
             announceGiveaway(giveaway, true);
         }
         seenGiveawayId = currentGiveaway;
+
+        broadcastCommunitySystem(community);
 
         boolean canUseGroupFinder = !overview.has("groupfinder_access") || overview.get("groupfinder_access").getAsBoolean();
         if (config.groupFinderAlerts() && canUseGroupFinder)
@@ -184,7 +206,7 @@ class NightLegionNotifier
         seenGroups.addAll(currentGroups);
     }
 
-    private void announceEvent(JsonObject event, String section, String emoji, boolean isNew)
+    private void announceEvent(JsonObject event, String section, boolean isNew)
     {
         if (event == null || id(event).isEmpty())
         {
@@ -197,19 +219,19 @@ class NightLegionNotifier
         String action;
         if (entered)
         {
-            action = "You're entered — open NightLegion → " + section + " for progress.";
+            action = "You're entered - open NightLegion > " + section + " for progress.";
         }
         else if (pending)
         {
-            action = "Your buy-in is pending — open NightLegion → " + section + ".";
+            action = "Your buy-in is pending - open NightLegion > " + section + ".";
         }
         else
         {
-            action = "Open NightLegion → " + section + " to join.";
+            action = "Open NightLegion > " + section + " to join.";
         }
 
-        chat(emoji + " " + (isNew ? "New " : "") + section + " active: "
-            + (label.isEmpty() ? section : label) + " — " + action);
+        clanSystem((isNew ? "New " : "") + section + " active: "
+            + (label.isEmpty() ? section : label) + " - " + action);
     }
 
     private void announceGiveaway(JsonObject giveaway, boolean isNew)
@@ -231,17 +253,104 @@ class NightLegionNotifier
         }
         else if (eligible)
         {
-            suffix = "Open NightLegion → Giveaway to enter.";
+            suffix = "Open NightLegion > Giveaway to enter.";
         }
         else
         {
             suffix = rank.isEmpty()
-                ? "Open NightLegion → Giveaway for details."
+                ? "Open NightLegion > Giveaway for details."
                 : "Requires Discord rank: " + rank + ".";
         }
 
-        chat("🎁 " + (isNew ? "New Giveaway" : "Giveaway active") + ": "
-            + (prize.isEmpty() ? "NightLegion giveaway" : prize) + " — " + suffix);
+        clanSystem((isNew ? "New Giveaway" : "Giveaway active") + ": "
+            + (prize.isEmpty() ? "NightLegion giveaway" : prize) + " - " + suffix);
+    }
+
+    private void primeCommunityState(JsonObject community)
+    {
+        if (community == null)
+        {
+            return;
+        }
+        for (JsonElement element : array(community, "notices"))
+        {
+            if (element.isJsonObject())
+            {
+                String noticeId = text(element.getAsJsonObject(), "id");
+                if (!noticeId.isEmpty())
+                {
+                    seenNoticeIds.add(noticeId);
+                }
+            }
+        }
+        for (JsonElement element : array(community, "recent_activity"))
+        {
+            if (element.isJsonObject())
+            {
+                String key = activityKey(element.getAsJsonObject());
+                if (!key.isEmpty())
+                {
+                    seenActivityKeys.add(key);
+                }
+            }
+        }
+    }
+
+    private void broadcastCommunitySystem(JsonObject community)
+    {
+        if (community == null)
+        {
+            return;
+        }
+
+        for (JsonElement element : array(community, "notices"))
+        {
+            if (!element.isJsonObject())
+            {
+                continue;
+            }
+            JsonObject notice = element.getAsJsonObject();
+            String noticeId = text(notice, "id");
+            if (noticeId.isEmpty() || !seenNoticeIds.add(noticeId))
+            {
+                continue;
+            }
+            String message = text(notice, "text");
+            if (!message.isEmpty())
+            {
+                clanSystem(message);
+            }
+        }
+
+        for (JsonElement element : array(community, "recent_activity"))
+        {
+            if (!element.isJsonObject())
+            {
+                continue;
+            }
+            JsonObject activity = element.getAsJsonObject();
+            String key = activityKey(activity);
+            if (key.isEmpty() || !seenActivityKeys.add(key))
+            {
+                continue;
+            }
+
+            String type = text(activity, "type");
+            if (!"PROMOTION".equalsIgnoreCase(type))
+            {
+                continue;
+            }
+            String player = text(activity, "player_name");
+            String title = text(activity, "title");
+            if (!player.isEmpty() && !title.isEmpty())
+            {
+                clanSystem(player + " was " + lowerFirst(title) + "!");
+            }
+            else if (!title.isEmpty())
+            {
+                clanSystem(title + "!");
+            }
+        }
     }
 
     private void broadcastNewGroups(JsonArray groups)
@@ -263,7 +372,7 @@ class NightLegionNotifier
             String activity = text(group, "activity");
             String host = text(group, "host_name");
             String world = group.has("world") && !group.get("world").isJsonNull()
-                ? " · World " + group.get("world").getAsInt()
+                ? " - World " + group.get("world").getAsInt()
                 : "";
             int members = group.has("members") && group.get("members").isJsonArray()
                 ? group.getAsJsonArray("members").size()
@@ -272,10 +381,10 @@ class NightLegionNotifier
                 ? group.get("max_players").getAsInt()
                 : 1;
 
-            chat("👥 New " + (activity.isEmpty() ? "Group Finder" : activity)
+            clanSystem("New " + (activity.isEmpty() ? "Group Finder" : activity)
                 + " group by " + (host.isEmpty() ? "a clan member" : host)
-                + " — " + members + "/" + max + world
-                + ". Open NightLegion → Group Finder.");
+                + " - " + members + "/" + max + world
+                + ". Open NightLegion > Group Finder.");
         }
     }
 
@@ -310,9 +419,9 @@ class NightLegionNotifier
 
             for (Long userId : difference(currentPending, previousPending))
             {
-                chat("👤 " + pendingNames.getOrDefault(userId, "A clan member")
+                clanSystem(pendingNames.getOrDefault(userId, "A clan member")
                     + " requested to join your " + title
-                    + " group — open NightLegion → Group Finder → Requests.");
+                    + " group - open NightLegion > Group Finder > Requests.");
             }
 
             for (Long userId : difference(currentMembers, previousMembers))
@@ -324,8 +433,8 @@ class NightLegionNotifier
                 int max = group.has("max_players") && !group.get("max_players").isJsonNull()
                     ? group.get("max_players").getAsInt()
                     : currentMembers.size();
-                chat("✅ " + memberNames.getOrDefault(userId, "A clan member")
-                    + " joined your " + title + " group — "
+                clanSystem(memberNames.getOrDefault(userId, "A clan member")
+                    + " joined your " + title + " group - "
                     + currentMembers.size() + "/" + max + " players.");
             }
 
@@ -435,18 +544,29 @@ class NightLegionNotifier
             : client.getLocalPlayer().getName().trim();
     }
 
-    private void chat(String message)
+    /** Exact Live On delivery style: RuneLite-formatted CLAN_MESSAGE. */
+    private void clanSystem(String message)
     {
-        clientThread.invokeLater(() -> client.addChatMessage(
-            ChatMessageType.GAMEMESSAGE,
-            "",
-            "<col=" + PURPLE + ">[NightLegion]</col> <col=" + MUTED + ">" + escapeTags(message) + "</col>",
-            null));
+        clientThread.invokeLater(() ->
+        {
+            ChatMessageBuilder builder = new ChatMessageBuilder()
+                .append(Color.GREEN, "[NightLegion] ")
+                .append(Color.WHITE, safeText(message));
+            chatMessageManager.queue(QueuedMessage.builder()
+                .type(ChatMessageType.CLAN_MESSAGE)
+                .runeLiteFormattedMessage(builder.build())
+                .build());
+        });
     }
 
     private static JsonObject object(JsonObject parent, String key)
     {
-        return parent.has(key) && parent.get(key).isJsonObject() ? parent.getAsJsonObject(key) : null;
+        return parent != null && parent.has(key) && parent.get(key).isJsonObject() ? parent.getAsJsonObject(key) : null;
+    }
+
+    private static JsonArray array(JsonObject parent, String key)
+    {
+        return parent != null && parent.has(key) && parent.get(key).isJsonArray() ? parent.getAsJsonArray(key) : new JsonArray();
     }
 
     private static String id(JsonObject object)
@@ -454,11 +574,30 @@ class NightLegionNotifier
         return object == null ? "" : text(object, "id");
     }
 
+    private static String activityKey(JsonObject activity)
+    {
+        if (activity == null)
+        {
+            return "";
+        }
+        return text(activity, "type") + "|" + text(activity, "player_name") + "|"
+            + text(activity, "title") + "|" + longValue(activity, "created_at", 0L);
+    }
+
+    private static String lowerFirst(String value)
+    {
+        if (value == null || value.isEmpty())
+        {
+            return "";
+        }
+        return Character.toLowerCase(value.charAt(0)) + value.substring(1);
+    }
+
     private static boolean bool(JsonObject object, String key)
     {
         try
         {
-            return object.has(key) && !object.get(key).isJsonNull() && object.get(key).getAsBoolean();
+            return object != null && object.has(key) && !object.get(key).isJsonNull() && object.get(key).getAsBoolean();
         }
         catch (Exception ignored)
         {
@@ -470,7 +609,7 @@ class NightLegionNotifier
     {
         try
         {
-            return object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsLong() : fallback;
+            return object != null && object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsLong() : fallback;
         }
         catch (Exception ignored)
         {
@@ -482,7 +621,7 @@ class NightLegionNotifier
     {
         try
         {
-            return object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsString() : "";
+            return object != null && object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsString() : "";
         }
         catch (Exception ignored)
         {
@@ -490,8 +629,8 @@ class NightLegionNotifier
         }
     }
 
-    private static String escapeTags(String value)
+    private static String safeText(String value)
     {
-        return value == null ? "" : value.replace("<", "[").replace(">", "]");
+        return value == null ? "" : value.replace('<', '[').replace('>', ']');
     }
 }

@@ -2,9 +2,12 @@ package com.nightlegion.livexp;
 
 import com.google.gson.JsonObject;
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.util.Locale;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -16,307 +19,289 @@ import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import net.runelite.api.Client;
 
-/** Rank/profile UI. Rank Secret Key is configured separately in RuneLite config;
- * this view reads the linked Discord profile through the normal companion link. */
+/** Live On-style rank page with NightLegion Clan Points/activity data. */
 class NightLegionRankPanel extends JPanel
 {
+    private static final Color ORANGE = new Color(190, 104, 0);
+    private static final Color ACCENT = new Color(255, 152, 0);
+    private static final Color MUTED = new Color(155, 155, 155);
+    private static final Color BORDER = new Color(58, 58, 58);
+
     private final Client client;
     private final NightLegionApi api;
-
-    private final JLabel status = new JLabel("● Loading rank profile");
-    private final JLabel rank = valueLabel("—");
-    private final JLabel points = valueLabel("0");
-    private final JLabel next = valueLabel("—");
-    private final JLabel activity7 = valueLabel("0.00");
-    private final JLabel activity30 = valueLabel("0.00");
-    private final JLabel activity90 = valueLabel("0.00");
-    private final JLabel weekly = new JLabel("Waiting for activity data", SwingConstants.LEFT);
-    private final JLabel rsn = new JLabel("RSN: not linked", SwingConstants.LEFT);
-    private final JProgressBar progress = new JProgressBar(0, 1000);
+    private final JPanel body = new JPanel();
+    private final JLabel status = new JLabel("Loading rank profile...");
 
     NightLegionRankPanel(Client client, NightLegionApi api)
     {
         this.client = client;
         this.api = api;
         setLayout(new BorderLayout());
-        setBackground(NightLegionTheme.BACKGROUND);
+        setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
 
-        JPanel content = new JPanel();
-        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-        content.setBackground(NightLegionTheme.BACKGROUND);
-        content.setBorder(BorderFactory.createEmptyBorder(10, 9, 10, 9));
-
-        JLabel title = new JLabel("NIGHTLEGION RANK");
-        title.setForeground(NightLegionTheme.PURPLE_BRIGHT);
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
-        title.setAlignmentX(LEFT_ALIGNMENT);
-        content.add(title);
-        content.add(Box.createVerticalStrut(3));
-
-        JLabel subtitle = new JLabel("Clan contribution · permanent points");
-        subtitle.setForeground(NightLegionTheme.MUTED);
-        subtitle.setAlignmentX(LEFT_ALIGNMENT);
-        content.add(subtitle);
-        content.add(Box.createVerticalStrut(8));
-
-        status.setForeground(NightLegionTheme.MUTED);
-        status.setAlignmentX(LEFT_ALIGNMENT);
-        content.add(status);
-        content.add(Box.createVerticalStrut(10));
-
-        JPanel top = new JPanel(new GridLayout(1, 2, 6, 0));
-        top.setOpaque(false);
-        top.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
-        top.setAlignmentX(LEFT_ALIGNMENT);
-        top.add(tile("CURRENT RANK", rank));
-        top.add(tile("CLAN POINTS", points));
-        content.add(top);
-        content.add(Box.createVerticalStrut(7));
-
-        JPanel nextCard = card();
-        nextCard.setLayout(new BoxLayout(nextCard, BoxLayout.Y_AXIS));
-        nextCard.add(smallTitle("NEXT RANK"));
-        nextCard.add(Box.createVerticalStrut(3));
-        nextCard.add(next);
-        nextCard.add(Box.createVerticalStrut(6));
-        progress.setValue(0);
-        progress.setStringPainted(true);
-        progress.setString("0%");
-        progress.setForeground(NightLegionTheme.PURPLE);
-        progress.setBackground(NightLegionTheme.SURFACE_ALT);
-        progress.setBorder(BorderFactory.createLineBorder(NightLegionTheme.BORDER));
-        progress.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
-        nextCard.add(progress);
-        content.add(nextCard);
-        content.add(Box.createVerticalStrut(7));
-
-        JPanel activity = new JPanel(new GridLayout(1, 3, 5, 0));
-        activity.setOpaque(false);
-        activity.setMaximumSize(new Dimension(Integer.MAX_VALUE, 68));
-        activity.setAlignmentX(LEFT_ALIGNMENT);
-        activity.add(tile("7 DAYS", activity7));
-        activity.add(tile("30 DAYS", activity30));
-        activity.add(tile("90 DAYS", activity90));
-        content.add(activity);
-        content.add(Box.createVerticalStrut(7));
-
-        JPanel weekCard = card();
-        weekCard.setLayout(new BoxLayout(weekCard, BoxLayout.Y_AXIS));
-        weekCard.add(smallTitle("THIS WEEK"));
-        weekCard.add(Box.createVerticalStrut(4));
-        weekly.setForeground(NightLegionTheme.SILVER);
-        weekCard.add(weekly);
-        content.add(weekCard);
-        content.add(Box.createVerticalStrut(7));
-
-        rsn.setForeground(NightLegionTheme.MUTED);
-        rsn.setAlignmentX(LEFT_ALIGNMENT);
-        content.add(rsn);
-        content.add(Box.createVerticalStrut(8));
-
-        JButton refresh = new JButton("REFRESH RANK");
-        NightLegionTheme.styleButton(refresh, true, false);
-        refresh.setAlignmentX(LEFT_ALIGNMENT);
-        refresh.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
-        refresh.addActionListener(e -> refresh());
-        content.add(refresh);
-        content.add(Box.createVerticalStrut(8));
-
-        JPanel helpCard = card();
-        helpCard.setLayout(new BoxLayout(helpCard, BoxLayout.Y_AXIS));
-        helpCard.add(smallTitle("ACCOUNT LINK"));
-        helpCard.add(Box.createVerticalStrut(3));
-        JLabel help = new JLabel("Discord: /rank link · /rank set-rsn");
-        help.setForeground(NightLegionTheme.MUTED);
-        help.setFont(help.getFont().deriveFont(9f));
-        help.setAlignmentX(LEFT_ALIGNMENT);
-        helpCard.add(help);
-        content.add(helpCard);
-
-        add(content, BorderLayout.NORTH);
+        body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+        body.setAlignmentX(Component.LEFT_ALIGNMENT);
+        add(body, BorderLayout.NORTH);
+        renderLoading();
     }
 
     void refresh()
     {
-        status.setText("● Refreshing...");
-        status.setForeground(NightLegionTheme.MUTED);
-        api.action("overview", currentRsn(), new JsonObject(), json ->
+        status.setText("Refreshing...");
+        api.action("community_snapshot", currentRsn(), new JsonObject(), json ->
             SwingUtilities.invokeLater(() -> render(json)), error ->
-            SwingUtilities.invokeLater(() ->
-            {
-                status.setForeground(NightLegionTheme.MUTED);
-                status.setText("● " + error);
-            }));
+            SwingUtilities.invokeLater(() -> renderError(error)));
     }
 
-    private void render(JsonObject overview)
+    private void renderLoading()
     {
-        if (!overview.has("rank") || overview.get("rank").isJsonNull() || !overview.get("rank").isJsonObject())
+        body.removeAll();
+        JPanel identity = card();
+        JLabel name = new JLabel(currentRsn().isEmpty() ? "NightLegion member" : currentRsn());
+        name.setFont(name.getFont().deriveFont(Font.BOLD, 14f));
+        identity.add(name, BorderLayout.NORTH);
+        status.setForeground(MUTED);
+        identity.add(status, BorderLayout.SOUTH);
+        body.add(identity);
+        finish();
+    }
+
+    private void render(JsonObject snapshot)
+    {
+        body.removeAll();
+        JsonObject rankRoot = object(snapshot, "rank");
+        JsonObject profile = object(rankRoot, "profile");
+        if (profile.size() == 0)
         {
-            status.setText("● Rank profile not linked yet");
-            status.setForeground(NightLegionTheme.MUTED);
-            rank.setText("—");
-            next.setText("Use /rank set-rsn in Discord");
+            renderError("Rank profile is not linked yet.");
             return;
         }
 
-        JsonObject profile = overview.getAsJsonObject("rank");
-        JsonObject rankData = object(profile, "rank");
-        JsonObject activityData = object(profile, "activity");
-        JsonObject week = object(profile, "weekly");
+        JsonObject rank = object(profile, "rank");
+        JsonObject activity = object(profile, "activity");
+        JsonObject weekly = object(profile, "weekly");
+        String rsn = text(profile, "rsn", currentRsn());
+        double points = decimal(profile, "points", 0);
+        int level = integer(rank, "level", 1);
+        String title = text(rank, "title", "Quester");
 
-        int level = integer(rankData, "level", 1);
-        String title = text(rankData, "title", "Quester");
-        double currentPoints = decimal(profile, "points", 0);
-        rank.setText("L" + level + " · " + title);
-        points.setText(format(currentPoints));
+        JPanel identity = card();
+        identity.setBorder(BorderFactory.createEmptyBorder(5, 7, 6, 7));
+        JLabel player = new JLabel(rsn.isEmpty() ? "NightLegion member" : rsn);
+        player.setFont(player.getFont().deriveFont(Font.BOLD, 14f));
+        JLabel current = new JLabel("Current rank • L" + level + " · " + title);
+        current.setForeground(new Color(170, 170, 170));
+        identity.add(player, BorderLayout.NORTH);
+        identity.add(current, BorderLayout.SOUTH);
+        body.add(identity);
+        body.add(Box.createVerticalStrut(3));
 
-        status.setText("● Rank system connected");
-        status.setForeground(NightLegionTheme.PURPLE_BRIGHT);
-        rsn.setText("RSN: " + text(profile, "rsn", currentRsn()));
+        JPanel top = new JPanel(new GridLayout(1, 2, 4, 0));
+        top.setAlignmentX(Component.LEFT_ALIGNMENT);
+        top.setMaximumSize(new Dimension(Integer.MAX_VALUE, 67));
+        top.add(statCard("CURRENT RANK", "L" + level + " · " + title));
+        top.add(statCard("CLAN POINTS", format(points)));
+        body.add(top);
+        body.add(Box.createVerticalStrut(4));
 
-        activity7.setText(String.format("%.2f", decimal(activityData, "7d", 0)));
-        activity30.setText(String.format("%.2f", decimal(activityData, "30d", 0)));
-        activity90.setText(String.format("%.2f", decimal(activityData, "90d", 0)));
-
-        int nextLevel = integer(rankData, "next_level", 0);
+        JPanel nextCard = card();
+        nextCard.setLayout(new BoxLayout(nextCard, BoxLayout.Y_AXIS));
+        JLabel nextTitle = small("NEXT RANK");
+        nextCard.add(nextTitle);
+        nextCard.add(Box.createVerticalStrut(3));
+        int nextLevel = integer(rank, "next_level", 0);
         if (nextLevel <= 0)
         {
-            next.setText("MAX RANK");
-            progress.setValue(1000);
-            progress.setString("100%");
+            JLabel max = value("Maximum normal rank reached");
+            nextCard.add(max);
         }
         else
         {
-            String nextTitle = text(rankData, "next_title", "Next rank");
-            double threshold = decimal(rankData, "threshold", 0);
-            double nextThreshold = decimal(rankData, "next_threshold", threshold + 1);
-            double remaining = decimal(rankData, "remaining", 0);
-            next.setText("L" + nextLevel + " · " + nextTitle + " · " + format(remaining) + " pts left");
+            String nextName = text(rank, "next_title", "Next rank");
+            double remaining = decimal(rank, "remaining", 0);
+            JLabel line = value("L" + nextLevel + " · " + nextName);
+            nextCard.add(line);
+            JLabel left = new JLabel(format(remaining) + " points remaining");
+            left.setForeground(MUTED);
+            nextCard.add(left);
+            nextCard.add(Box.createVerticalStrut(5));
+            double threshold = decimal(rank, "threshold", 0);
+            double nextThreshold = decimal(rank, "next_threshold", threshold + 1);
             double span = Math.max(1.0, nextThreshold - threshold);
-            double pct = Math.max(0.0, Math.min(1.0, (currentPoints - threshold) / span));
+            double pct = Math.max(0, Math.min(1, (points - threshold) / span));
+            JProgressBar progress = new JProgressBar(0, 1000);
             progress.setValue((int) Math.round(pct * 1000));
+            progress.setStringPainted(true);
             progress.setString((int) Math.round(pct * 100) + "%");
+            progress.setForeground(ACCENT);
+            progress.setBackground(new Color(55, 55, 55));
+            progress.setBorderPainted(false);
+            progress.setMaximumSize(new Dimension(Integer.MAX_VALUE, 17));
+            nextCard.add(progress);
         }
+        body.add(nextCard);
+        body.add(Box.createVerticalStrut(4));
 
-        int messages = integer(week, "discord_messages", 0);
-        int messagePoints = integer(week, "discord_message_points", 0);
-        int clanMessages = integer(week, "clan_messages", 0);
-        long xp = longValue(week, "wom_xp_gained", 0L);
-        weekly.setText("Discord " + messages + " msgs (" + messagePoints + "/5 pts) · Clan "
-            + clanMessages + " msgs · OSRS +" + String.format("%,d", xp) + " XP");
+        JPanel activityRow = new JPanel(new GridLayout(1, 2, 4, 0));
+        activityRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        activityRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 61));
+        activityRow.add(statCard("7 DAYS", String.format(Locale.ROOT, "%.2f", decimal(activity, "7d", 0))));
+        activityRow.add(statCard("30 DAYS", String.format(Locale.ROOT, "%.2f", decimal(activity, "30d", 0))));
+        body.add(activityRow);
+        body.add(Box.createVerticalStrut(4));
+
+        // Do not put this on one long line. This is the exact clipping problem
+        // in the previous NightLegion build.
+        JPanel week = card();
+        week.setLayout(new BoxLayout(week, BoxLayout.Y_AXIS));
+        week.add(small("THIS WEEK"));
+        week.add(Box.createVerticalStrut(5));
+        int discordMessages = integer(weekly, "discord_messages", 0);
+        int discordPoints = integer(weekly, "discord_message_points", 0);
+        int clanMessages = integer(weekly, "clan_messages", 0);
+        int clanPoints = integer(weekly, "clan_message_points", 0);
+        JLabel discord = new JLabel("Discord messages:  " + discordMessages + "   (" + discordPoints + "/5 pts)");
+        JLabel clan = new JLabel("Clan chat messages:  " + clanMessages + "   (" + clanPoints + "/5 pts)");
+        discord.setForeground(new Color(215, 215, 215));
+        clan.setForeground(new Color(215, 215, 215));
+        week.add(discord);
+        week.add(Box.createVerticalStrut(3));
+        week.add(clan);
+        long xp = longValue(weekly, "wom_xp_gained", 0);
+        if (xp > 0)
+        {
+            week.add(Box.createVerticalStrut(3));
+            JLabel osrs = new JLabel("OSRS XP gained:  +" + String.format(Locale.ROOT, "%,d", xp));
+            osrs.setForeground(MUTED);
+            week.add(osrs);
+        }
+        body.add(week);
+        body.add(Box.createVerticalStrut(6));
+
+        JButton refresh = new JButton("Refresh rank");
+        refresh.setBackground(ORANGE);
+        refresh.setForeground(Color.WHITE);
+        refresh.setFocusPainted(false);
+        refresh.setAlignmentX(Component.LEFT_ALIGNMENT);
+        refresh.setMaximumSize(new Dimension(Integer.MAX_VALUE, 29));
+        refresh.addActionListener(e -> refresh());
+        body.add(refresh);
+        body.add(Box.createVerticalStrut(5));
+
+        JPanel account = card();
+        account.setLayout(new BoxLayout(account, BoxLayout.Y_AXIS));
+        account.add(small("ACCOUNT LINK"));
+        JLabel linked = new JLabel("Discord + RuneLite linked as " + (rsn.isEmpty() ? currentRsn() : rsn));
+        linked.setForeground(MUTED);
+        linked.setFont(linked.getFont().deriveFont(10f));
+        account.add(linked);
+        body.add(account);
+        finish();
     }
 
-    private static JPanel tile(String label, JLabel value)
+    private void renderError(String error)
+    {
+        body.removeAll();
+        JPanel card = card();
+        JLabel title = new JLabel("Rank profile unavailable");
+        title.setFont(title.getFont().deriveFont(Font.BOLD));
+        JLabel detail = new JLabel("<html><div style='width:175px'>" + escape(error) + "</div></html>");
+        detail.setForeground(MUTED);
+        card.add(title, BorderLayout.NORTH);
+        card.add(detail, BorderLayout.CENTER);
+        body.add(card);
+        finish();
+    }
+
+    private static JPanel statCard(String label, String text)
     {
         JPanel card = card();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.add(smallTitle(label));
+        card.add(small(label));
         card.add(Box.createVerticalStrut(4));
-        card.add(value);
+        card.add(value(text));
         return card;
     }
 
     private static JPanel card()
     {
-        JPanel panel = new JPanel();
-        panel.setBackground(NightLegionTheme.SURFACE);
+        JPanel panel = new JPanel(new BorderLayout(4, 3));
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.setBackground(new Color(43, 43, 43));
         panel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 3, 0, 0, NightLegionTheme.PURPLE),
-                BorderFactory.createLineBorder(NightLegionTheme.BORDER)),
-            BorderFactory.createEmptyBorder(8, 9, 8, 8)));
-        panel.setAlignmentX(LEFT_ALIGNMENT);
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
+            BorderFactory.createLineBorder(BORDER),
+            BorderFactory.createEmptyBorder(6, 7, 6, 7)));
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 130));
         return panel;
     }
 
-    private static JLabel smallTitle(String value)
+    private static JLabel small(String value)
     {
         JLabel label = new JLabel(value);
-        label.setForeground(NightLegionTheme.MUTED);
-        label.setFont(label.getFont().deriveFont(Font.BOLD, 9f));
-        label.setAlignmentX(LEFT_ALIGNMENT);
+        label.setForeground(MUTED);
+        label.setFont(label.getFont().deriveFont(Font.BOLD, 10f));
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
         return label;
     }
 
-    private static JLabel valueLabel(String value)
+    private static JLabel value(String value)
     {
         JLabel label = new JLabel(value);
-        label.setForeground(NightLegionTheme.SILVER);
         label.setFont(label.getFont().deriveFont(Font.BOLD, 12f));
-        label.setAlignmentX(LEFT_ALIGNMENT);
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
         return label;
+    }
+
+    private void finish()
+    {
+        body.revalidate();
+        body.repaint();
     }
 
     private String currentRsn()
     {
         return client.getLocalPlayer() == null || client.getLocalPlayer().getName() == null
-            ? ""
-            : client.getLocalPlayer().getName().trim();
+            ? "" : client.getLocalPlayer().getName().trim();
     }
 
     private static JsonObject object(JsonObject parent, String key)
     {
-        return parent != null && parent.has(key) && parent.get(key).isJsonObject()
-            ? parent.getAsJsonObject(key)
-            : new JsonObject();
+        try { return parent != null && parent.has(key) && parent.get(key).isJsonObject() ? parent.getAsJsonObject(key) : new JsonObject(); }
+        catch (Exception ignored) { return new JsonObject(); }
     }
 
     private static String text(JsonObject object, String key, String fallback)
     {
-        try
-        {
-            return object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsString() : fallback;
-        }
-        catch (Exception ignored)
-        {
-            return fallback;
-        }
+        try { return object != null && object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsString() : fallback; }
+        catch (Exception ignored) { return fallback; }
     }
 
     private static int integer(JsonObject object, String key, int fallback)
     {
-        try
-        {
-            return object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsInt() : fallback;
-        }
-        catch (Exception ignored)
-        {
-            return fallback;
-        }
+        try { return object != null && object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsInt() : fallback; }
+        catch (Exception ignored) { return fallback; }
     }
 
     private static long longValue(JsonObject object, String key, long fallback)
     {
-        try
-        {
-            return object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsLong() : fallback;
-        }
-        catch (Exception ignored)
-        {
-            return fallback;
-        }
+        try { return object != null && object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsLong() : fallback; }
+        catch (Exception ignored) { return fallback; }
     }
 
     private static double decimal(JsonObject object, String key, double fallback)
     {
-        try
-        {
-            return object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsDouble() : fallback;
-        }
-        catch (Exception ignored)
-        {
-            return fallback;
-        }
+        try { return object != null && object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsDouble() : fallback; }
+        catch (Exception ignored) { return fallback; }
     }
 
     private static String format(double value)
     {
-        if (Math.rint(value) == value)
-        {
-            return String.format("%,.0f", value);
-        }
-        return String.format("%,.1f", value);
+        return Math.rint(value) == value ? String.format(Locale.ROOT, "%,.0f", value) : String.format(Locale.ROOT, "%,.1f", value);
+    }
+
+    private static String escape(String value)
+    {
+        if (value == null) return "";
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 }

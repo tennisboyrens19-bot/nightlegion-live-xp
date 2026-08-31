@@ -14,20 +14,25 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
 
+/** Shared colors/widgets intentionally matched to the Live On Clan RuneLite UI. */
 final class NightLegionTheme
 {
-    static final Color BACKGROUND = new Color(14, 8, 20);
-    static final Color HEADER = new Color(28, 11, 42);
-    static final Color SURFACE = new Color(34, 24, 44);
-    static final Color SURFACE_ALT = new Color(47, 31, 61);
-    static final Color PURPLE = new Color(146, 70, 255);
-    static final Color PURPLE_BRIGHT = new Color(196, 112, 255);
-    static final Color SILVER = new Color(232, 226, 239);
-    static final Color MUTED = new Color(174, 160, 187);
-    static final Color DANGER = new Color(160, 62, 88);
-    static final Color SUCCESS = new Color(76, 196, 128);
-    static final Color GOLD = new Color(232, 184, 76);
-    static final Color BORDER = new Color(79, 53, 98);
+    static final Color BACKGROUND = new Color(36, 36, 36);
+    static final Color HEADER = new Color(35, 35, 35);
+    static final Color SURFACE = new Color(43, 43, 43);
+    static final Color SURFACE_ALT = new Color(50, 50, 50);
+    // Existing NightLegion views use the PURPLE names. Keep the API but map the
+    // accent to Live On's orange so BOTW/SOTW/Giveaway/Groups match the shell.
+    static final Color PURPLE = new Color(190, 104, 0);
+    static final Color PURPLE_BRIGHT = new Color(255, 152, 0);
+    static final Color SILVER = new Color(225, 225, 225);
+    static final Color MUTED = new Color(160, 160, 160);
+    static final Color DANGER = new Color(150, 55, 55);
+    static final Color SUCCESS = new Color(70, 220, 100);
+    static final Color GOLD = new Color(235, 190, 45);
+    static final Color BORDER = new Color(62, 62, 62);
+    static final Color BLUE = new Color(90, 190, 245);
+    static final Color BRONZE = new Color(190, 110, 55);
 
     private NightLegionTheme()
     {
@@ -42,8 +47,8 @@ final class NightLegionTheme
         button.setBackground(background);
         button.setForeground(Color.WHITE);
         button.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(primary ? PURPLE_BRIGHT : BORDER),
-            BorderFactory.createEmptyBorder(5, 9, 5, 9)));
+            BorderFactory.createLineBorder(primary ? PURPLE_BRIGHT.darker() : BORDER),
+            BorderFactory.createEmptyBorder(4, 8, 4, 8)));
     }
 
     static void styleCombo(JComboBox<?> combo)
@@ -67,52 +72,52 @@ final class NightLegionTheme
     static int sectionItemId(String section)
     {
         String value = section == null ? "" : section.toLowerCase();
-        if (value.equals("botw")) return 4151;       // Abyssal whip
-        if (value.equals("sotw")) return 13280;      // Max cape
-        if (value.equals("giveaway")) return 995;    // Coins
-        if (value.contains("group")) return 20997;   // Twisted bow
+        if (value.equals("botw")) return 4151;
+        if (value.equals("sotw")) return 13280;
+        if (value.equals("giveaway")) return 995;
+        if (value.contains("group")) return 20997;
         return -1;
     }
 
     static int activityItemId(String label)
     {
         String value = label == null ? "" : label.toLowerCase();
-        if (value.contains("chambers of xeric")) return 20997; // Twisted bow
-        if (value.contains("theatre of blood")) return 22325; // Scythe of vitur
-        if (value.contains("tombs of amascut")) return 27275; // Tumeken's shadow
-        if (value.equals("nex")) return 26374; // Zaryte crossbow
-        if (value.contains("corporeal beast")) return 11824; // Zamorakian spear
-        if (value.contains("vorkath")) return 22978; // Dragon hunter lance
-        if (value.contains("zulrah")) return 12926; // Toxic blowpipe
-        if (value.contains("general graardor")) return 11804; // Bandos godsword
-        if (value.contains("kree'arra") || value.contains("kree’arra")) return 11785; // Armadyl crossbow
-        if (value.contains("kril tsutsaroth") || value.contains("k'ril") || value.contains("k’ril")) return 11808; // Zamorak godsword
-        if (value.contains("commander zilyana")) return 11806; // Saradomin godsword
-        if (value.contains("barbarian assault")) return 10551; // Fighter torso
-        if (value.contains("soul wars")) return 25256; // Soul cape
-        if (value.contains("agility")) return 11849; // Mark of grace
-        if (value.contains("attack")) return 4151; // Abyssal whip
-        if (value.contains("strength")) return 6528; // Tzhaar-ket-om
-        if (value.contains("defence")) return 11283; // Dragonfire shield
-        if (value.contains("ranged")) return 20997; // Twisted bow
-        if (value.contains("prayer")) return 536; // Dragon bones
-        if (value.contains("magic")) return 12002; // Occult necklace
-        if (value.contains("runecraft")) return 7936; // Pure essence
-        if (value.contains("construction")) return 8782; // Mahogany plank
-        if (value.contains("hitpoints")) return 11936; // Dark crab
-        if (value.contains("herblore")) return 257; // Ranarr weed
-        if (value.contains("thieving")) return 1523; // Lockpick
-        if (value.contains("crafting")) return 6573; // Onyx
-        if (value.contains("fletching")) return 861; // Magic shortbow
-        if (value.contains("slayer")) return 11864; // Slayer helmet
-        if (value.contains("hunter")) return 10033; // Chinchompa
-        if (value.contains("mining")) return 451; // Runite ore
-        if (value.contains("smithing")) return 2363; // Runite bar
-        if (value.contains("fishing")) return 385; // Shark
-        if (value.contains("cooking")) return 3144; // Cooked karambwan
-        if (value.contains("firemaking")) return 1511; // Logs
-        if (value.contains("woodcutting")) return 1513; // Magic logs
-        if (value.contains("farming")) return 5316; // Magic seed
+        if (value.contains("chambers of xeric")) return 20997;
+        if (value.contains("theatre of blood")) return 22325;
+        if (value.contains("tombs of amascut")) return 27275;
+        if (value.equals("nex")) return 26374;
+        if (value.contains("corporeal beast")) return 11824;
+        if (value.contains("vorkath")) return 22978;
+        if (value.contains("zulrah")) return 12926;
+        if (value.contains("general graardor")) return 11804;
+        if (value.contains("kree'arra") || value.contains("kree’arra")) return 11785;
+        if (value.contains("kril tsutsaroth") || value.contains("k'ril") || value.contains("k’ril")) return 11808;
+        if (value.contains("commander zilyana")) return 11806;
+        if (value.contains("barbarian assault")) return 10551;
+        if (value.contains("soul wars")) return 25256;
+        if (value.contains("agility")) return 11849;
+        if (value.contains("attack")) return 4151;
+        if (value.contains("strength")) return 6528;
+        if (value.contains("defence")) return 11283;
+        if (value.contains("ranged")) return 20997;
+        if (value.contains("prayer")) return 536;
+        if (value.contains("magic")) return 12002;
+        if (value.contains("runecraft")) return 7936;
+        if (value.contains("construction")) return 8782;
+        if (value.contains("hitpoints")) return 11936;
+        if (value.contains("herblore")) return 257;
+        if (value.contains("thieving")) return 1523;
+        if (value.contains("crafting")) return 6573;
+        if (value.contains("fletching")) return 861;
+        if (value.contains("slayer")) return 11864;
+        if (value.contains("hunter")) return 10033;
+        if (value.contains("mining")) return 451;
+        if (value.contains("smithing")) return 2363;
+        if (value.contains("fishing")) return 385;
+        if (value.contains("cooking")) return 3144;
+        if (value.contains("firemaking")) return 1511;
+        if (value.contains("woodcutting")) return 1513;
+        if (value.contains("farming")) return 5316;
         return -1;
     }
 

@@ -8,6 +8,7 @@ on:
       - purple-ui-v3
       - polish-live-on-inspired-ui
       - liveon-exact-nightlegion
+      - live-on-exact-english
   workflow_dispatch:
 
 jobs:
