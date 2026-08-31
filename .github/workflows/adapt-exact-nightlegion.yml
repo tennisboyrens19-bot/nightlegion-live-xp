@@ -27,12 +27,17 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.14.3'
+      - name: Protect Java Data identifiers from UI translation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/adapt_exact_nightlegion.py')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('(\"Jogador\", \"Player\"), (\"Data\", \"Date\"),', '(\"Jogador\", \"Player\"),')
+          p.write_text(s, encoding='utf-8')
+          PY
       - name: Adapt exact source
         run: python scripts/adapt_exact_nightlegion.py
-      - name: Preserve Lombok Data annotation
-        run: |
-          sed -i 's/import lombok.Date;/import lombok.Data;/' src/main/java/com/liveon/DropRarityService.java
-          sed -i 's/@Date/@Data/g' src/main/java/com/liveon/DropRarityService.java
       - name: Build adapted plugin
         run: gradle clean build --stacktrace
       - name: Commit final adapted source
