@@ -1,16 +1,13 @@
 name: Adapt exact Live On to NightLegion
 
 on:
-  push:
-    branches:
-      - liveon-exact-nightlegion-v2
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   adapt:
-    if: ${{ !contains(github.event.head_commit.message || '', '[adapt-nightlegion]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,14 +37,3 @@ jobs:
         run: python scripts/adapt_exact_nightlegion.py
       - name: Build adapted plugin
         run: gradle clean build --stacktrace
-      - name: Commit final adapted source
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/main/java src/main/resources runelite-plugin.properties
-          if git diff --cached --quiet; then
-            echo "Exact NightLegion adaptation already applied."
-            exit 0
-          fi
-          git commit -m "[adapt-nightlegion] Activate exact Live On NightLegion implementation"
-          git push origin HEAD:liveon-exact-nightlegion-v2
