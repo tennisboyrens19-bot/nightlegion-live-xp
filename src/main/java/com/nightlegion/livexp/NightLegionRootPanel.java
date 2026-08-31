@@ -114,7 +114,7 @@ class NightLegionRootPanel extends PluginPanel
         welcome.setLayout(new BoxLayout(welcome, BoxLayout.Y_AXIS));
         welcome.add(Box.createVerticalGlue());
 
-        JLabel logo = new JLabel(NightLegionTheme.markIcon(180, NightLegionTheme.PURPLE_BRIGHT));
+        JLabel logo = new JLabel(NightLegionArtwork.welcomeIcon(205));
         logo.setHorizontalAlignment(JLabel.CENTER);
         logo.setAlignmentX(Component.CENTER_ALIGNMENT);
         welcome.add(logo);
