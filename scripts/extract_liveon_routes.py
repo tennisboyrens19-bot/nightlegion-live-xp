@@ -8,7 +8,6 @@ OUT = ROOT / 'LIVEON_REST_CONTRACT.md'
 text = SRC.read_text(encoding='utf-8')
 lines = text.splitlines()
 
-# Build simple method ranges by brace counting.
 starts=[]
 for i,line in enumerate(lines):
     m=re.match(r'\s*(?:private|public|protected)\s+(?:static\s+)?[^=;]+?\s+(\w+)\s*\([^;]*\)\s*$', line)
@@ -22,23 +21,23 @@ for idx,(start,name) in enumerate(starts):
 interesting=[]
 for start,end,name in ranges:
     body='\n'.join(lines[start:end])
-    if 'config.serverUrl()' not in body and 'discordNotificationRequest' not in body and 'wiseoldman' not in body.lower():
+    if not any(marker in body for marker in ('config.serverUrl()', 'serverBaseUrl()', 'discordNotificationRequest', 'wiseoldman', 'wiseoldman.net')):
         continue
     paths=[]
-    for kind,val in re.findall(r'\.addPath(Segments|Segment)\("([^"]+)"\)',body):
+    for _kind,val in re.findall(r'\.addPath(Segments|Segment)\("([^"]+)"\)',body):
         paths.append(val)
     queries=re.findall(r'\.addQueryParameter\("([^"]+)",\s*([^\n]+?)\)',body)
     verbs=[]
     for v in ('get','post','put','delete','patch'):
         if re.search(rf'\.{v}\s*\(',body): verbs.append(v.upper())
-    if '.delete()' in body: verbs.append('DELETE')
     headers=re.findall(r'\.header\("([^"]+)",\s*([^\n]+?)\)',body)
     types=re.findall(r'gson\.fromJson\([^,]+,\s*([^\n]+?\.class)',body)
     jsonputs=re.findall(r'(?:payload|body|requestPayload|data|extra)\.put\("([^"]+)"',body)
-    interesting.append((name,start+1,paths,queries,sorted(set(verbs)),headers,types,sorted(set(jsonputs))))
+    requestbodies=re.findall(r'RequestBody\.create\([^,]+,\s*([^\n]+)\)',body)
+    interesting.append((name,start+1,paths,queries,sorted(set(verbs)),headers,types,sorted(set(jsonputs)),requestbodies))
 
 out=['# Live On REST contract (static extraction)','', 'Generated from the exact vendored upstream `ClanMessagesPlugin.java`.', '']
-for name,line,paths,queries,verbs,headers,types,jsonputs in interesting:
+for name,line,paths,queries,verbs,headers,types,jsonputs,requestbodies in interesting:
     out += [f'## `{name}` (line {line})', '', f'- HTTP verbs: `{", ".join(verbs) or "unknown"}`', f'- Path segments: `{ "/".join(paths) if paths else "(none detected)" }`']
     if queries:
         out.append('- Query parameters: ' + ', '.join(f'`{k}`' for k,_ in queries))
@@ -48,5 +47,7 @@ for name,line,paths,queries,verbs,headers,types,jsonputs in interesting:
         out.append('- Gson response types: ' + ', '.join(f'`{t}`' for t in types))
     if jsonputs:
         out.append('- JSON fields written: ' + ', '.join(f'`{k}`' for k in jsonputs))
+    if requestbodies:
+        out.append('- Request body expressions: ' + ', '.join(f'`{v.strip()}`' for v in requestbodies[:5]))
     out.append('')
 OUT.write_text('\n'.join(out),encoding='utf-8')
