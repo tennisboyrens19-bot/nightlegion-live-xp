@@ -43,7 +43,7 @@ final class LiveOnPanel extends JPanel
 	private final JTextField rsn = new JTextField();
 	private final JTextField twitch = new JTextField();
 	private final JLabel status = new JLabel(" ");
-	private final JLabel pinnedNotice = new JLabel("<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'>Nenhum aviso fixado.</font></html>");
+	private final JLabel pinnedNotice = new JLabel("<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'>No aviso fixado.</font></html>");
 	private final JPanel recentActivities = new JPanel();
 	private final Set<String> expandedActivities = new HashSet<>();
 	private List<RecentActivity> currentActivities = Collections.emptyList();
@@ -98,7 +98,7 @@ final class LiveOnPanel extends JPanel
 		fields.setBorder(BorderFactory.createTitledBorder("Gerenciar canais"));
 		fields.add(new JLabel("RSN"));
 		fields.add(rsn);
-		fields.add(new JLabel("Canal da Twitch"));
+		fields.add(new JLabel("Channel da Twitch"));
 		fields.add(twitch);
 		JButton save = new JButton("Associar / Refresh");
 		save.setBackground(new Color(190, 104, 0));
@@ -111,14 +111,14 @@ final class LiveOnPanel extends JPanel
 		staffManagement.add(new JScrollPane(table), BorderLayout.CENTER);
 		JButton refresh = new JButton("Refresh");
 		refresh.addActionListener(event -> refreshAction.run());
-		JButton remove = new JButton("Remover");
-		remove.setToolTipText("Remover canal selecionado");
+		JButton remove = new JButton("Remove");
+		remove.setToolTipText("Remove canal selecionado");
 		remove.addActionListener(event ->
 		{
 			int row = table.getSelectedRow();
 			if (row < 0 || row >= managedChannels.size())
 			{
-				setStatus("Selecione um canal");
+				setStatus("Select um canal");
 				return;
 			}
 			deleteAction.accept(managedChannels.get(row));
@@ -170,7 +170,7 @@ final class LiveOnPanel extends JPanel
 	void updatePinnedNotice(String message)
 	{
 		SwingUtilities.invokeLater(() -> pinnedNotice.setText(message == null || message.trim().isEmpty()
-			? "<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'>Nenhum aviso fixado.</font></html>"
+			? "<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'>No aviso fixado.</font></html>"
 			: "<html><b>ANNOUNCEMENTS</b><br><div style='width:150px'>" + escapeHtml(message.trim()) + "</div></html>"));
 	}
 
@@ -193,7 +193,7 @@ final class LiveOnPanel extends JPanel
 			expandedActivities.retainAll(visibleKeys);
 			if (displayed.isEmpty())
 			{
-				JLabel empty = new JLabel("Nenhuma atividade recente.");
+				JLabel empty = new JLabel("No recent activity.");
 				empty.setForeground(new Color(155, 155, 155));
 				empty.setBorder(BorderFactory.createEmptyBorder(8, 4, 8, 4));
 				recentActivities.add(empty);
@@ -224,9 +224,9 @@ final class LiveOnPanel extends JPanel
 						detail = detail.substring(0, timeMatcher.start()).trim();
 					}
 					detail = detail.replaceFirst("(?i)^novo recorde\\s+em\\s+",
-						"Novo melhor tempo do clã em ");
-					detail = detail.replaceFirst("(?i)^novo melhor tempo\\s+em\\s+",
-						"Novo melhor tempo do clã em ");
+						"New clan best time em ");
+					detail = detail.replaceFirst("(?i)^novo best tempo\\s+em\\s+",
+						"New clan best time em ");
 				}
 				boolean collective = player.isEmpty();
 				boolean clanRecord = "CLAN_RECORD".equals(activity.type);
@@ -311,10 +311,10 @@ final class LiveOnPanel extends JPanel
 			heading.add(time, BorderLayout.EAST);
 			text.add(heading);
 
-			JLabel recordLabel = new JLabel("Novo melhor tempo do clã");
+			JLabel recordLabel = new JLabel("New clan best time");
 			recordLabel.setToolTipText(tooltip);
 			text.add(recordLabel);
-			String boss = detail.replaceFirst("(?i)^novo melhor tempo do clã em\\s+", "").trim();
+			String boss = detail.replaceFirst("(?i)^novo best tempo do clan em\\s+", "").trim();
 			JLabel bossLabel = expanded
 				? new JLabel("<html><div style='width:125px'><b>" + escapeHtml(boss) + "</b></div></html>")
 				: new JLabel("<html><b>" + escapeHtml(abbreviate(boss, 24)) + "</b></html>");

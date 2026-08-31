@@ -1,0 +1,283 @@
+# Remaining Portuguese string-literal review
+
+- `ClanMessagesPanel.java:428` — `Track your rank automatically<br>`
+- `ClanMessagesPanel.java:512` — `Entregar este broadcast também aos próximos players que entrarem`
+- `ClanMessagesPanel.java:607` — `▸ Staff security`
+- `ClanMessagesPanel.java:639` — `▾ Staff security`
+- `ClanMessagesPanel.java:639` — `▸ Staff security`
+- `ClanMessagesPanel.java:654` — `Este aviso ficará visível<br>`
+- `ClanMessagesPanel.java:656` — `Ao publicar um novo aviso,<br>`
+- `ClanMessagesPanel.java:657` — `o current será substituído.</div></html>`
+- `ClanMessagesPanel.java:663` — `Texto que será exibido na seção Announcements da página Início`
+- `ClanMessagesPanel.java:677` — `Digite o aviso antes de publicar`
+- `ClanMessagesPanel.java:732` — `Solicitações de rank`
+- `ClanMessagesPanel.java:739` — `Aviso painel`
+- `ClanMessagesPanel.java:739` — `Gerenciar aviso fixo do Home`
+- `ClanMessagesPanel.java:826` — `<html><center>Ative <b>Conectar ao clan</b><br>nas configurações do plugin.</center></html>`
+- `ClanMessagesPanel.java:827` — `<html><center>A conexão continua desativada.<br>Ative a opção e tente novamente.</center></html>`
+- `ClanMessagesPanel.java:995` — ` •`
+- `ClanMessagesPanel.java:996` — `—`
+- `ClanMessagesPlugin.java:98` — `(?<player>.+) requested a rank: (?<rank>.+)`
+- `ClanMessagesPlugin.java:99` — `(?:Promo\u00E7\u00E3o: )?(?<player>.+?) was promoted to (?<rank>.+)!`
+- `ClanMessagesPlugin.java:1195` — ` ✓ (Max)`
+- `ClanMessagesPlugin.java:1195` — ` ✓ (2300+)`
+- `ClanMessagesPlugin.java:1195` — ` — requer 2300`
+- `ClanMessagesPlugin.java:1196` — `— abra o Character Summary e sincronize`
+- `ClanMessagesPlugin.java:1197` — `✓`
+- `ClanMessagesPlugin.java:1197` — `— não obtida`
+- `ClanMessagesPlugin.java:1201` — `Combat Achievements Easy (41 pontos): `
+- `ClanMessagesPlugin.java:1202` — `Combat Achievements Medium (161 pontos): `
+- `ClanMessagesPlugin.java:1203` — `Combat Achievements Hard (419 pontos): `
+- `ClanMessagesPlugin.java:1204` — `Combat Achievements Elite (1075 pontos): `
+- `ClanMessagesPlugin.java:1205` — `Combat Achievements Master (1945 pontos): `
+- `ClanMessagesPlugin.java:1206` — `Combat Achievements Grandmaster (2671 pontos): `
+- `ClanMessagesPlugin.java:1207` — `Passo 1: equipe ou coloque as capas no inventário para detectar os itens.`
+- `ClanMessagesPlugin.java:1208` — `Passo 2: abra a aba Combat Achievements no jogo para load seus pontos.`
+- `ClanMessagesPlugin.java:1210` — `Passo 4: abra a página do Inferno no Collection Log para conferir o registro local.`
+- `ClanMessagesPlugin.java:1211` — `EHB não é considerado no cálculo dos ranks.`
+- `ClanMessagesPlugin.java:1221` — `em análise`
+- `ClanMessagesPlugin.java:1261` — `Promotion de rank available: `
+- `ClanMessagesPlugin.java:1273` — `[NightLegion] Promotion de rank available: `
+- `ClanMessagesPlugin.java:1315` — `Native clan rank icon not available for {}`
+- `ClanMessagesPlugin.java:1357` — `Loading…`
+- `ClanMessagesPlugin.java:1363` — `Clan rank detection for {}: rankValue={}, titleId={}, title={}`
+- `ClanMessagesPlugin.java:1395` — `Rank `
+- `ClanMessagesPlugin.java:1441` — `membro`
+- `ClanMessagesPlugin.java:1462` — `Special rank`
+- `ClanMessagesPlugin.java:1464` — `General — somente via Discord`
+- `ClanMessagesPlugin.java:1474` — `✓`
+- `ClanMessagesPlugin.java:1485` — `! Abra o banco uma vez<br>para verificar seus itens`
+- `ClanMessagesPlugin.java:1494` — `✓ Max cape / 2376 total atendido`
+- `ClanMessagesPlugin.java:1498` — `✕ Total level: `
+- `ClanMessagesPlugin.java:1498` — `/2376 — equivalente à Max cape`
+- `ClanMessagesPlugin.java:1503` — `! Combat Achievements ainda não carregado`
+- `ClanMessagesPlugin.java:1505` — `✓ `
+- `ClanMessagesPlugin.java:1505` — `✕ `
+- `ClanMessagesPlugin.java:1506` — ` pontos)`
+- `ClanMessagesPlugin.java:1520` — `! Promotion automática após 30 dias no clan`
+- `ClanMessagesPlugin.java:1572` — `: não verified — `
+- `ClanMessagesPlugin.java:1573` — `✓ `
+- `ClanMessagesPlugin.java:1573` — `✕ `
+- `ClanMessagesPlugin.java:1578` — `✓ `
+- `ClanMessagesPlugin.java:1579` — `✕ `
+- `ClanMessagesPlugin.java:1579` — ` não encontrado — coloque no inventário ou equipe se possuir`
+- `ClanMessagesPlugin.java:1580` — ` ainda não verified — abra o banco`
+- `ClanMessagesPlugin.java:1585` — `✓ `
+- `ClanMessagesPlugin.java:1587` — `✕ `
+- `ClanMessagesPlugin.java:1764` — `— abra a aba Combat Achievements e sincronize`
+- `ClanMessagesPlugin.java:1765` — `✓`
+- `ClanMessagesPlugin.java:1765` — `— `
+- `ClanMessagesPlugin.java:1765` — ` pontos`
+- `ClanMessagesPlugin.java:1770` — `✓`
+- `ClanMessagesPlugin.java:1771` — `— abra a aba Combat Achievements ou equipe o `
+- `ClanMessagesPlugin.java:1772` — `— `
+- `ClanMessagesPlugin.java:1772` — ` pontos ou equipe o `
+- `ClanMessagesPlugin.java:1838` — ` ✓`
+- `ClanMessagesPlugin.java:1838` — ` — equipe ou coloque na bolsa`
+- `ClanMessagesPlugin.java:1843` — ` ✓`
+- `ClanMessagesPlugin.java:1843` — ` — equipe ou coloque na bolsa`
+- `ClanMessagesPlugin.java:1850` — `Maximum rank reached, parabéns!`
+- `ClanMessagesPlugin.java:1853` — `Você pode solicitar seu novo rank via Discord no canal #ranks.`
+- `ClanMessagesPlugin.java:1854` — `<br>Next rank: Lieutenant<br>Requirements faltantes: Quest cape`
+- `ClanMessagesPlugin.java:1909` — `Você pode solicitar seu novo rank via Discord no canal #ranks.`
+- `ClanMessagesPlugin.java:1912` — `Next rank: `
+- `ClanMessagesPlugin.java:1913` — `Você pode solicitar seu novo rank via Discord no canal #ranks.<br>`
+- `ClanMessagesPlugin.java:2195` — `Indisponível`
+- `ClanMessagesPlugin.java:2700` — `(?i)^Combat Achievements?\\s*[-–—]\\s*(.+)$`
+- `ClanMessagesPlugin.java:2720` — `(?i)^Combat Achievements?\\s*[-–—]\\s*(.+)$`
+- `ClanMessagesPlugin.java:3065` — `Sem conexão`
+- `ClanMessagesPlugin.java:3085` — `Erro `
+- `ClanMessagesPlugin.java:3254` — `Failed ao publicar aviso`
+- `ClanMessagesPlugin.java:3262` — `Aviso publicado no Home`
+- `ClanMessagesPlugin.java:3262` — `Erro `
+- `ClanMessagesPlugin.java:3280` — `Failed ao remover aviso`
+- `ClanMessagesPlugin.java:3288` — `Aviso removido`
+- `ClanMessagesPlugin.java:3288` — `Erro `
+- `ClanMessagesPlugin.java:3394` — `Erro `
+- `ClanMessagesPlugin.java:3452` — `Erro `
+- `ClanMessagesPlugin.java:3478` — `Failed ao remover canal`
+- `ClanMessagesPlugin.java:3484` — `Erro `
+- `ClanMessagesPlugin.java:3512` — `Erro `
+- `ClanMessagesPlugin.java:3538` — `Informe o nome do membro`
+- `ClanMessagesPlugin.java:3549` — `Failed ao adicionar MVP`
+- `ClanMessagesPlugin.java:3556` — `Erro `
+- `ClanMessagesPlugin.java:3582` — `Failed ao remover MVP`
+- `ClanMessagesPlugin.java:3589` — `Erro `
+- `ClanMessagesPlugin.java:3617` — `Erro `
+- `ClanMessagesPlugin.java:3797` — `Use de 1 a 5 letras ou números`
+- `ClanMessagesPlugin.java:3811` — `Informe o nome do membro`
+- `ClanMessagesPlugin.java:3818` — `Membro adicionado`
+- `ClanMessagesPlugin.java:3830` — `Membro removido`
+- `ClanMessagesPlugin.java:3846` — `Erro `
+- `ClanMessagesPlugin.java:4073` — ` requested a rank: `
+- `ClanMessagesPlugin.java:4074` — `rank`
+- `ClanMessagesPlugin.java:4083` — `rank`
+- `ClanMessagesPlugin.java:4157` — `Acesso staff necessário para publicar`
+- `ClanMessagesPlugin.java:4161` — `Broadcast unavailable para este cargo`
+- `ClanMessagesPlugin.java:4165` — `Failed de autenticação WOM. Clique em Verify now e tente de novo`
+- `ClanMessagesPlugin.java:4169` — `Erro `
+- `ClanMessagesPlugin.java:4243` — `Erro `
+- `ClanMessagesPlugin.java:4274` — `Failed ao remover`
+- `ClanMessagesPlugin.java:4280` — `Erro `
+- `ClanMessagesPlugin.java:4306` — `Somente broadcasts podem ser fixados`
+- `ClanMessagesPlugin.java:4333` — `Erro `
+- `ClanMessagesPlugin.java:4345` — `Acesso staff necessário`
+- `ClanMessagesPlugin.java:4353` — `Erro `
+- `ClanMessagesPlugin.java:4367` — `em análise`
+- `ClanMessagesPlugin.java:4369` — `Sincronize o rank antes de solicitar`
+- `ClanMessagesPlugin.java:4372` — ` requested a rank: `
+- `ClanMessagesPlugin.java:4389` — `Unable to send rank request`
+- `ClanMessagesPlugin.java:4390` — `Failed ao solicitar rank`
+- `ClanMessagesPlugin.java:4398` — `Rank request response: code={} body={}`
+- `ClanMessagesPlugin.java:4406` — `Solicita\u00E7\u00E3o enviada para a staff.`
+- `ClanMessagesPlugin.java:4417` — `Você já possui uma request pending`
+- `ClanMessagesPlugin.java:4423` — ` min para solicitar novamente`
+- `ClanMessagesPlugin.java:4425` — `Erro `
+- `ClanMessagesPlugin.java:4437` — `rank-request/status`
+- `ClanMessagesPlugin.java:4442` — `Unable to fetch rank request status`
+- `ClanMessagesPlugin.java:4497` — `Player não available`
+- `ClanMessagesPlugin.java:4604` — `Failed ao consultar o WOM (erro `
+- `ClanMessagesPlugin.java:4844` — `Not staff, skipping rank requests fetch`
+- `ClanMessagesPlugin.java:4857` — `admin/rank-requests`
+- `ClanMessagesPlugin.java:4865` — `Unable to fetch rank requests`
+- `ClanMessagesPlugin.java:4884` — `Failed to fetch rank requests: `
+- `ClanMessagesPlugin.java:4892` — `Rank requests response: `
+- `ClanMessagesPlugin.java:4897` — ` rank requests`
+- `ClanMessagesPlugin.java:4912` — `1 request de rank pending.`
+- `ClanMessagesPlugin.java:4913` — ` requests de rank pendentes.`
+- `ClanMessagesPlugin.java:4928` — ` requested a rank: `
+- `ClanMessagesPlugin.java:4954` — `admin/rank-request-activity`
+- `ClanMessagesPlugin.java:4958` — `Unable to fetch rank request activity`
+- `ClanMessagesPlugin.java:4967` — `Failed to fetch rank request activity: {}`
+- `ClanMessagesPlugin.java:4999` — `rank`
+- `ClanMessagesPlugin.java:5028` — `rank-requests`
+- `ClanMessagesPlugin.java:5036` — `Unable to resolve rank request`
+- `ClanMessagesPlugin.java:5047` — `Rank request decision failed: code={} body={}`
+- `ClanMessagesPlugin.java:5048` — `Erro `
+- `ClanMessagesPlugin.java:5067` — `Not staff, skipping rank request delete`
+- `ClanMessagesPlugin.java:5072` — `admin/rank-requests/`
+- `ClanMessagesPlugin.java:5076` — `Unable to delete rank request`
+- `ClanMessagesPlugin.java:5087` — `Failed to delete rank request: `
+- `ClanMessagesPlugin.java:5097` — `Solicita\u00E7\u00E3o inv\u00E1lida`
+- `ClanMessagesPlugin.java:5129` — `Failed ao publicar promoção`
+- `ClanMessagesPlugin.java:5139` — `Erro `
+- `ClanTagsPanel.java:29` — `Add membro`
+- `ClanTagsPanel.java:31` — `Remove membro`
+- `ClanTagsPanel.java:33` — `Membro`
+- `ClanTagsPanel.java:60` — `Add membro`
+- `ClanTagsPanel.java:63` — `Nome do membro`
+- `ClanTagsPanel.java:89` — `Delete a etiqueta selecionada e suas associações`
+- `ClanTagsPanel.java:93` — `Select um membro`
+- `ClanTagsPanel.java:96` — `Remove o membro selecionado da etiqueta`
+- `ClanTagsPanel.java:123` — `—`
+- `ClanTagsPanel.java:137` — `Somente Owner e Deputy Owner podem alterar`
+- `LiveOnPanel.java:39` — `(?:\\s*[·•|-]\\s*|\\s+)(\\d{1,2}(?::\\d{2}){1,2}(?:\\.\\d{1,2})?)$`
+- `LiveOnPanel.java:46` — `<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'>No aviso fixado.</font></html>`
+- `LiveOnPanel.java:173` — `<html><b>ANNOUNCEMENTS</b><br><font color='#aaaaaa'>No aviso fixado.</font></html>`
+- `LiveOnPanel.java:210` — `◷`
+- `LiveOnPanel.java:211` — `♛`
+- `LiveOnPanel.java:211` — `★`
+- `LiveOnPanel.java:216` — `Atividade registrada`
+- `LiveOnPanel.java:228` — `(?i)^novo best tempo\\s+em\\s+`
+- `LiveOnPanel.java:252` — `Collapse atividade`
+- `LiveOnPanel.java:252` — `Expand atividade`
+- `LiveOnPanel.java:296` — ` · `
+- `LiveOnPanel.java:317` — `(?i)^novo best tempo do clan em\\s+`
+- `LiveOnPanel.java:375` — `…`
+- `LiveOnPanel.java:438` — `●  `
+- `MvpManagementPanel.java:24` — `Membro MVP`
+- `MvpManagementPanel.java:37` — `Cargo MVP`
+- `MvpManagementPanel.java:38` — `Nome do membro`
+- `MvpManagementPanel.java:53` — `Remove membro MVP selecionado`
+- `MvpManagementPanel.java:59` — `Select um membro`
+- `MvpPanel.java:65` — `TOP 10 • MVP EHB`
+- `MvpPanel.java:66` — `TOP 10 • MVP EHP`
+- `MvpPanel.java:166` — `<html><b>Participação desativada</b><br>`
+- `MvpPanel.java:167` — `Ative nas configurações<br>para registrar seus drops.</html>`
+- `MvpPanel.java:192` — `  •  Drops 1m+`
+- `MvpPanel.java:234` — `  •  Wise Old Man`
+- `MvpPanel.java:388` — `♛`
+- `MvpPanel.java:471` — `º`
+- `MvpPanel.java:527` — `…`
+- `MvpPanel.java:594` — `♛`
+- `MvpPanel.java:643` — `º`
+- `MvpPanel.java:720` — `  ▾`
+- `MvpPanel.java:720` — `  ›`
+- `MvpPanel.java:734` — `Exibir os três maiores drops`
+- `MvpPanel.java:804` — ` • `
+- `MvpPanel.java:830` — ` • `
+- `PbCategory.java:14` — ` · `
+- `PbCategory.java:15` — ` · `
+- `PbCategory.java:16` — ` · Room time`
+- `PbCategory.java:17` — ` · Overall time`
+- `PbPanel.java:35` — `×`
+- `PbPanel.java:51` — `▾ How to register your PBs?`
+- `PbPanel.java:53` — `↻`
+- `PbPanel.java:80` — `Refresh classificação`
+- `PbPanel.java:188` — `▾ `
+- `PbPanel.java:188` — `▸ `
+- `PbPanel.java:207` — `<html><b>Participação desativada</b><br>`
+- `PbPanel.java:208` — `Ative nas configurações<br>para registrar seus PBs.</html>`
+- `PbPanel.java:431` — `1. Abra o <b>Adventure Log</b> da sua POH para importar todos os seus tempos.<br><br>`
+- `PbPanel.java:432` — `2. Nos <b>Combat Achievements</b>, abra a página do boss que quiser registrar.<br><br>`
+- `PbPanel.java:433` — `3. Scoreboards também são reconhecidos.<br><br>`
+- `PbPanel.java:434` — `Com <b>Participar do ranking de PBs</b> ativado, seus novos PBs serão registrados automaticamente.`
+- `PbPanel.java:482` — `<html><div style='text-align:center'>Abra o Adventure Log<br>para importar seus PBs</div></html>`
+- `PbPanel.java:706` — `Ainda não existem PBs nesta categoria.`
+- `PbPanel.java:712` — `Você ainda não possui PB<br>nesta categoria`
+- `PbPanel.java:713` — ` · `
+- `PbPanel.java:713` — `º place`
+- `PbPanel.java:732` — `▾ `
+- `PbPanel.java:732` — `▸ `
+- `PbPanel.java:742` — `º`
+- `PbPanel.java:750` — `—`
+- `RankRequestsPanel.java:43` — `Rank`
+- `RankRequestsPanel.java:165` — ` — `
+- `RanksPanel.java:42` — `Current rank • loading…`
+- `RanksPanel.java:44` — `Available rank`
+- `RanksPanel.java:52` — `Special rank`
+- `RanksPanel.java:72` — `Refresh items, points and rank requirements`
+- `RanksPanel.java:179` — `Request new rank`
+- `RanksPanel.java:214` — `Current rank • `
+- `RanksPanel.java:236` — `Best available rank`
+- `RanksPanel.java:247` — `Current rank unavailable`
+- `RanksPanel.java:252` — `The request will be enabled when your current rank is confirmed by Clan Chat.`
+- `RanksPanel.java:258` — `Maximum rank reached`
+- `RanksPanel.java:259` — `Congratulations! You reached the clan's maximum rank. There are no further ranks to request.`
+- `RanksPanel.java:263` — `Special rank`
+- `RanksPanel.java:264` — `You currently have a special rank, so automatic rank changes are disabled. Ask staff on Discord if you want it changed.`
+- `RanksPanel.java:270` — `Best available rank`
+- `RanksPanel.java:274` — `Below are the values used to calculate your rank.`
+- `RanksPanel.java:281` — `Best available rank`
+- `RanksPanel.java:282` — `Soldier • automatic promotion`
+- `RanksPanel.java:285` — `Promotion automática`
+- `RanksPanel.java:286` — `Soldier é concedido após 30 dias no clan. No é necessário solicitar.`
+- `RanksPanel.java:287` — `Soldier • automatic promotion`
+- `RanksPanel.java:288` — `Concedido após 30 dias no clan.`
+- `RanksPanel.java:292` — `Next cargo`
+- `RanksPanel.java:293` — `General • somente via Discord`
+- `RanksPanel.java:297` — `Progressão concluída`
+- `RanksPanel.java:298` — `General é solicitado diretamente à staff pelo Discord.`
+- `RanksPanel.java:299` — `General • somente via Discord`
+- `RanksPanel.java:306` — `No rank novo available`
+- `RanksPanel.java:308` — `Conclua as pendências abaixo e verifique novamente.`
+- `RanksPanel.java:312` — `Confira o que foi detectado. Se algo estiver pending, siga a instrução exibida.`
+- `RanksPanel.java:313` — `Next rank`
+- `RanksPanel.java:336` — `Aguarde a análise da staff`
+- `RanksPanel.java:349` — `Enviar request para a staff`
+- `RanksPanel.java:375` — `Best available rank`
+- `RanksPanel.java:397` — `membro`
+- `RanksPanel.java:452` — `Necessário: 200 Quest points e Fire cape.`
+- `RanksPanel.java:453` — `Necessário: 250 Quest points, Fire cape e Easy Combat Achievements.`
+- `RanksPanel.java:454` — `Necessário: 300 Quest points, Fire cape e Medium Combat Achievements.`
+- `RanksPanel.java:455` — `Necessário: Quest cape, Fire cape e Hard Combat Achievements.`
+- `RanksPanel.java:456` — `Necessário: Quest cape, Dizana's quiver ou Infernal cape e Elite Combat Achievements.`
+- `RanksPanel.java:457` — `Necessário: Diary cape, Dizana's quiver, Infernal cape e Master Combat Achievements.`
+- `RanksPanel.java:458` — `Necessário: requirements de Captain e 2300 total level.`
+- `RanksPanel.java:459` — `Necessário: Diary cape, Max cape e Grandmaster Combat Achievements.`
+- `RanksPanel.java:507` — `✓`
+- `RanksPanel.java:509` — `✕`
+- `RanksPanel.java:520` — `No pendência detectada.`
+- `RanksPanel.java:525` — `^[!✕—]\\s*`
+- `RanksPanel.java:526` — `<tr><td valign='top' width='10'>•</td><td width='`
+- `RanksPanel.java:598` — `Aguarde a análise da staff`

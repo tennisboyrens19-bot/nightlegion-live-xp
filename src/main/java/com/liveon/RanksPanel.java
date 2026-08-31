@@ -32,17 +32,17 @@ final class RanksPanel extends JPanel
 	private static final int REQUIREMENT_NOTICE_TEXT_WIDTH = 174;
 	private static final int REQUIREMENT_NOTICE_WIDTH = PANEL_WIDTH - 30;
 	private static final Color ORANGE = new Color(190, 104, 0);
-	private static final String REQUEST_PENDING_TEXT = "Aguardando aprovação";
-	private static final String REQUEST_PENDING_STATUS = "Solicitação enviada para a staff.";
+	private static final String REQUEST_PENDING_TEXT = "Waiting for approval";
+	private static final String REQUEST_PENDING_STATUS = "Request sent to staff.";
 	private static final List<String> PROGRESSION = Arrays.asList(
 		"recruit", "soldier", "corporal", "student", "sergeant", "cadet",
 		"lieutenant", "captain", "major", "colonel");
 
 	private final JLabel playerName = new JLabel("Player");
-	private final JLabel actualRank = new JLabel("Current rank • carregando…");
+	private final JLabel actualRank = new JLabel("Current rank • loading…");
 	private final JLabel actualRankIcon = new JLabel(new RankIcon(Color.GRAY));
-	private final JLabel availableTitle = new JLabel("Rank disponível");
-	private final JLabel availableRank = new JLabel("Ainda não verificado");
+	private final JLabel availableTitle = new JLabel("Available rank");
+	private final JLabel availableRank = new JLabel("Not verified yet");
 	private final JLabel availableRankIcon = new JLabel(new RankIcon(Color.GRAY));
 	private final JPanel availableCard = new JPanel(new BorderLayout());
 	private final JLabel nextRank = new JLabel("Waiting for verification");
@@ -52,8 +52,8 @@ final class RanksPanel extends JPanel
 	private final JLabel specialTitle = new JLabel("Special rank");
 	private final JLabel specialNotice = new JLabel(wrapped("", BODY_TEXT_WIDTH));
 	private final JPanel specialCard = new JPanel(new BorderLayout());
-	private final JLabel requirementsTitle = new JLabel("Requisitos");
-	private final JLabel helper = new JLabel(wrapped("Equipe os itens exigidos e abra os menus necessários antes de verificar.", BODY_TEXT_WIDTH));
+	private final JLabel requirementsTitle = new JLabel("Requirements");
+	private final JLabel helper = new JLabel(wrapped("Equip the required items and open the necessary menus before checking.", BODY_TEXT_WIDTH));
 	private final JPanel detected = new JPanel();
 	private final JPanel requirementsCard = new JPanel(new BorderLayout());
 	private final JLabel status = new JLabel(" ", SwingConstants.CENTER);
@@ -68,8 +68,8 @@ final class RanksPanel extends JPanel
 		setLayout(new BorderLayout(5, 5));
 		setPreferredSize(new Dimension(PANEL_WIDTH, 650));
 		setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
-		verify = new JButton("Verificar");
-		verify.setToolTipText("Refresh itens, pontos e requisitos do rank");
+		verify = new JButton("Check");
+		verify.setToolTipText("Refresh items, points and rank requirements");
 		verify.setBackground(ORANGE);
 		verify.setForeground(Color.WHITE);
 		verify.addActionListener(event -> refreshAction.run());
@@ -133,7 +133,7 @@ final class RanksPanel extends JPanel
 		header.add(availableCard);
 		header.add(Box.createVerticalStrut(3));
 
-		JLabel nextTitle = new JLabel("Próximo objetivo");
+		JLabel nextTitle = new JLabel("Next objective");
 		nextTitle.setForeground(new Color(155, 155, 155));
 		nextRank.setFont(nextRank.getFont().deriveFont(Font.BOLD));
 		nextMissing.setForeground(new Color(165, 165, 165));
@@ -176,7 +176,7 @@ final class RanksPanel extends JPanel
 		requirementsCard.add(requirementsHeader, BorderLayout.NORTH);
 		requirementsCard.add(detectedScroll, BorderLayout.CENTER);
 
-		requestRank = new JButton("Solicitar novo rank");
+		requestRank = new JButton("Request new rank");
 		requestRank.setBackground(ORANGE);
 		requestRank.setForeground(Color.WHITE);
 		requestRank.setEnabled(false);
@@ -210,14 +210,14 @@ final class RanksPanel extends JPanel
 		SwingUtilities.invokeLater(() ->
 		{
 			playerName.setText(accountName == null || accountName.trim().isEmpty() ? "Player" : accountName);
-			String safeClanRank = clanRankName == null || clanRankName.trim().isEmpty() ? "Não identificado" : clanRankName;
+			String safeClanRank = clanRankName == null || clanRankName.trim().isEmpty() ? "Not identified" : clanRankName;
 			actualRank.setText("Current rank • " + displayedClanRank(safeClanRank));
 			actualRankIcon.setIcon(clanRankIcon != null ? clanRankIcon : rankIconFor(safeClanRank));
 			availableTitle.setFont(availableTitle.getFont().deriveFont(Font.BOLD, 13f));
 			availableRank.setFont(availableRank.getFont().deriveFont(Font.BOLD, 14f));
 
-			boolean synchronizedData = isEligibleRank(evaluatedRank) || (evaluatedRank != null && !evaluatedRank.contains("não sincronizado"));
-			boolean unknownRank = normalize(safeClanRank).contains("não identificado") || normalize(safeClanRank).contains("carregando");
+			boolean synchronizedData = isEligibleRank(evaluatedRank) || (evaluatedRank != null && !evaluatedRank.contains("not synchronized"));
+			boolean unknownRank = normalize(safeClanRank).contains("not identified") || normalize(safeClanRank).contains("loading");
 			boolean maximumRank = isMaximumRank(safeClanRank);
 			boolean specialRank = synchronizedData && !maximumRank && !isNormalRank(safeClanRank);
 			boolean noticeOnly = specialRank || maximumRank;
@@ -233,63 +233,63 @@ final class RanksPanel extends JPanel
 
 			if (!synchronizedData)
 			{
-				availableTitle.setText("Melhor rank disponível");
-				setWrappedText(availableRank, "Ainda não verificado");
+				availableTitle.setText("Best available rank");
+				setWrappedText(availableRank, "Not verified yet");
 				availableRankIcon.setIcon(new RankIcon(Color.GRAY));
 				nextRankIcon.setIcon(new RankIcon(Color.GRAY));
-				requirementsTitle.setText("Como começar");
-				helper.setText(wrapped("Clique em Verificar. Se algum item não for detectado, abra o banco ou equipe-o e verifique novamente.", REQUIREMENT_TEXT_WIDTH));
+				requirementsTitle.setText("How to start");
+				helper.setText(wrapped("Click Check. If an item is not detected, open your bank or equip it and check again.", REQUIREMENT_TEXT_WIDTH));
 				setWrappedText(nextRank, "Waiting for verification");
 				nextMissing.setText(" ");
 			}
 			else if (unknownRank)
 			{
-				availableTitle.setText("Current rank indisponível");
-				setWrappedText(availableRank, "Aguarde o Clan Chat carregar");
+				availableTitle.setText("Current rank unavailable");
+				setWrappedText(availableRank, "Wait for Clan Chat to load");
 				availableRankIcon.setIcon(new RankIcon(Color.GRAY));
 				nextRankIcon.setIcon(new RankIcon(Color.GRAY));
-				requirementsTitle.setText("Informação");
-				helper.setText(wrapped("A request será liberada quando o cargo atual for confirmado pelo Clan Chat.", REQUIREMENT_TEXT_WIDTH));
-				setWrappedText(nextRank, "Aguardando Clan Chat");
+				requirementsTitle.setText("Information");
+				helper.setText(wrapped("The request will be enabled when your current rank is confirmed by Clan Chat.", REQUIREMENT_TEXT_WIDTH));
+				setWrappedText(nextRank, "Waiting for Clan Chat");
 				nextMissing.setText(" ");
 			}
 			else if (maximumRank)
 			{
-				specialTitle.setText("Rank máximo atingido");
-				specialNotice.setText(wrapped("Parabéns! Você chegou ao rank máximo do clã. Não há novos ranks para solicitar.", BODY_TEXT_WIDTH));
+				specialTitle.setText("Maximum rank reached");
+				specialNotice.setText(wrapped("Congratulations! You reached the clan's maximum rank. There are no further ranks to request.", BODY_TEXT_WIDTH));
 			}
 			else if (specialRank)
 			{
 				specialTitle.setText("Special rank");
-				specialNotice.setText(wrapped("You currently have a special rank, então a troca de rank não pode ser feita by aqui. Se quiser mudar, é só pedir para a staff pelo Discord.", BODY_TEXT_WIDTH));
+				specialNotice.setText(wrapped("You currently have a special rank, so automatic rank changes are disabled. Ask staff on Discord if you want it changed.", BODY_TEXT_WIDTH));
 			}
 			else if (eligibleIndex > currentIndex)
 			{
 				requestCandidate = evaluatedRank;
 				requestTarget = evaluatedRank;
-				availableTitle.setText("Melhor rank disponível");
+				availableTitle.setText("Best available rank");
 				setWrappedText(availableRank, evaluatedRank);
 				availableRankIcon.setIcon(evaluatedRankIcon != null ? evaluatedRankIcon : rankIconFor(evaluatedRank));
-				requirementsTitle.setText("Dados verificados");
-				helper.setText(wrapped("Confira abaixo os dados usados para calcular seu rank.", REQUIREMENT_TEXT_WIDTH));
+				requirementsTitle.setText("Verified data");
+				helper.setText(wrapped("Below are the values used to calculate your rank.", REQUIREMENT_TEXT_WIDTH));
 				setWrappedText(nextRank, nextRankName);
 				nextRankIcon.setIcon(nextRankSuppliedIcon != null ? nextRankSuppliedIcon : rankIconFor(nextRankName));
 				nextMissing.setText(missingSummary(nextChecks));
 			}
 			else if (currentIndex == 0 && eligibleIndex < 2)
 			{
-				availableTitle.setText("Melhor rank disponível");
-				setWrappedText(availableRank, "Soldier • promoção automática");
+				availableTitle.setText("Best available rank");
+				setWrappedText(availableRank, "Soldier • automatic promotion");
 				availableRankIcon.setIcon(nextRankSuppliedIcon != null ? nextRankSuppliedIcon : rankIconFor("Soldier"));
 				nextRankIcon.setIcon(nextRankSuppliedIcon != null ? nextRankSuppliedIcon : rankIconFor("Soldier"));
 				requirementsTitle.setText("Promotion automática");
-				helper.setText(wrapped("Soldier é concedido após 30 dias no clã. Não é necessário solicitar.", REQUIREMENT_TEXT_WIDTH));
-				setWrappedText(nextRank, "Soldier • promoção automática");
-				nextMissing.setText(wrapped("Concedido após 30 dias no clã.", REQUIREMENT_TEXT_WIDTH));
+				helper.setText(wrapped("Soldier é concedido após 30 dias no clan. No é necessário solicitar.", REQUIREMENT_TEXT_WIDTH));
+				setWrappedText(nextRank, "Soldier • automatic promotion");
+				nextMissing.setText(wrapped("Concedido após 30 dias no clan.", REQUIREMENT_TEXT_WIDTH));
 			}
 			else if (currentIndex >= progressionIndex("Colonel"))
 			{
-				availableTitle.setText("Próximo cargo");
+				availableTitle.setText("Next cargo");
 				setWrappedText(availableRank, "General • somente via Discord");
 				Icon generalIcon = nextRankSuppliedIcon != null ? nextRankSuppliedIcon : rankIconFor("General");
 				availableRankIcon.setIcon(generalIcon);
@@ -303,14 +303,14 @@ final class RanksPanel extends JPanel
 			{
 				String target = nextRankName == null || nextRankName.trim().isEmpty()
 					? nextProgressionRank(safeClanRank) : nextRankName;
-				availableTitle.setText("Nenhum rank novo disponível");
+				availableTitle.setText("No rank novo available");
 				availableRank.setFont(availableRank.getFont().deriveFont(Font.PLAIN, 13f));
 				setWrappedText(availableRank, "Conclua as pendências abaixo e verifique novamente.", BODY_TEXT_WIDTH);
 				availableRankIcon.setIcon(new RankIcon(Color.GRAY));
 				availableRankIcon.setVisible(false);
-				requirementsTitle.setText("Dados verificados");
-				helper.setText(wrapped("Confira o que foi detectado. Se algo estiver pendente, siga a instrução exibida.", REQUIREMENT_TEXT_WIDTH));
-				setWrappedText(nextRank, target == null ? "Próximo rank" : target);
+				requirementsTitle.setText("Verified data");
+				helper.setText(wrapped("Confira o que foi detectado. Se algo estiver pending, siga a instrução exibida.", REQUIREMENT_TEXT_WIDTH));
+				setWrappedText(nextRank, target == null ? "Next rank" : target);
 				nextRankIcon.setIcon(nextRankSuppliedIcon != null ? nextRankSuppliedIcon : rankIconFor(target));
 				nextMissing.setText(missingSummary(nextChecks));
 			}
@@ -347,7 +347,7 @@ final class RanksPanel extends JPanel
 				requestRank.setEnabled(canRequest);
 				requestRank.setText("Solicitar " + (canRequest ? requestCandidate : requestTarget));
 				requestRank.setToolTipText(canRequest ? "Enviar request para a staff"
-					: "Complete ou verifique os requisitos destacados antes de solicitar");
+					: "Complete ou verifique os requirements destacados antes de solicitar");
 			}
 			verify.setBackground(canRequest ? new Color(52, 52, 52) : ORANGE);
 		});
@@ -372,13 +372,13 @@ final class RanksPanel extends JPanel
 			availableCard.setVisible(true);
 			nextCard.setVisible(true);
 			requirementsCard.setVisible(true);
-			availableTitle.setText("Melhor rank disponível");
-			setWrappedText(availableRank, "Ainda não verificado");
+			availableTitle.setText("Best available rank");
+			setWrappedText(availableRank, "Not verified yet");
 			availableRankIcon.setIcon(new RankIcon(Color.GRAY));
 			availableRankIcon.setVisible(true);
 			nextRankIcon.setIcon(new RankIcon(Color.GRAY));
-			requirementsTitle.setText("Como começar");
-			helper.setText(wrapped("Clique em Verificar. Se algum item não for detectado, abra o banco ou equipe-o e verifique novamente.", REQUIREMENT_TEXT_WIDTH));
+			requirementsTitle.setText("How to start");
+			helper.setText(wrapped("Click Check. If an item is not detected, open your bank or equip it and check again.", REQUIREMENT_TEXT_WIDTH));
 			setWrappedText(nextRank, "Waiting for verification");
 			nextMissing.setText(" ");
 			detected.removeAll();
@@ -455,16 +455,16 @@ final class RanksPanel extends JPanel
 			case "cadet": return "Necessário: Quest cape, Fire cape e Hard Combat Achievements.";
 			case "lieutenant": return "Necessário: Quest cape, Dizana's quiver ou Infernal cape e Elite Combat Achievements.";
 			case "captain": return "Necessário: Diary cape, Dizana's quiver, Infernal cape e Master Combat Achievements.";
-			case "major": return "Necessário: requisitos de Captain e 2300 total level.";
+			case "major": return "Necessário: requirements de Captain e 2300 total level.";
 			case "colonel": return "Necessário: Diary cape, Max cape e Grandmaster Combat Achievements.";
-			default: return "Check os requisitos pendentes antes de solicitar.";
+			default: return "Check os requirements pendentes antes de solicitar.";
 		}
 	}
 
 	private static boolean isNormalRank(String rankName)
 	{
-		return progressionIndex(rankName) >= 0 || normalize(rankName).contains("não identificado")
-			|| normalize(rankName).contains("carregando");
+		return progressionIndex(rankName) >= 0 || normalize(rankName).contains("not identified")
+			|| normalize(rankName).contains("loading");
 	}
 
 	private static boolean isMaximumRank(String rankName)
@@ -517,7 +517,7 @@ final class RanksPanel extends JPanel
 	private static String missingSummary(List<String> missing)
 	{
 		if (missing == null || missing.isEmpty())
-			return wrapped("Nenhuma pendência detectada.", NEXT_REQUIREMENT_TEXT_WIDTH);
+			return wrapped("No pendência detectada.", NEXT_REQUIREMENT_TEXT_WIDTH);
 		StringBuilder text = new StringBuilder("<html><body><table cellspacing='0' cellpadding='0' width='")
 			.append(NEXT_REQUIREMENT_TEXT_WIDTH).append("'><tr><td colspan='2'>Falta:</td></tr>");
 		for (int index = 0; index < missing.size(); index++)

@@ -119,13 +119,13 @@ final class ClanMessagesPanel extends PluginPanel
 
 		JButton discord = new JButton("Discord");
 		discord.setIcon(loadIcon("/links/discord.png", 16));
-		discord.setToolTipText("Abrir Discord do NightLegion");
+		discord.setToolTipText("Open NightLegion Discord");
 		discord.setMargin(new java.awt.Insets(3, 6, 3, 6));
 		discord.addActionListener(event -> LinkBrowser.browse("https://discord.gg/AP2aK742SZ"));
 
 		JButton wom = new JButton("WOM");
 		wom.setIcon(loadIcon("/links/wom.png", 16));
-		wom.setToolTipText("Abrir grupo no Wise Old Man");
+		wom.setToolTipText("Open Wise Old Man group");
 		wom.setMargin(new java.awt.Insets(3, 6, 3, 6));
 		wom.addActionListener(event -> LinkBrowser.browse("https://wiseoldman.net/groups/26182"));
 
@@ -540,11 +540,11 @@ final class ClanMessagesPanel extends PluginPanel
 			else publishClanAction.run();
 		});
 		JButton clear = new JButton(createUiIcon("trash"));
-		clear.setToolTipText("Limpar todas as mensagens");
+		clear.setToolTipText("Limpar todas as messages");
 		clear.setPreferredSize(new Dimension(36, 26));
 		clear.addActionListener(event ->
 		{
-			int result = JOptionPane.showConfirmDialog(this, "Apagar todas as mensagens do clã?", "Confirmar limpeza", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			int result = JOptionPane.showConfirmDialog(this, "Apagar todas as messages do clan?", "Confirm limpeza", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
 			if (result == JOptionPane.YES_OPTION) clearMessagesAction.run();
 		});
 		JPanel publishActions = new JPanel(new BorderLayout(4, 0));
@@ -562,13 +562,13 @@ final class ClanMessagesPanel extends PluginPanel
 		sentMessagesTable.getColumnModel().getColumn(1).setMaxWidth(72);
 		history.add(new JScrollPane(sentMessagesTable), BorderLayout.CENTER);
 		JButton refresh = new JButton(createUiIcon("refresh"));
-		refresh.setToolTipText("Refresh mensagens");
+		refresh.setToolTipText("Refresh messages");
 		refresh.addActionListener(event -> refreshSentMessagesAction.run());
 		JButton resend = new JButton(createUiIcon("resend"));
-		resend.setToolTipText("Reenviar mensagem selecionada");
+		resend.setToolTipText("Reenviar message selecionada");
 		resend.addActionListener(event -> withSelectedSentMessage(resendSentMessageAction));
 		JButton remove = new JButton(createUiIcon("trash"));
-		remove.setToolTipText("Remover mensagem selecionada");
+		remove.setToolTipText("Remove message selecionada");
 		remove.addActionListener(event -> withSelectedSentMessage(deleteSentMessageAction));
 		JButton togglePinned = new JButton(createUiIcon("pin"));
 		togglePinned.setToolTipText("Fixar ou desfixar broadcast selecionado");
@@ -654,7 +654,7 @@ final class ClanMessagesPanel extends PluginPanel
 			+ "Este aviso ficará visível<br>"
 			+ "no topo da aba Home.<br><br>"
 			+ "Ao publicar um novo aviso,<br>"
-			+ "o atual será substituído.</div></html>");
+			+ "o current será substituído.</div></html>");
 		explanation.setAlignmentX(Component.LEFT_ALIGNMENT);
 		panel.add(explanation);
 		panel.add(Box.createVerticalStrut(7));
@@ -730,11 +730,11 @@ final class ClanMessagesPanel extends PluginPanel
 		java.awt.Component selected = staffSections.getSelectedComponent();
 		staffSections.removeAll();
 		addStaffSection("Ranks", rankRequestsTab, "Solicitações de rank", "requests");
-		addStaffSection("Broadcast", messagesStaffSection, "Enviar broadcasts e mensagens", "message");
+		addStaffSection("Broadcast", messagesStaffSection, "Enviar broadcasts e messages", "message");
 		addStaffSection("Lives", livesStaffSection, "Gerenciar canais da Twitch", "live");
 		if (deputyOwner)
 		{
-			addStaffSection("Tags", clanTagsTab, "Gerenciar etiquetas do clã", "tag");
+			addStaffSection("Tags", clanTagsTab, "Gerenciar etiquetas do clan", "tag");
 		}
 		addStaffSection("Aviso painel", noticesStaffSection, "Gerenciar aviso fixo do Home", "pin");
 		int selectedIndex = selected == null ? -1 : staffSections.indexOfComponent(selected);
@@ -746,7 +746,7 @@ final class ClanMessagesPanel extends PluginPanel
 		int selectedRow = sentMessagesTable.getSelectedRow();
 		if (selectedRow < 0 || selectedRow >= currentSentMessages.size())
 		{
-			sentMessagesStatus.setText("Selecione uma mensagem");
+			sentMessagesStatus.setText("Select uma message");
 			return;
 		}
 		action.accept(currentSentMessages.get(selectedRow));
@@ -772,10 +772,10 @@ final class ClanMessagesPanel extends PluginPanel
 				mainArea.repaint();
 				return;
 			}
-			addNavigationButton("Home", "home", liveOnTab, "home", "Home principal do clã");
-			addNavigationButton("Ranks", "star", ranksTab, "ranks", "Solicitação de ranks");
+			addNavigationButton("Home", "home", liveOnTab, "home", "Home principal do clan");
+			addNavigationButton("Ranks", "star", ranksTab, "ranks", "Request de ranks");
 			addNavigationButton("MVPs", "crown", mvpTab, "mvp", "Rankings MVP");
-			addNavigationButton("PBs", "trophy", pbTab, "pbs", "Recordes pessoais do clã");
+			addNavigationButton("PBs", "trophy", pbTab, "pbs", "Clan personal bests");
 			addNavigationButton("BOTW", "star", botwTab, "botw", "Boss of the Week");
 			addNavigationButton("SOTW", "star", sotwTab, "sotw", "Skill of the Week");
 			addNavigationButton("Giveaways", "trophy", giveawayTab, "giveaways", "NightLegion giveaways");
@@ -838,7 +838,7 @@ final class ClanMessagesPanel extends PluginPanel
 		SwingUtilities.invokeLater(() -> footerStatus.setText(
 			playerName == null || playerName.trim().isEmpty()
 				? "Disconnected"
-				: "Autenticado como " + playerName.trim()));
+				: "Authenticated as " + playerName.trim()));
 	}
 
 	void setBroadcastAllowed(boolean allowed)
@@ -943,7 +943,7 @@ final class ClanMessagesPanel extends PluginPanel
 	{
 		SwingUtilities.invokeLater(() ->
 		{
-			messages.append("[" + (message.getAuthor() == null ? "Clã" : message.getAuthor()) + "] " + message.getMessage() + "\n");
+			messages.append("[" + (message.getAuthor() == null ? "Clan" : message.getAuthor()) + "] " + message.getMessage() + "\n");
 			if (Boolean.TRUE.equals(message.getPinned())
 				|| (message.getPinned() instanceof Number && ((Number) message.getPinned()).intValue() != 0))
 			{
@@ -995,7 +995,7 @@ final class ClanMessagesPanel extends PluginPanel
 				if (sentMessage.isPinned()) compactMode += " •";
 				sentMessagesModel.addRow(new Object[]{sentMessage.author == null ? "—" : sentMessage.author, compactMode, sentMessage.message});
 			}
-			sentMessagesStatus.setText(sentMessages.size() + " mensagem(ns)");
+			sentMessagesStatus.setText(sentMessages.size() + " message(s)");
 		});
 	}
 	void setSentMessagesStatus(String text)

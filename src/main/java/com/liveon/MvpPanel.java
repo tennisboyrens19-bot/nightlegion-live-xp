@@ -273,7 +273,7 @@ final class MvpPanel extends JPanel
 			dropEntries.removeAll();
 			if (topTen.isEmpty())
 			{
-				JLabel empty = new JLabel("Nenhum drop de 1m+ registrado.", SwingConstants.CENTER);
+				JLabel empty = new JLabel("No drops de 1m+ registrado.", SwingConstants.CENTER);
 				empty.setForeground(new Color(160, 160, 160));
 				empty.setBorder(BorderFactory.createEmptyBorder(24, 4, 4, 4));
 				dropEntries.add(empty);
@@ -331,7 +331,7 @@ final class MvpPanel extends JPanel
 			target.removeAll();
 			if (topTen.isEmpty())
 			{
-				JLabel empty = new JLabel("Nenhum ganho mensal disponível no WOM.", SwingConstants.CENTER);
+				JLabel empty = new JLabel("No ganho mensal available no WOM.", SwingConstants.CENTER);
 				empty.setForeground(new Color(160, 160, 160));
 				empty.setBorder(BorderFactory.createEmptyBorder(24, 4, 4, 4));
 				target.add(empty);

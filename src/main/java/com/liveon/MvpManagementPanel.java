@@ -37,7 +37,7 @@ final class MvpManagementPanel extends JPanel
 		form.setBorder(BorderFactory.createTitledBorder("Cargo MVP"));
 		form.add(new JLabel("Nome do membro"));
 		form.add(rsn);
-		JButton save = new JButton("Adicionar MVP");
+		JButton save = new JButton("Add MVP");
 		save.setBackground(new Color(190, 104, 0));
 		save.setForeground(Color.WHITE);
 		save.addActionListener(event -> saveAction.accept(rsn.getText().trim()));
@@ -49,14 +49,14 @@ final class MvpManagementPanel extends JPanel
 
 		JButton refresh = new JButton("Refresh");
 		refresh.addActionListener(event -> refreshAction.run());
-		JButton remove = new JButton("Remover");
-		remove.setToolTipText("Remover membro MVP selecionado");
+		JButton remove = new JButton("Remove");
+		remove.setToolTipText("Remove membro MVP selecionado");
 		remove.addActionListener(event ->
 		{
 			int row = table.getSelectedRow();
 			if (row < 0 || row >= members.size())
 			{
-				setStatus("Selecione um membro");
+				setStatus("Select um membro");
 				return;
 			}
 			deleteAction.accept(members.get(row));

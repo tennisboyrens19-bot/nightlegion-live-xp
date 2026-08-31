@@ -46,7 +46,7 @@ final class PbPanel extends JPanel
 	private final List<PbCategory> availableCategories = new ArrayList<>();
 	private final JPanel ranking = new VerticalRankingPanel();
 	private final JScrollPane rankingScroll = new JScrollPane(ranking);
-	private final JLabel ownPb = new JLabel("Nenhum PB sincronizado", SwingConstants.CENTER);
+	private final JLabel ownPb = new JLabel("No PB sincronizado", SwingConstants.CENTER);
 	private final JPanel tutorial = new JPanel();
 	private final JButton tutorialToggle = new JButton("▾ How to register your PBs?");
 	private final JPanel participationNotice = new JPanel(new BorderLayout());
@@ -110,7 +110,7 @@ final class PbPanel extends JPanel
 		top.add(Box.createVerticalStrut(3));
 		raids.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
 		raids.setAlignmentX(Component.LEFT_ALIGNMENT);
-		raids.setToolTipText("Selecione uma raid");
+		raids.setToolTipText("Select uma raid");
 		configureComboPlaceholder(raids, "Raids");
 		raids.addActionListener(event ->
 		{
@@ -136,7 +136,7 @@ final class PbPanel extends JPanel
 
 		bosses.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
 		bosses.setAlignmentX(Component.LEFT_ALIGNMENT);
-		bosses.setToolTipText("Selecione um boss ou desafio");
+		bosses.setToolTipText("Select um boss ou desafio");
 		configureComboPlaceholder(bosses, "Bosses e desafios");
 		bosses.addActionListener(event -> {
 			if (updatingFilters || bosses.getSelectedItem() == null) return;
@@ -477,7 +477,7 @@ final class PbPanel extends JPanel
 		if (bossNames.isEmpty() && raidNames.isEmpty())
 		{
 			ranking.removeAll();
-			ranking.add(centered("Nenhum PB sincronizado nesta categoria."));
+			ranking.add(centered("No PB sincronizado nesta categoria."));
 			setTutorialExpanded(true);
 			ownPb.setText("<html><div style='text-align:center'>Abra o Adventure Log<br>para importar seus PBs</div></html>");
 			ranking.revalidate();
@@ -688,7 +688,7 @@ final class PbPanel extends JPanel
 		SwingUtilities.invokeLater(() -> {
 			if (generation != latestRankingRequestGeneration) return;
 			ranking.removeAll();
-			ranking.add(centered("Carregando ranking..."));
+			ranking.add(centered("Loading ranking..."));
 			ranking.revalidate();
 			ranking.repaint();
 		});
@@ -710,7 +710,7 @@ final class PbPanel extends JPanel
 				ranking.add(rankingRow(entry));
 			}
 			String ownText = response.own == null ? "Você ainda não possui PB<br>nesta categoria"
-				: "Seu PB: " + formatTime(response.own.seconds) + " · " + response.own.position + "º lugar";
+				: "Your PB: " + formatTime(response.own.seconds) + " · " + response.own.position + "º place";
 			ownPb.setText("<html><div style='text-align:center'>" + ownText + "</div></html>");
 			ranking.revalidate();
 			ranking.repaint();

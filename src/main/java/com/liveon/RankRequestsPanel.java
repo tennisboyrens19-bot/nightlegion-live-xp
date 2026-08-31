@@ -82,7 +82,7 @@ final class RankRequestsPanel extends JPanel
 			}
 			else
 			{
-				setStatus("Selecione uma request");
+				setStatus("Select uma request");
 			}
 		});
 		JButton delete = new JButton("Delete");
@@ -97,7 +97,7 @@ final class RankRequestsPanel extends JPanel
 			}
 			else
 			{
-				setStatus("Selecione uma request");
+				setStatus("Select uma request");
 			}
 		});
 		JButton decline = new JButton("Decline");
@@ -112,7 +112,7 @@ final class RankRequestsPanel extends JPanel
 			}
 			else
 			{
-				setStatus("Selecione uma request");
+				setStatus("Select uma request");
 			}
 		});
 		actions.add(confirm);

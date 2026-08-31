@@ -96,7 +96,7 @@ public class ClanMessagesPlugin extends Plugin
 {
 	private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 	private static final Pattern RANK_REQUEST_MESSAGE_PATTERN = Pattern.compile("(?<player>.+) requested a rank: (?<rank>.+)");
-	private static final Pattern PROMOTION_MESSAGE_PATTERN = Pattern.compile("(?:Promo\u00E7\u00E3o: )?(?<player>.+?) foi promoted to (?<rank>.+)!");
+	private static final Pattern PROMOTION_MESSAGE_PATTERN = Pattern.compile("(?:Promo\u00E7\u00E3o: )?(?<player>.+?) was promoted to (?<rank>.+)!");
 	private static final Pattern URL_PATTERN = Pattern.compile("(?i)\\b(?:https?://|twitch\\.tv/)[^\\s<>]+");
 	private static final Pattern PET_TRIGGER_PATTERN = Pattern.compile(
 		"You (?:have a funny feeling like you|feel something weird sneaking).*", Pattern.CASE_INSENSITIVE);
@@ -1205,7 +1205,7 @@ public class ClanMessagesPlugin extends Plugin
 		checks.add("Combat Achievements Master (1945 pontos): " + achievementStatus(combatAchievementPoints, 1945, vampyricHelm || zukHelm, "Vampyric slayer helmet"));
 		checks.add("Combat Achievements Grandmaster (2671 pontos): " + achievementStatus(combatAchievementPoints, 2671, zukHelm, "TzKal slayer helmet"));
 		checks.add("Passo 1: equipe ou coloque as capas no inventário para detectar os itens.");
-		checks.add("Passo 2: abra a aba Combat Achievements no jogo para carregar seus pontos.");
+		checks.add("Passo 2: abra a aba Combat Achievements no jogo para load seus pontos.");
 		checks.add("Passo 3: abra a categoria/tier desejada e clique novamente em Sincronizar.");
 		checks.add("Passo 4: abra a página do Inferno no Collection Log para conferir o registro local.");
 		checks.add("EHB não é considerado no cálculo dos ranks.");
@@ -1216,7 +1216,7 @@ public class ClanMessagesPlugin extends Plugin
 		String advice = rankSyncCompleted ? rankAdvice(rank, effectiveTotalLevel, effectiveQuestPoints, questCape,
 			fireCape, infernalCape, quiver, diaryCape, maxCape, easyCombatAchievements, mediumCombatAchievements,
 			hardCombatAchievements, eliteCombatAchievements, masterCombatAchievements, grandmasterCombatAchievements) : "";
-		String displayedRank = rankSyncCompleted ? rank : "não sincronizado";
+		String displayedRank = rankSyncCompleted ? rank : "not synchronized";
 		String clanRank = currentClanRankTitle(accountName);
 		String nextRank = rankSyncCompleted ? nextRegularRankTarget(clanRank, rank) : "em análise";
 		java.util.List<String> nextChecks = rankSyncCompleted
@@ -1258,9 +1258,9 @@ public class ClanMessagesPlugin extends Plugin
 		String message = rankNotificationMessage(eligibleRank);
 		ChatMessageBuilder builder = new ChatMessageBuilder()
 			.append(Color.GREEN, "[NightLegion] ")
-			.append(Color.WHITE, "Promotion de rank disponível: ");
+			.append(Color.WHITE, "Promotion de rank available: ");
 		appendClanRankWithIcon(builder, new Color(255, 184, 0), eligibleRank);
-		builder.append(Color.WHITE, "! Solicite pelo plugin do clã.");
+		builder.append(Color.WHITE, "! Solicite pelo plugin do clan.");
 		chatMessageManager.queue(QueuedMessage.builder()
 			.type(ChatMessageType.CONSOLE)
 			.runeLiteFormattedMessage(builder.build())
@@ -1270,7 +1270,7 @@ public class ClanMessagesPlugin extends Plugin
 
 	static String rankNotificationMessage(String rank)
 	{
-		return "[NightLegion] Promotion de rank disponível: " + rank + "! Solicite pelo plugin do clã.";
+		return "[NightLegion] Promotion de rank available: " + rank + "! Solicite pelo plugin do clan.";
 	}
 
 	static boolean shouldNotifyAvailableRank(int currentIndex, int eligibleIndex,
@@ -1354,9 +1354,9 @@ public class ClanMessagesPlugin extends Plugin
 	private String currentClanRankTitle(String playerName)
 	{
 		net.runelite.api.clan.ClanSettings settings = client.getClanSettings();
-		if (settings == null) return "Carregando…";
+		if (settings == null) return "Loading…";
 		net.runelite.api.clan.ClanMember member = settings.findMember(playerName);
-		if (member == null || member.getRank() == null) return "Não identificado";
+		if (member == null || member.getRank() == null) return "Not identified";
 		ClanTitle title = settings.titleForRank(member.getRank());
 		if (title != null && title.getName() != null && !title.getName().trim().isEmpty())
 		{
@@ -1483,7 +1483,7 @@ public class ClanMessagesPlugin extends Plugin
 	{
 		java.util.List<String> result = new ArrayList<>();
 		if (!bankLoaded) result.add("! Abra o banco uma vez<br>para verificar seus itens");
-		result.add(pointsRequirement("Quest points", questPoints, 300, "aguarde o login carregar"));
+		result.add(pointsRequirement("Quest points", questPoints, 300, "aguarde o login load"));
 		result.add(itemRequirement("Quest cape", questCape, bankLoaded));
 		result.add(itemRequirement("Fire cape", fireCape, bankLoaded));
 		result.add(itemRequirement("Infernal cape", infernalCape, bankLoaded));
@@ -1498,7 +1498,7 @@ public class ClanMessagesPlugin extends Plugin
 			result.add("✕ Total level: " + totalLevel + "/2376 — equivalente à Max cape");
 		}
 		String caTier = grandmaster ? "Grandmaster" : master ? "Master" : elite ? "Elite"
-			: hard ? "Hard" : medium ? "Medium" : easy ? "Easy" : "Nenhum tier";
+			: hard ? "Hard" : medium ? "Medium" : easy ? "Easy" : "No tier";
 		if (combatAchievementPoints < 0)
 			result.add("! Combat Achievements ainda não carregado");
 		else
@@ -1517,7 +1517,7 @@ public class ClanMessagesPlugin extends Plugin
 		switch (rank.toLowerCase(java.util.Locale.ROOT))
 		{
 			case "soldier":
-				result.add("! Promotion automática após 30 dias no clã");
+				result.add("! Promotion automática após 30 dias no clan");
 				break;
 			case "corporal":
 				result.add(pointsRequirement("Quest points", questPoints, 200, "abra o Character Summary"));
@@ -1569,7 +1569,7 @@ public class ClanMessagesPlugin extends Plugin
 
 	private static String pointsRequirement(String label, int value, int required, String unknownInstruction)
 	{
-		if (value < 0) return "! " + label + ": não verificado — " + unknownInstruction;
+		if (value < 0) return "! " + label + ": não verified — " + unknownInstruction;
 		return (value >= required ? "✓ " : "✕ ") + label + ": " + value + "/" + required;
 	}
 
@@ -1577,7 +1577,7 @@ public class ClanMessagesPlugin extends Plugin
 	{
 		if (detected) return "✓ " + label + " detectado";
 		return bankLoaded ? "✕ " + label + " não encontrado — coloque no inventário ou equipe se possuir"
-			: "! " + label + " ainda não verificado — abra o banco";
+			: "! " + label + " ainda não verified — abra o banco";
 	}
 
 	private static String caRequirement(String label, int points, int required, boolean completed)
@@ -1847,11 +1847,11 @@ public class ClanMessagesPlugin extends Plugin
 		boolean infernalCape, boolean quiver, boolean diaryCape, boolean maxCape, boolean easy, boolean medium,
 		boolean hard, boolean elite, boolean master, boolean grandmaster)
 	{
-		if ("Colonel".equals(rank)) return "Rank máximo atingido, parabéns!";
+		if ("Colonel".equals(rank)) return "Maximum rank reached, parabéns!";
 		if (!questCape && fireCape && (quiver || infernalCape) && elite)
 		{
 			return "Você pode solicitar seu novo rank via Discord no canal #ranks."
-				+ "<br>Próximo rank: Lieutenant<br>Requisitos faltantes: Quest cape";
+				+ "<br>Next rank: Lieutenant<br>Requirements faltantes: Quest cape";
 		}
 		String next;
 		List<String> missing = new ArrayList<>();
@@ -1909,7 +1909,7 @@ public class ClanMessagesPlugin extends Plugin
 		if (missing.isEmpty()) return "Você pode solicitar seu novo rank via Discord no canal #ranks.";
 		boolean eligible = rank.equals("Corporal") || rank.equals("Student") || rank.equals("Sergeant")
 			|| rank.equals("Cadet") || rank.equals("Lieutenant") || rank.equals("Captain") || rank.equals("Major");
-		String nextMessage = "Próximo rank: " + next + "<br>Requisitos faltantes: " + String.join(", ", missing);
+		String nextMessage = "Next rank: " + next + "<br>Requirements faltantes: " + String.join(", ", missing);
 		return eligible ? "Você pode solicitar seu novo rank via Discord no canal #ranks.<br>" + nextMessage : nextMessage;
 	}
 
@@ -1926,8 +1926,8 @@ public class ClanMessagesPlugin extends Plugin
 		if (questPoints >= 300 && fireCape && mediumCombatAchievements) return "Sergeant";
 		if (questPoints >= 250 && fireCape && easyCombatAchievements) return "Student";
 		if (questPoints >= 200 && fireCape) return "Corporal";
-		if (!fireCape) return "Fire cape pendente";
-		if (questPoints < 0) return "Quest points não sincronizados";
+		if (!fireCape) return "Fire cape pending";
+		if (questPoints < 0) return "Quest points not synchronizeds";
 		return "Quest points pendentes";
 	}
 
@@ -2003,7 +2003,7 @@ public class ClanMessagesPlugin extends Plugin
 		}
 		embed.put("fields", fields);
 		Map<String, Object> thumbnail = new LinkedHashMap<>();
-		thumbnail.put("url", "https://static.runelite.net/cache/item/icon/" + thumbnailItemId + ".png");
+		thumbnail.put("url", "https://static.runElite.net/cache/item/icon/" + thumbnailItemId + ".png");
 		embed.put("thumbnail", thumbnail);
 		Map<String, Object> payload = new LinkedHashMap<>();
 		// Keep content empty because the existing rich embed already contains the
@@ -2282,7 +2282,7 @@ public class ClanMessagesPlugin extends Plugin
 			if (petItemId.isPresent())
 			{
 				Map<String, Object> thumbnail = new LinkedHashMap<>();
-				thumbnail.put("url", "https://static.runelite.net/cache/item/icon/" + petItemId.getAsInt() + ".png");
+				thumbnail.put("url", "https://static.runElite.net/cache/item/icon/" + petItemId.getAsInt() + ".png");
 				embed.put("thumbnail", thumbnail);
 			}
 		}
@@ -2352,7 +2352,7 @@ public class ClanMessagesPlugin extends Plugin
 	private static Map<String, Object> footer()
 	{
 		Map<String, Object> footer = new LinkedHashMap<>();
-		footer.put("text", "Enviado pelo NightLegion Clan Plugin");
+		footer.put("text", "Sent pelo NightLegion Clan Plugin");
 		footer.put("icon_url", "https://raw.githubusercontent.com/MilicoOSRS/live-on-clan/master/src/main/resources/live-on-logo.png");
 		return footer;
 	}
@@ -3038,7 +3038,7 @@ public class ClanMessagesPlugin extends Plugin
 		HttpUrl base = serverBaseUrl();
 		if (base == null)
 		{
-			panel.setStatus("URL inválida");
+			panel.setStatus("Invalid URL");
 			messageFetchInFlight.set(false);
 			return;
 		}
@@ -3251,7 +3251,7 @@ public class ClanMessagesPlugin extends Plugin
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to publish panel notice", exception);
-				if (panel != null) panel.setPanelNoticeStatus("Falha ao publicar aviso");
+				if (panel != null) panel.setPanelNoticeStatus("Failed ao publicar aviso");
 			}
 
 			@Override public void onResponse(okhttp3.Call call, Response response)
@@ -3277,7 +3277,7 @@ public class ClanMessagesPlugin extends Plugin
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to remove panel notice", exception);
-				if (panel != null) panel.setPanelNoticeStatus("Falha ao remover aviso");
+				if (panel != null) panel.setPanelNoticeStatus("Failed ao remover aviso");
 			}
 
 			@Override public void onResponse(okhttp3.Call call, Response response)
@@ -3381,7 +3381,7 @@ public class ClanMessagesPlugin extends Plugin
 			{
 				if (!isCurrentConnectionSession(generation, account)) return;
 				log.debug("Unable to fetch Twitch channels", exception);
-				if (managed && panel != null) panel.setLivesStatus("Falha ao atualizar");
+				if (managed && panel != null) panel.setLivesStatus("Failed to refresh");
 			}
 
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
@@ -3443,13 +3443,13 @@ public class ClanMessagesPlugin extends Plugin
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to save Twitch channel", exception);
-				if (panel != null) panel.setLivesStatus("Falha ao associar canal");
+				if (panel != null) panel.setLivesStatus("Failed ao associar canal");
 			}
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
 			{
 				try (Response ignored = response)
 				{
-					if (panel != null) panel.setLivesStatus(response.isSuccessful() ? "Canal associado" : "Erro " + response.code());
+					if (panel != null) panel.setLivesStatus(response.isSuccessful() ? "Channel associado" : "Erro " + response.code());
 					if (response.isSuccessful())
 					{
 						if (panel != null) panel.clearLiveFields();
@@ -3475,13 +3475,13 @@ public class ClanMessagesPlugin extends Plugin
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to remove Twitch channel", exception);
-				if (panel != null) panel.setLivesStatus("Falha ao remover canal");
+				if (panel != null) panel.setLivesStatus("Failed ao remover canal");
 			}
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
 			{
 				try (Response ignored = response)
 				{
-					if (panel != null) panel.setLivesStatus(response.isSuccessful() ? "Canal removido" : "Erro " + response.code());
+					if (panel != null) panel.setLivesStatus(response.isSuccessful() ? "Channel removido" : "Erro " + response.code());
 					if (response.isSuccessful()) fetchLives();
 				}
 			}
@@ -3500,7 +3500,7 @@ public class ClanMessagesPlugin extends Plugin
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to fetch MVP members", exception);
-				if (isDeputyOwner && panel != null) panel.setMvpMembersStatus("Falha ao atualizar");
+				if (isDeputyOwner && panel != null) panel.setMvpMembersStatus("Failed to refresh");
 			}
 
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
@@ -3546,7 +3546,7 @@ public class ClanMessagesPlugin extends Plugin
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to save MVP member", exception);
-				if (panel != null) panel.setMvpMembersStatus("Falha ao adicionar MVP");
+				if (panel != null) panel.setMvpMembersStatus("Failed ao adicionar MVP");
 			}
 
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
@@ -3579,7 +3579,7 @@ public class ClanMessagesPlugin extends Plugin
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to remove MVP member", exception);
-				if (panel != null) panel.setMvpMembersStatus("Falha ao remover MVP");
+				if (panel != null) panel.setMvpMembersStatus("Failed ao remover MVP");
 			}
 
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
@@ -3605,7 +3605,7 @@ public class ClanMessagesPlugin extends Plugin
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to fetch clan tags", exception);
-				if (isDeputyOwner && panel != null) panel.setClanTagsStatus("Falha ao atualizar");
+				if (isDeputyOwner && panel != null) panel.setClanTagsStatus("Failed to refresh");
 			}
 
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
@@ -3837,7 +3837,7 @@ public class ClanMessagesPlugin extends Plugin
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to update clan tags", exception);
-				if (panel != null) panel.setClanTagsStatus("Falha ao salvar");
+				if (panel != null) panel.setClanTagsStatus("Failed ao salvar");
 			}
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
 			{
@@ -4079,7 +4079,7 @@ return true;
 Matcher promotion = PROMOTION_MESSAGE_PATTERN.matcher(message);
 if (promotion.matches())
 {
-appendChatText(builder, color, promotion.group("player") + " foi promoted to ");
+appendChatText(builder, color, promotion.group("player") + " was promoted to ");
 String rankName = promotion.group("rank");
 appendClanRankWithIcon(builder, color, rankName);
 appendChatText(builder, color, "!");
@@ -4107,7 +4107,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		HttpUrl base = serverBaseUrl();
 		if (base == null)
 		{
-			panel.setStatus("URL inválida");
+			panel.setStatus("Invalid URL");
 			panel.setPublishing(false);
 			return;
 		}
@@ -4134,7 +4134,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to publish clan message", exception);
-				if (panel != null) panel.setStatus("Falha ao publicar");
+				if (panel != null) panel.setStatus("Failed ao publicar");
 				if (panel != null) panel.setPublishing(false);
 			}
 
@@ -4158,11 +4158,11 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 						}
 						else if (response.code() == 403 && body.contains("broadcast_role_required"))
 						{
-							panel.setStatus("Broadcast indisponível para este cargo");
+							panel.setStatus("Broadcast unavailable para este cargo");
 						}
 						else if (response.code() == 401 && body.contains("unauthorized"))
 						{
-							panel.setStatus("Falha de autenticação WOM. Clique em Verify now e tente de novo");
+							panel.setStatus("Failed de autenticação WOM. Clique em Verify now e tente de novo");
 						}
 						else
 						{
@@ -4229,7 +4229,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to fetch sent messages", exception);
-				if (panel != null) panel.setSentMessagesStatus("Falha ao atualizar");
+				if (panel != null) panel.setSentMessagesStatus("Failed to refresh");
 			}
 
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
@@ -4271,7 +4271,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to delete sent message", exception);
-				if (panel != null) panel.setSentMessagesStatus("Falha ao remover");
+				if (panel != null) panel.setSentMessagesStatus("Failed ao remover");
 			}
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
 			{
@@ -4320,7 +4320,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to change pinned message", exception);
-				if (panel != null) panel.setSentMessagesStatus("Falha ao alterar mensagem fixada");
+				if (panel != null) panel.setSentMessagesStatus("Failed ao alterar message fixada");
 			}
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
 			{
@@ -4347,10 +4347,10 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		}
 		postJson("admin/messages/clear", "{}", new okhttp3.Callback()
 		{
-			@Override public void onFailure(okhttp3.Call call, IOException exception) { log.debug("Unable to clear clan messages", exception); if (panel != null) panel.setStatus("Falha ao limpar mensagens"); }
+			@Override public void onFailure(okhttp3.Call call, IOException exception) { log.debug("Unable to clear clan messages", exception); if (panel != null) panel.setStatus("Failed ao limpar messages"); }
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
 			{
-				try (Response ignored = response) { if (panel != null) panel.setStatus(response.isSuccessful() ? "Mensagens limpas" : "Erro " + response.code()); }
+				try (Response ignored = response) { if (panel != null) panel.setStatus(response.isSuccessful() ? "Messages limpas" : "Erro " + response.code()); }
 			}
 		});
 	}
@@ -4364,7 +4364,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			return;
 		}
 		String currentRank = panel.getCurrentRank();
-		if (currentRank.isEmpty() || currentRank.contains("não sincronizado") || currentRank.contains("em análise"))
+		if (currentRank.isEmpty() || currentRank.contains("not synchronized") || currentRank.contains("em análise"))
 		{
 			if (panel != null) panel.setStatus("Sincronize o rank antes de solicitar");
 			return;
@@ -4373,7 +4373,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		HttpUrl base = serverBaseUrl();
 		if (base == null)
 		{
-			if (panel != null) panel.setStatus("URL inválida");
+			if (panel != null) panel.setStatus("Invalid URL");
 			return;
 		}
 		java.util.Map<String, Object> requestPayload = new java.util.LinkedHashMap<>();
@@ -4387,7 +4387,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to send rank request", exception);
-				if (panel != null) panel.setStatus("Falha ao solicitar rank");
+				if (panel != null) panel.setStatus("Failed ao solicitar rank");
 			}
 
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
@@ -4414,7 +4414,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 							rankRequestStatusKnown = true;
 							rankRequestPending = true;
 							panel.setRankRequestState(true, 0);
-							panel.setStatus("Você já possui uma request pendente");
+							panel.setStatus("Você já possui uma request pending");
 						}
 						else if (response.code() == 429)
 						{
@@ -4494,7 +4494,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 				// During startup the plugin can run a few ticks before LocalPlayer is
 				// created. Keep that expected transition silent; only show feedback
 				// when the user explicitly pressed Verify.
-				if (manual && panel != null) panel.setStatus("Player não disponível");
+				if (manual && panel != null) panel.setStatus("Player não available");
 				if (panel != null) panel.setAuthenticated(false, false);
 				authenticatedPlayerName = "";
 				isStaff = false;
@@ -4601,7 +4601,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 							{
 								log.debug("WOM membership check returned HTTP {}", resp.code());
 								if (panel != null) panel.setAuthenticated(false, false);
-								if (panel != null) { panel.setStatus("Falha ao consultar o WOM (erro " + resp.code() + ")"); panel.setAccessMessage("Could not validate your account on Wise Old Man."); panel.startVerifyCooldown(VERIFY_COOLDOWN_SECONDS); }
+								if (panel != null) { panel.setStatus("Failed ao consultar o WOM (erro " + resp.code() + ")"); panel.setAccessMessage("Could not validate your account on Wise Old Man."); panel.startVerifyCooldown(VERIFY_COOLDOWN_SECONDS); }
 								authenticatedPlayerName = "";
 								isStaff = false;
 								if (currentWomCall == call) currentWomCall = null;
@@ -4678,7 +4678,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		HttpUrl base = serverBaseUrl();
 		if (base == null)
 		{
-			panel.setStatus("URL inválida");
+			panel.setStatus("Invalid URL");
 			return;
 		}
 		RequestBody body = RequestBody.create(JSON, json);
@@ -4693,7 +4693,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		HttpUrl base = serverBaseUrl();
 		if (base == null)
 		{
-			panel.setStatus("URL inválida");
+			panel.setStatus("Invalid URL");
 			return;
 		}
 		okHttpClient.newCall(requestBuilder(base.newBuilder().addPathSegments(path).build()).get().build()).enqueue(callback);
@@ -4909,7 +4909,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 						{
 							int total = requestList.size();
 							String notification = total == 1
-								? "1 request de rank pendente."
+								? "1 request de rank pending."
 								: total + " requests de rank pendentes.";
 							if (panel != null)
 							{
@@ -5016,7 +5016,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		HttpUrl base = serverBaseUrl();
 		if (base == null)
 		{
-			if (panel != null) panel.setRankRequestsStatus("URL inválida");
+			if (panel != null) panel.setRankRequestsStatus("Invalid URL");
 			return;
 		}
 		java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
@@ -5034,7 +5034,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to resolve rank request", exception);
-				if (panel != null) panel.setRankRequestsStatus("Falha ao atualizar request");
+				if (panel != null) panel.setRankRequestsStatus("Failed to refresh request");
 			}
 
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
@@ -5051,8 +5051,8 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 					if (panel != null)
 					{
 						panel.setRankRequestsStatus("DECLINED".equals(decision)
-							? "Solicitação recusada"
-							: "Solicitação aceita");
+							? "Request recusada"
+							: "Request aceita");
 					}
 					fetchRankRequests();
 				}
@@ -5105,10 +5105,10 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		HttpUrl base = serverBaseUrl();
 		if (base == null)
 		{
-			if (panel != null) panel.setRankRequestsStatus("URL inválida");
+			if (panel != null) panel.setRankRequestsStatus("Invalid URL");
 			return;
 		}
-		String message = request.playerName + " foi promoted to " + request.rankName + "!";
+		String message = request.playerName + " was promoted to " + request.rankName + "!";
 		String rsnName = authenticatedPlayerName;
 		if (rsnName == null || rsnName.isEmpty())
 		{
@@ -5126,7 +5126,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to publish promotion message", exception);
-				if (panel != null) panel.setRankRequestsStatus("Falha ao publicar promoção");
+				if (panel != null) panel.setRankRequestsStatus("Failed ao publicar promoção");
 			}
 
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException

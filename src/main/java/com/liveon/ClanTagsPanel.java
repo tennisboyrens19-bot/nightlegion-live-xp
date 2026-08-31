@@ -26,9 +26,9 @@ final class ClanTagsPanel extends JPanel
 	private final JComboBox<ClanTag> tag = new JComboBox<>();
 	private final JTextField rsn = new JTextField();
 	private final JButton create = new JButton("Criar etiqueta");
-	private final JButton addMember = new JButton("Adicionar membro");
+	private final JButton addMember = new JButton("Add membro");
 	private final JButton deleteTag = new JButton("Delete etiqueta");
-	private final JButton removeMember = new JButton("Remover membro");
+	private final JButton removeMember = new JButton("Remove membro");
 	private final JLabel status = new JLabel(" ");
 	private final DefaultTableModel model = new DefaultTableModel(new String[]{"Etiqueta", "Membro"}, 0)
 	{
@@ -47,7 +47,7 @@ final class ClanTagsPanel extends JPanel
 		JPanel forms = new JPanel(new GridLayout(0, 1, 3, 3));
 		JPanel createForm = new JPanel(new GridLayout(0, 1, 3, 3));
 		createForm.setBorder(BorderFactory.createTitledBorder("Criar etiqueta"));
-		createForm.add(new JLabel("Sigla (máximo 5 caracteres)"));
+		createForm.add(new JLabel("Sigla (maximum 5 caracteres)"));
 		createForm.add(code);
 		createForm.add(new JLabel("Cor"));
 		createForm.add(color);
@@ -57,7 +57,7 @@ final class ClanTagsPanel extends JPanel
 		createForm.add(create);
 
 		JPanel memberForm = new JPanel(new GridLayout(0, 1, 3, 3));
-		memberForm.setBorder(BorderFactory.createTitledBorder("Adicionar membro"));
+		memberForm.setBorder(BorderFactory.createTitledBorder("Add membro"));
 		memberForm.add(new JLabel("Etiqueta"));
 		memberForm.add(tag);
 		memberForm.add(new JLabel("Nome do membro"));
@@ -83,17 +83,17 @@ final class ClanTagsPanel extends JPanel
 		deleteTag.addActionListener(event ->
 		{
 			ClanTag selected = (ClanTag) tag.getSelectedItem();
-			if (selected == null) setStatus("Selecione uma etiqueta");
+			if (selected == null) setStatus("Select uma etiqueta");
 			else deleteTagAction.accept(selected);
 		});
 		deleteTag.setToolTipText("Delete a etiqueta selecionada e suas associações");
 		removeMember.addActionListener(event ->
 		{
 			int selectedRow = table.getSelectedRow();
-			if (selectedRow < 0 || selectedRow >= rows.size()) setStatus("Selecione um membro");
+			if (selectedRow < 0 || selectedRow >= rows.size()) setStatus("Select um membro");
 			else removeMemberAction.accept(rows.get(selectedRow).tag, rows.get(selectedRow).member);
 		});
-		removeMember.setToolTipText("Remover o membro selecionado da etiqueta");
+		removeMember.setToolTipText("Remove o membro selecionado da etiqueta");
 		JPanel actions = new JPanel(new GridLayout(2, 2, 3, 3));
 		actions.add(refresh);
 		actions.add(removeMember);
