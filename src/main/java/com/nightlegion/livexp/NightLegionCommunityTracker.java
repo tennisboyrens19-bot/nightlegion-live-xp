@@ -149,6 +149,8 @@ class NightLegionCommunityTracker
             data.addProperty("quantity", quantity);
             data.addProperty("total_value", total);
             data.addProperty("source", source);
+            data.addProperty("count_for_mvp", config.statsEnabled());
+            data.addProperty("send_to_discord", config.discordDropsEnabled());
             api.action("community_drop_report", rsn(), data, ignored -> { }, ignored -> { });
         }
     }
