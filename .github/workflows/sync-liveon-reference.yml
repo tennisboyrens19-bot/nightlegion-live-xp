@@ -1,0 +1,36 @@
+name: Sync exact Live On source
+
+on:
+  push:
+    branches:
+      - liveon-exact-nightlegion-v2
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: ${{ !contains(github.event.head_commit.message || '', '[sync-liveon]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: liveon-exact-nightlegion-v2
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Copy exact upstream source
+        run: python scripts/sync_liveon_reference.py
+      - name: Commit vendored source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main/java/com/liveon src/main/resources vendor/live-on-clan LIVEON_SOURCE_INVENTORY.md
+          if git diff --cached --quiet; then
+            echo "Live On source already synchronized."
+            exit 0
+          fi
+          git commit -m "[sync-liveon] Vendor exact Live On client source"
+          git push origin HEAD:liveon-exact-nightlegion-v2
