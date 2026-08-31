@@ -1,9 +1,6 @@
 name: Sync exact Live On source
 
 on:
-  push:
-    branches:
-      - liveon-exact-nightlegion-v2
   workflow_dispatch:
 
 permissions:
@@ -11,7 +8,6 @@ permissions:
 
 jobs:
   sync:
-    if: ${{ !contains(github.event.head_commit.message || '', '[sync-liveon]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
