@@ -14,14 +14,10 @@ repositories {
 }
 
 def runeLiteVersion = 'latest.release'
-def pluginMainClass = 'com.nightlegion.livexp.NightLegionLiveXpPluginTest'
+def pluginMainClass = 'com.liveon.ClanMessagesPluginTest'
 
 dependencies {
 	compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
-
-	// Required by the exact Live On source we are porting.
-	compileOnly 'org.projectlombok:lombok:1.18.30'
-	annotationProcessor 'org.projectlombok:lombok:1.18.30'
 
 	testImplementation 'junit:junit:4.13.2'
 	testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion

@@ -282,7 +282,7 @@ final class RanksPanel extends JPanel
 				setWrappedText(availableRank, "Soldier • automatic promotion");
 				availableRankIcon.setIcon(nextRankSuppliedIcon != null ? nextRankSuppliedIcon : rankIconFor("Soldier"));
 				nextRankIcon.setIcon(nextRankSuppliedIcon != null ? nextRankSuppliedIcon : rankIconFor("Soldier"));
-				requirementsTitle.setText("Promotion automática");
+				requirementsTitle.setText("Automatic promotion");
 				helper.setText(wrapped("Soldier is granted automatically after 30 days in the clan. No request is required.", REQUIREMENT_TEXT_WIDTH));
 				setWrappedText(nextRank, "Soldier • automatic promotion");
 				nextMissing.setText(wrapped("Granted after 30 days in the clan.", REQUIREMENT_TEXT_WIDTH));
@@ -294,8 +294,8 @@ final class RanksPanel extends JPanel
 				Icon generalIcon = nextRankSuppliedIcon != null ? nextRankSuppliedIcon : rankIconFor("General");
 				availableRankIcon.setIcon(generalIcon);
 				nextRankIcon.setIcon(generalIcon);
-				requirementsTitle.setText("Progressão concluída");
-				helper.setText(wrapped("General é solicitado diretamente à staff pelo Discord.", REQUIREMENT_TEXT_WIDTH));
+				requirementsTitle.setText("Progression complete");
+				helper.setText(wrapped("General is requested directly from staff through Discord.", REQUIREMENT_TEXT_WIDTH));
 				setWrappedText(nextRank, "General • Discord only");
 				nextMissing.setText(" ");
 			}
@@ -309,7 +309,7 @@ final class RanksPanel extends JPanel
 				availableRankIcon.setIcon(new RankIcon(Color.GRAY));
 				availableRankIcon.setVisible(false);
 				requirementsTitle.setText("Verified data");
-				helper.setText(wrapped("Confira o que foi detectado. Se algo estiver pending, siga a instrução exibida.", REQUIREMENT_TEXT_WIDTH));
+				helper.setText(wrapped("Review what was detected. If anything is pending, follow the displayed instruction.", REQUIREMENT_TEXT_WIDTH));
 				setWrappedText(nextRank, target == null ? "Next rank" : target);
 				nextRankIcon.setIcon(nextRankSuppliedIcon != null ? nextRankSuppliedIcon : rankIconFor(target));
 				nextMissing.setText(missingSummary(nextChecks));
@@ -333,20 +333,20 @@ final class RanksPanel extends JPanel
 			{
 				requestRank.setEnabled(false);
 				requestRank.setText(REQUEST_PENDING_TEXT);
-				requestRank.setToolTipText("Aguarde a análise da staff");
+				requestRank.setToolTipText("Wait for staff review");
 				status.setText(REQUEST_PENDING_STATUS);
 			}
 			else if (requestCooldownSeconds > 0 && showRequest)
 			{
 				requestRank.setEnabled(false);
-				requestRank.setText("Aguarde " + cooldownLabel(requestCooldownSeconds));
-				requestRank.setToolTipText("Uma request foi resolvida recentemente");
+				requestRank.setText("Wait " + cooldownLabel(requestCooldownSeconds));
+				requestRank.setToolTipText("A request was resolved recently");
 			}
 			else
 			{
 				requestRank.setEnabled(canRequest);
 				requestRank.setText("Request " + (canRequest ? requestCandidate : requestTarget));
-				requestRank.setToolTipText(canRequest ? "Enviar request para a staff"
+				requestRank.setToolTipText(canRequest ? "Send request to staff"
 					: "Complete or verify the highlighted requirements before requesting");
 			}
 			verify.setBackground(canRequest ? new Color(52, 52, 52) : ORANGE);
@@ -517,9 +517,9 @@ final class RanksPanel extends JPanel
 	private static String missingSummary(List<String> missing)
 	{
 		if (missing == null || missing.isEmpty())
-			return wrapped("No pendência detectada.", NEXT_REQUIREMENT_TEXT_WIDTH);
+			return wrapped("No pending requirement detected.", NEXT_REQUIREMENT_TEXT_WIDTH);
 		StringBuilder text = new StringBuilder("<html><body><table cellspacing='0' cellpadding='0' width='")
-			.append(NEXT_REQUIREMENT_TEXT_WIDTH).append("'><tr><td colspan='2'>Falta:</td></tr>");
+			.append(NEXT_REQUIREMENT_TEXT_WIDTH).append("'><tr><td colspan='2'>Missing:</td></tr>");
 		for (int index = 0; index < missing.size(); index++)
 		{
 			String value = missing.get(index).replaceFirst("^[!✕—]\\s*", "");
@@ -595,14 +595,14 @@ final class RanksPanel extends JPanel
 			{
 				requestRank.setEnabled(false);
 				requestRank.setText(REQUEST_PENDING_TEXT);
-				requestRank.setToolTipText("Aguarde a análise da staff");
+				requestRank.setToolTipText("Wait for staff review");
 				status.setText(REQUEST_PENDING_STATUS);
 			}
 			else if (requestCooldownSeconds > 0)
 			{
 				requestRank.setEnabled(false);
-				requestRank.setText("Aguarde " + cooldownLabel(requestCooldownSeconds));
-				requestRank.setToolTipText("Uma request foi resolvida recentemente");
+				requestRank.setText("Wait " + cooldownLabel(requestCooldownSeconds));
+				requestRank.setToolTipText("A request was resolved recently");
 			}
 		});
 	}

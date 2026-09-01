@@ -21,9 +21,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import lombok.Data;
-import lombok.Value;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ItemComposition;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemVariationMapping;
@@ -32,10 +29,10 @@ import net.runelite.client.game.ItemVariationMapping;
  * Reads the same OSRS Wiki-derived NPC drop-rate data used by Dink.
  * The bundled data and transformation are retained under Dink's BSD-2 license.
  */
-@Slf4j
 @Singleton
 class DropRarityService
 {
+	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DropRarityService.class);
 	private final ItemManager itemManager;
 	private final Map<String, Collection<RareDrop>> dropsBySource = new HashMap<>();
 
@@ -91,16 +88,25 @@ class DropRarityService
 			.findFirst();
 	}
 
-	@Value
 	private static class RareDrop
 	{
-		int itemId;
-		int minQuantity;
-		int maxQuantity;
-		double probability;
+		private final int itemId;
+		private final int minQuantity;
+		private final int maxQuantity;
+		private final double probability;
+
+		private RareDrop(int itemId, int minQuantity, int maxQuantity, double probability)
+		{
+			this.itemId = itemId;
+			this.minQuantity = minQuantity;
+			this.maxQuantity = maxQuantity;
+			this.probability = probability;
+		}
+
+		int getItemId() { return itemId; }
+		double getProbability() { return probability; }
 	}
 
-	@Data
 	private static class RawDrop
 	{
 		@SerializedName("i") private int itemId;

@@ -77,7 +77,7 @@ final class PbPanel extends JPanel
 		titleRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 		titleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
 		titleRow.add(title, BorderLayout.CENTER);
-		refresh.setToolTipText("Refresh classificação");
+		refresh.setToolTipText("Refresh rankings");
 		refresh.setMargin(new java.awt.Insets(1, 7, 1, 7));
 		refresh.setPreferredSize(new Dimension(32, 26));
 		titleRow.add(refresh, BorderLayout.EAST);
@@ -88,10 +88,10 @@ final class PbPanel extends JPanel
 			refreshAction.run();
 		});
 
-		globalSearch.setToolTipText("Pesquise em bosses, desafios e raids");
+		globalSearch.setToolTipText("Search bosses, challenges, and raids");
 		configureSearchPrompt(globalSearch, "Search");
 		configureGlobalAutocomplete();
-		clearSearch.setToolTipText("Limpar pesquisa");
+		clearSearch.setToolTipText("Clear search");
 		clearSearch.setMargin(new java.awt.Insets(1, 7, 1, 7));
 		clearSearch.setPreferredSize(new Dimension(30, 28));
 		clearSearch.setVisible(false);
@@ -110,7 +110,7 @@ final class PbPanel extends JPanel
 		top.add(Box.createVerticalStrut(3));
 		raids.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
 		raids.setAlignmentX(Component.LEFT_ALIGNMENT);
-		raids.setToolTipText("Select uma raid");
+		raids.setToolTipText("Select a raid");
 		configureComboPlaceholder(raids, "Raids");
 		raids.addActionListener(event ->
 		{
@@ -136,8 +136,8 @@ final class PbPanel extends JPanel
 
 		bosses.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
 		bosses.setAlignmentX(Component.LEFT_ALIGNMENT);
-		bosses.setToolTipText("Select um boss ou desafio");
-		configureComboPlaceholder(bosses, "Bosses e desafios");
+		bosses.setToolTipText("Select a boss or challenge");
+		configureComboPlaceholder(bosses, "Bosses and challenges");
 		bosses.addActionListener(event -> {
 			if (updatingFilters || bosses.getSelectedItem() == null) return;
 			updatingFilters = true;
@@ -204,8 +204,8 @@ final class PbPanel extends JPanel
 		participationNotice.setBorder(BorderFactory.createCompoundBorder(
 			BorderFactory.createLineBorder(BLUE),
 			BorderFactory.createEmptyBorder(5, 7, 5, 7)));
-		JLabel message = new JLabel("<html><b>Participação desativada</b><br>"
-			+ "Ative nas configurações<br>para registrar seus PBs.</html>");
+		JLabel message = new JLabel("<html><b>Participation disabled</b><br>"
+			+ "Enable it in settings<br>to record your PBs.</html>");
 		message.setForeground(BLUE);
 		participationNotice.add(message, BorderLayout.CENTER);
 	}
@@ -430,8 +430,8 @@ final class PbPanel extends JPanel
 		JLabel instructions = new JLabel("<html><div style='width:160px'>"
 			+ "1. Open the <b>Adventure Log</b> in your POH to import all your times.<br><br>"
 			+ "2. In <b>Combat Achievements</b>, open the boss page you want to register.<br><br>"
-			+ "3. Scoreboards também são reconhecidos.<br><br>"
-			+ "Com <b>Participar do ranking de PBs</b> ativado, seus novos PBs serão registrados automaticamente."
+			+ "3. Scoreboards are also recognized.<br><br>"
+			+ "With <b>Participate in PB rankings</b> enabled, your new PBs are recorded automatically."
 			+ "</div></html>");
 		instructions.setAlignmentX(Component.LEFT_ALIGNMENT);
 		instructions.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));

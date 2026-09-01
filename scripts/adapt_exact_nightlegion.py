@@ -331,7 +331,11 @@ plugin_path.write_text(plugin, encoding="utf-8")
 
 # NightLegion WOM membership, exact Live On verification logic otherwise unchanged.
 wom_path = LIVE / "WomMembership.java"
-wom = wom_path.read_text(encoding="utf-8").replace("LIVE_ON_GROUP_ID = 1945", "LIVE_ON_GROUP_ID = 26182")
+wom = re.sub(
+    r"LIVE_ON_GROUP_ID\s*=\s*\d+",
+    "NIGHTLEGION_GROUP_ID = 26182",
+    wom_path.read_text(encoding="utf-8"),
+)
 wom_path.write_text(wom, encoding="utf-8")
 
 # ---------------------------------------------------------------------------
@@ -340,8 +344,6 @@ wom_path.write_text(wom, encoding="utf-8")
 # ---------------------------------------------------------------------------
 replacements = [
     ("Live ON", "NightLegion"), ("Live On", "NightLegion"), ("Live on clan", "NightLegion"),
-    ("https://www.discord.gg/liveon", "https://discord.gg/AP2aK742SZ"),
-    ("https://wiseoldman.net/groups/1945", "https://wiseoldman.net/groups/26182"),
     ("Bem-vindo ao NightLegion Clan", "Welcome to NightLegion"),
     ("Painel", "Home"), ("PAINEL", "HOME"),
     ("Verificar agora", "Verify now"), ("Verificar em ", "Verify in "),
@@ -401,6 +403,8 @@ replacements = [
 ]
 for java in LIVE.glob("*.java"):
     text = java.read_text(encoding="utf-8")
+    text = re.sub(r"https://(?:www\.)?discord\.gg/[A-Za-z0-9_-]+", "https://discord.gg/AP2aK742SZ", text)
+    text = re.sub(r"https://wiseoldman\.net/groups/\d+", "https://wiseoldman.net/groups/26182", text)
     for old, new in replacements:
         text = text.replace(old, new)
     java.write_text(text, encoding="utf-8")

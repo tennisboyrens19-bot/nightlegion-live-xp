@@ -1,0 +1,58 @@
+package com.liveon;
+
+import java.util.Arrays;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+public class DiscordLootFilterTest
+{
+	@Test
+	public void usesMatchingDiscordAttachmentReferences()
+	{
+		assertEquals("attachment://loot.png", ClanMessagesPlugin.discordAttachmentUrl(
+			ClanMessagesPlugin.DISCORD_LOOT_ATTACHMENT));
+		assertEquals("attachment://pet.png", ClanMessagesPlugin.discordAttachmentUrl(
+			ClanMessagesPlugin.DISCORD_PET_ATTACHMENT));
+	}
+
+	@Test
+	public void limitsDiscordDescriptionsWithoutChangingNormalDrops()
+	{
+		String normal = "1x Oathplate legs (89.0M)\nYama";
+		assertEquals(normal, ClanMessagesPlugin.limitDiscordDescription(normal));
+		char[] characters = new char[5000];
+		Arrays.fill(characters, 'x');
+		String limited = ClanMessagesPlugin.limitDiscordDescription(new String(characters));
+		assertEquals(4096, limited.length());
+		assertTrue(limited.endsWith("..."));
+	}
+
+	@Test
+	public void matchesExactAndWildcardNames()
+	{
+		assertTrue(ClanMessagesPlugin.matchesDiscordFilter(Arrays.asList("crimson kisten"), "Crimson kisten"));
+		assertFalse(ClanMessagesPlugin.matchesDiscordFilter(Arrays.asList("crimson kisten"), "Crimson kisten (broken)"));
+		assertTrue(ClanMessagesPlugin.matchesDiscordFilter(Arrays.asList("elder venator*"), "Elder venator bow"));
+		assertFalse(ClanMessagesPlugin.matchesDiscordFilter(Arrays.asList("elder venator*"), "Amulet of rancour"));
+	}
+
+	@Test
+	public void extractsOnlyAllowlistedCollectionLogAndValuableDrops()
+	{
+		assertEquals("Crimson kisten", ClanMessagesPlugin.allowlistedCollectionItem(
+			"New item added to your collection log: Crimson kisten"));
+		assertNull(ClanMessagesPlugin.allowlistedCollectionItem(
+			"New item added to your collection log: Big bones"));
+		ClanMessagesPlugin.PendingAllowlistedDrop drop = ClanMessagesPlugin.allowlistedValuableDrop(
+			"Valuable drop: 2 x Crimson kisten (7,200,000 coins)");
+		assertEquals("Crimson kisten", drop.itemName);
+		assertEquals(2, drop.quantity);
+		assertEquals(Long.valueOf(7_200_000L), drop.totalValue);
+		assertNull(ClanMessagesPlugin.allowlistedValuableDrop(
+			"Valuable drop: 1 x Big bones (4,000,000 coins)"));
+	}
+}

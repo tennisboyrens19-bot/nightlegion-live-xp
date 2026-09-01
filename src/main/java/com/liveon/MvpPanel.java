@@ -163,8 +163,8 @@ final class MvpPanel extends JPanel
 			BorderFactory.createCompoundBorder(
 				BorderFactory.createLineBorder(NOTICE_BLUE),
 				BorderFactory.createEmptyBorder(5, 7, 5, 7))));
-		JLabel message = new JLabel("<html><b>Participação desativada</b><br>"
-			+ "Ative nas configurações<br>para registrar seus drops.</html>");
+		JLabel message = new JLabel("<html><b>Participation disabled</b><br>"
+			+ "Enable it in settings<br>to record your drops.</html>");
 		message.setForeground(NOTICE_BLUE);
 		participationNotice.add(message, BorderLayout.CENTER);
 	}
@@ -273,7 +273,7 @@ final class MvpPanel extends JPanel
 			dropEntries.removeAll();
 			if (topTen.isEmpty())
 			{
-				JLabel empty = new JLabel("No drops de 1m+ registrado.", SwingConstants.CENTER);
+				JLabel empty = new JLabel("No drops worth 1m+ recorded.", SwingConstants.CENTER);
 				empty.setForeground(new Color(160, 160, 160));
 				empty.setBorder(BorderFactory.createEmptyBorder(24, 4, 4, 4));
 				dropEntries.add(empty);
@@ -331,7 +331,7 @@ final class MvpPanel extends JPanel
 			target.removeAll();
 			if (topTen.isEmpty())
 			{
-				JLabel empty = new JLabel("No ganho mensal available no WOM.", SwingConstants.CENTER);
+				JLabel empty = new JLabel("No monthly gain available from WOM.", SwingConstants.CENTER);
 				empty.setForeground(new Color(160, 160, 160));
 				empty.setBorder(BorderFactory.createEmptyBorder(24, 4, 4, 4));
 				target.add(empty);
@@ -731,7 +731,7 @@ final class MvpPanel extends JPanel
 		{
 			javax.swing.JComponent clickable = (javax.swing.JComponent) component;
 			clickable.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-			clickable.setToolTipText("Exibir os três maiores drops");
+			clickable.setToolTipText("Show the three largest drops");
 			clickable.addMouseListener(dropToggleListener(entry));
 		}
 		if (component instanceof java.awt.Container)

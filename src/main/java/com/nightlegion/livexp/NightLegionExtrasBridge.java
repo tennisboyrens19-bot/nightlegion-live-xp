@@ -8,41 +8,28 @@ import net.runelite.api.Client;
 import net.runelite.client.game.ItemManager;
 import okhttp3.OkHttpClient;
 
-/** Keeps NightLegion-only BOTW/SOTW/Giveaway/Group Finder inside the exact Live On shell. */
+/** Keeps NightLegion-only Events and Groups inside the active Live On shell. */
 public final class NightLegionExtrasBridge
 {
-    private final NightLegionPanel botw;
-    private final NightLegionPanel sotw;
-    private final NightLegionPanel giveaway;
-    private final NightLegionPanel groups;
+    private final NightLegionPanel events;
+    private final NightLegionGroupFinderPanel groups;
 
     public NightLegionExtrasBridge(Client client, OkHttpClient httpClient, ScheduledExecutorService executor,
         Supplier<String> tokenSupplier, Gson gson, ItemManager itemManager)
     {
         NightLegionApi api = new NightLegionApi(httpClient, executor, tokenSupplier, gson);
-        botw = panel(client, api, itemManager, "BOTW");
-        sotw = panel(client, api, itemManager, "SOTW");
-        giveaway = panel(client, api, itemManager, "GIVEAWAY");
-        groups = panel(client, api, itemManager, "GROUP FINDER");
+        events = new NightLegionPanel(client, api, itemManager);
+        events.putClientProperty("nightlegionOwnScroll", Boolean.TRUE);
+        groups = new NightLegionGroupFinderPanel(client, api, itemManager);
+        groups.putClientProperty("nightlegionOwnScroll", Boolean.TRUE);
     }
 
-    private static NightLegionPanel panel(Client client, NightLegionApi api, ItemManager itemManager, String section)
-    {
-        NightLegionPanel panel = new NightLegionPanel(client, api, itemManager, section);
-        panel.putClientProperty("nightlegionOwnScroll", Boolean.TRUE);
-        return panel;
-    }
-
-    public JPanel botwPanel() { return botw; }
-    public JPanel sotwPanel() { return sotw; }
-    public JPanel giveawayPanel() { return giveaway; }
+    public JPanel eventsPanel() { return events; }
     public JPanel groupsPanel() { return groups; }
 
     public void refreshAll()
     {
-        botw.refresh();
-        sotw.refresh();
-        giveaway.refresh();
+        events.refresh();
         groups.refresh();
     }
 }

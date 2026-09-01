@@ -8,7 +8,7 @@ import java.util.Set;
 
 final class WomMembership
 {
-	static final int LIVE_ON_GROUP_ID = 26182;
+	static final int NIGHTLEGION_GROUP_ID = 26182;
 	private static final Set<String> STAFF_ROLES = new HashSet<>(Arrays.asList(
 		"owner",
 		"deputy_owner",
@@ -32,7 +32,7 @@ final class WomMembership
 
 		for (Entry membership : memberships)
 		{
-			if (membership != null && membership.liveOnGroupId() == LIVE_ON_GROUP_ID)
+			if (membership != null && membership.nightLegionGroupId() == NIGHTLEGION_GROUP_ID)
 			{
 				String role = membership.role != null ? membership.role : membership.roleName;
 				return new Result(true, role);
@@ -89,7 +89,7 @@ final class WomMembership
 		private String roleName;
 		private Group group;
 
-		private int liveOnGroupId()
+		private int nightLegionGroupId()
 		{
 			return groupId > 0 ? groupId : group == null ? -1 : group.id;
 		}

@@ -95,10 +95,10 @@ final class LiveOnPanel extends JPanel
 		onlineSection.add(home, BorderLayout.CENTER);
 
 		JPanel fields = new JPanel(new GridLayout(0, 1, 3, 3));
-		fields.setBorder(BorderFactory.createTitledBorder("Gerenciar canais"));
+		fields.setBorder(BorderFactory.createTitledBorder("Manage channels"));
 		fields.add(new JLabel("RSN"));
 		fields.add(rsn);
-		fields.add(new JLabel("Channel da Twitch"));
+		fields.add(new JLabel("Twitch channel"));
 		fields.add(twitch);
 		JButton save = new JButton("Associar / Refresh");
 		save.setBackground(new Color(190, 104, 0));

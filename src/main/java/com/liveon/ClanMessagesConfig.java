@@ -76,21 +76,12 @@ public interface ClanMessagesConfig extends Config
     default int sidebarIconPriority() { return 0; }
 
     @ConfigItem(
-        keyName = "staffAccessKey",
-        name = "Staff key",
-        description = "Optional server-side staff security key",
-        secret = true,
-        hidden = true
-    )
-    default String staffAccessKey() { return ""; }
-
-    @ConfigItem(
         keyName = "discordDropMinimumValue",
         name = "Minimum drop value",
         description = "Minimum GE value for a Discord drop notification",
         hidden = true
     )
-    default int discordDropMinimumValue() { return 1_000_000; }
+    default int discordDropMinimumValue() { return 3_000_000; }
 
     @ConfigItem(
         keyName = "serverUrl",

@@ -29,11 +29,6 @@ class NightLegionApi
     private final Supplier<String> tokenSupplier;
     private final Gson gson;
 
-    NightLegionApi(OkHttpClient client, ScheduledExecutorService executor, NightLegionLiveXpConfig config, Gson gson)
-    {
-        this(client, executor, () -> config.token(), gson);
-    }
-
     NightLegionApi(OkHttpClient client, ScheduledExecutorService executor, Supplier<String> tokenSupplier, Gson gson)
     {
         this.client = client;

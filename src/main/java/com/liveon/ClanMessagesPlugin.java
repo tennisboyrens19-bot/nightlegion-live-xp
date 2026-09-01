@@ -25,7 +25,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
@@ -90,10 +89,10 @@ import okhttp3.Response;
 import okhttp3.MultipartBody;
 import net.runelite.http.api.loottracker.LootRecordType;
 
-@Slf4j
 @PluginDescriptor(name = "NightLegion")
 public class ClanMessagesPlugin extends Plugin
 {
+	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ClanMessagesPlugin.class);
 	private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 	private static final Pattern RANK_REQUEST_MESSAGE_PATTERN = Pattern.compile("(?<player>.+) requested a rank: (?<rank>.+)");
 	private static final Pattern PROMOTION_MESSAGE_PATTERN = Pattern.compile("(?:Promotion: )?(?<player>.+?) was promoted to (?<rank>.+)!");
@@ -285,7 +284,7 @@ public class ClanMessagesPlugin extends Plugin
 		RankVisuals.registerChatIcons(chatIconManager);
 		clanLiveBadgeDecorator = new ClanLiveBadgeDecorator(client, this);
 		nightLegionExtras = new NightLegionExtrasBridge(client, okHttpClient, executor, config::personalLinkToken, gson, itemManager);
-		panel = new ClanMessagesPanel(() -> publishDraft("BROADCAST"), () -> publishDraft("CLAN"), () -> verifyToken(true), this::clearMessages, this::refreshRanks, this::resetRanks, this::requestRank, this::fetchRankRequests, this::deleteRankRequest, this::confirmRankRequest, this::declineRankRequest, this::fetchSentMessages, this::deleteSentMessage, this::resendSentMessage, this::togglePinnedMessage, this::publishPanelNotice, this::removePanelNotice, this::fetchLives, this::saveLiveChannel, this::deleteLiveChannel, this::fetchMvpMembers, this::saveMvpMember, this::deleteMvpMember, this::fetchClanTags, this::createClanTag, this::addClanTagMember, this::deleteClanTag, this::removeClanTagMember, this::fetchPbCategories, this::fetchPbRanking, config.staffAccessKey(), this::saveStaffAccessKey, nightLegionExtras.botwPanel(), nightLegionExtras.sotwPanel(), nightLegionExtras.giveawayPanel(), nightLegionExtras.groupsPanel());
+		panel = new ClanMessagesPanel(() -> publishDraft("BROADCAST"), () -> publishDraft("CLAN"), () -> verifyToken(true), this::clearMessages, this::refreshRanks, this::resetRanks, this::requestRank, this::fetchRankRequests, this::deleteRankRequest, this::confirmRankRequest, this::declineRankRequest, this::fetchSentMessages, this::deleteSentMessage, this::resendSentMessage, this::togglePinnedMessage, this::publishPanelNotice, this::removePanelNotice, this::fetchLives, this::saveLiveChannel, this::deleteLiveChannel, this::fetchClanTags, this::createClanTag, this::addClanTagMember, this::deleteClanTag, this::removeClanTagMember, this::fetchPbCategories, this::fetchPbRanking, nightLegionExtras.eventsPanel(), nightLegionExtras.groupsPanel());
 		nightLegionExtras.refreshAll();
 		panel.setPbParticipationEnabled(config.pbRankingEnabled());
 		panel.setMvpParticipationEnabled(config.statsEnabled());
@@ -1194,7 +1193,7 @@ public class ClanMessagesPlugin extends Plugin
 		log.debug("Ranks quest detection: questPoints={}, questCape={}", questPoints, questCape);
 		checks.add("Total level: " + effectiveTotalLevel + (effectiveTotalLevel >= 2376 ? " ✓ (Max)" : effectiveTotalLevel >= 2300 ? " ✓ (2300+)" : " — requires 2300"));
 		checks.add("Quest points: " + (questPoints < 0 ? "— open Character Summary and sync" : questPoints));
-		checks.add("Quest cape (todas as quests): " + (questCape ? "✓" : "— not obtained"));
+		checks.add("Quest cape (all quests): " + (questCape ? "✓" : "— not obtained"));
 		checks.add(itemStatus("Fire cape", fireCape));
 		checks.add(itemStatus("Infernal cape", infernalCape));
 		checks.add(itemStatus("Dizana's quiver", quiver));
@@ -1260,7 +1259,7 @@ public class ClanMessagesPlugin extends Plugin
 			.append(Color.GREEN, "[NightLegion] ")
 			.append(Color.WHITE, "Rank promotion available: ");
 		appendClanRankWithIcon(builder, new Color(255, 184, 0), eligibleRank);
-		builder.append(Color.WHITE, "! Solicite pelo plugin in the clan.");
+		builder.append(Color.WHITE, "! Request it through the clan plugin.");
 		chatMessageManager.queue(QueuedMessage.builder()
 			.type(ChatMessageType.CONSOLE)
 			.runeLiteFormattedMessage(builder.build())
@@ -1270,7 +1269,7 @@ public class ClanMessagesPlugin extends Plugin
 
 	static String rankNotificationMessage(String rank)
 	{
-		return "[NightLegion] Rank promotion available: " + rank + "! Solicite pelo plugin in the clan.";
+		return "[NightLegion] Rank promotion available: " + rank + "! Request it through the clan plugin.";
 	}
 
 	static boolean shouldNotifyAvailableRank(int currentIndex, int eligibleIndex,
@@ -1483,7 +1482,7 @@ public class ClanMessagesPlugin extends Plugin
 	{
 		java.util.List<String> result = new ArrayList<>();
 		if (!bankLoaded) result.add("! Open your bank once<br>to verify your items");
-		result.add(pointsRequirement("Quest points", questPoints, 300, "aguarde o login load"));
+		result.add(pointsRequirement("Quest points", questPoints, 300, "wait for login to finish loading"));
 		result.add(itemRequirement("Quest cape", questCape, bankLoaded));
 		result.add(itemRequirement("Fire cape", fireCape, bankLoaded));
 		result.add(itemRequirement("Infernal cape", infernalCape, bankLoaded));
@@ -1540,7 +1539,7 @@ public class ClanMessagesPlugin extends Plugin
 				break;
 			case "lieutenant":
 				result.add(itemRequirement("Quest cape", questCape, bankLoaded));
-				result.add(itemRequirement("Dizana's quiver ou Infernal cape", quiver || infernalCape, bankLoaded));
+				result.add(itemRequirement("Dizana's quiver or Infernal cape", quiver || infernalCape, bankLoaded));
 				result.add(caRequirement("Combat Achievements Elite", combatAchievementPoints, 1075, elite));
 				break;
 			case "captain":
@@ -1553,12 +1552,12 @@ public class ClanMessagesPlugin extends Plugin
 				result.add(itemRequirement("Diary cape", diaryCape, bankLoaded));
 				result.add(itemRequirement("Dizana's quiver", quiver, bankLoaded));
 				result.add(itemRequirement("Infernal cape", infernalCape, bankLoaded));
-				result.add(pointsRequirement("Total level", totalLevel, 2300, "entre no jogo"));
+				result.add(pointsRequirement("Total level", totalLevel, 2300, "log in to the game"));
 				result.add(caRequirement("Combat Achievements Master", combatAchievementPoints, 1945, master));
 				break;
 			case "colonel":
 				result.add(itemRequirement("Diary cape", diaryCape, bankLoaded));
-				result.add(itemRequirement("Max cape ou 2376 total", maxCape, bankLoaded));
+				result.add(itemRequirement("Max cape or 2376 total", maxCape, bankLoaded));
 				result.add(caRequirement("Combat Achievements Grandmaster", combatAchievementPoints, 2671, grandmaster));
 				break;
 			default:
@@ -1575,14 +1574,14 @@ public class ClanMessagesPlugin extends Plugin
 
 	private static String itemRequirement(String label, boolean detected, boolean bankLoaded)
 	{
-		if (detected) return "✓ " + label + " detectado";
+		if (detected) return "✓ " + label + " detected";
 		return bankLoaded ? "✕ " + label + " not found — place it in your inventory or equip it if you own it"
 			: "! " + label + " not verified yet — open your bank";
 	}
 
 	private static String caRequirement(String label, int points, int required, boolean completed)
 	{
-		if (completed) return "✓ " + label + (points >= 0 ? ": " + points + "/" + required : " detectado");
+		if (completed) return "✓ " + label + (points >= 0 ? ": " + points + "/" + required : " detected");
 		if (points < 0) return "! " + label + ": open the Combat Achievements menu";
 		return "✕ " + label + ": " + points + "/" + required;
 	}
@@ -1879,7 +1878,7 @@ public class ClanMessagesPlugin extends Plugin
 		{
 			next = "Lieutenant";
 			if (!elite) missing.add("Elite CAs");
-			if (!quiver && !infernalCape) missing.add("Dizana's quiver ou Infernal cape");
+			if (!quiver && !infernalCape) missing.add("Dizana's quiver or Infernal cape");
 		}
 		else if ("Sergeant".equals(rank))
 		{
@@ -2352,8 +2351,8 @@ public class ClanMessagesPlugin extends Plugin
 	private static Map<String, Object> footer()
 	{
 		Map<String, Object> footer = new LinkedHashMap<>();
-		footer.put("text", "Sent pelo NightLegion Clan Plugin");
-		footer.put("icon_url", "https://raw.githubusercontent.com/MilicoOSRS/live-on-clan/master/src/main/resources/live-on-logo.png");
+		footer.put("text", "Sent by the NightLegion Clan Plugin");
+		footer.put("icon_url", "https://raw.githubusercontent.com/tennisboyrens19-bot/nightlegion-live-xp/main/src/main/resources/live-on-logo.png");
 		return footer;
 	}
 
@@ -3021,7 +3020,7 @@ public class ClanMessagesPlugin extends Plugin
 		long interval = Math.max(5, config.pollIntervalSeconds());
 		pollingTask = executor.scheduleAtFixedRate(this::fetchMessages, 0, interval, TimeUnit.SECONDS);
 		mvpDropsPollingTask = executor.scheduleAtFixedRate(this::fetchMvpRankings, 2, 60, TimeUnit.SECONDS);
-		if (isStaff && hasStaffAccessKey())
+		if (isStaff)
 		{
 			rankRequestsPollingTask = executor.scheduleAtFixedRate(this::fetchRankRequests, 10, interval, TimeUnit.SECONDS);
 		}
@@ -3367,7 +3366,7 @@ public class ClanMessagesPlugin extends Plugin
 		long generation = connectionSessionGeneration.get();
 		String account = authenticatedPlayerName;
 		getJson("lives", liveChannelsCallback(false, generation, account));
-		if (isStaff && hasStaffAccessKey())
+		if (isStaff)
 		{
 			getJson("admin/live-channels", liveChannelsCallback(true, generation, account));
 		}
@@ -3500,7 +3499,6 @@ public class ClanMessagesPlugin extends Plugin
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
 				log.debug("Unable to fetch MVP members", exception);
-				if (isDeputyOwner && panel != null) panel.setMvpMembersStatus("Failed to refresh");
 			}
 
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
@@ -3509,7 +3507,6 @@ public class ClanMessagesPlugin extends Plugin
 				{
 					if (!response.isSuccessful() || response.body() == null)
 					{
-						if (isDeputyOwner && panel != null) panel.setMvpMembersStatus("Error " + response.code());
 						return;
 					}
 					MvpMember[] parsed = gson.fromJson(response.body().string(), MvpMember[].class);
@@ -3524,70 +3521,7 @@ public class ClanMessagesPlugin extends Plugin
 							mvpMembers.add(normalizeChatPlayerName(member.playerName));
 						}
 					}
-					if (isDeputyOwner && panel != null) panel.updateMvpMembers(members);
 					clientThread.invokeLater(() -> client.runScript(ScriptID.BUILD_CHATBOX));
-				}
-			}
-		});
-	}
-
-	private void saveMvpMember(String rsn)
-	{
-		if (!isDeputyOwner || rsn == null || rsn.trim().isEmpty())
-		{
-			if (panel != null) panel.setMvpMembersStatus("Enter the member name");
-			return;
-		}
-		java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
-		payload.put("playerName", authenticatedPlayerName);
-		payload.put("rsn", rsn.trim());
-		postJson("admin/mvp-members", gson.toJson(payload), new okhttp3.Callback()
-		{
-			@Override public void onFailure(okhttp3.Call call, IOException exception)
-			{
-				log.debug("Unable to save MVP member", exception);
-				if (panel != null) panel.setMvpMembersStatus("MVP badges are automatic");
-			}
-
-			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
-			{
-				try (Response ignored = response)
-				{
-					if (panel != null) panel.setMvpMembersStatus(response.isSuccessful() ? "MVP is automatic" : "Error " + response.code());
-					if (response.isSuccessful())
-					{
-						if (panel != null) panel.clearMvpMemberField();
-						fetchMvpMembers();
-					}
-				}
-			}
-		});
-	}
-
-	private void deleteMvpMember(MvpMember member)
-	{
-		if (!isDeputyOwner || member == null)
-		{
-			return;
-		}
-		HttpUrl base = serverBaseUrl();
-		if (base == null) return;
-		HttpUrl url = base.newBuilder().addPathSegment("admin").addPathSegment("mvp-members")
-			.addPathSegment(Integer.toString(member.id)).build();
-		okHttpClient.newCall(requestBuilder(url).delete().build()).enqueue(new okhttp3.Callback()
-		{
-			@Override public void onFailure(okhttp3.Call call, IOException exception)
-			{
-				log.debug("Unable to remove MVP member", exception);
-				if (panel != null) panel.setMvpMembersStatus("MVP badges are automatic");
-			}
-
-			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
-			{
-				try (Response ignored = response)
-				{
-					if (panel != null) panel.setMvpMembersStatus(response.isSuccessful() ? "MVP is automatic" : "Error " + response.code());
-					if (response.isSuccessful()) fetchMvpMembers();
 				}
 			}
 		});
@@ -3936,8 +3870,13 @@ public class ClanMessagesPlugin extends Plugin
 
 	private static boolean isDeputyOwnerRole(String roleName)
 	{
-		return roleName != null
-			&& "DEPUTYOWNER".equals(roleName.replaceAll("[^A-Za-z0-9]", "").toUpperCase(java.util.Locale.ROOT));
+		if (roleName == null)
+		{
+			return false;
+		}
+		String normalized = roleName.replaceAll("[^A-Za-z0-9]", "")
+			.toUpperCase(java.util.Locale.ROOT);
+		return "OWNER".equals(normalized) || "DEPUTYOWNER".equals(normalized);
 	}
 
 	private static String maxMessageId(String current, String candidate)
@@ -4114,7 +4053,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		String rsnName = authenticatedPlayerName;
 		if (rsnName == null || rsnName.isEmpty())
 		{
-			panel.setStatus("Valide sua conta pelo WOM");
+			panel.setStatus("Verify your account through WOM");
 			panel.setPublishing(false);
 			return;
 		}
@@ -4219,11 +4158,6 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		{
 			return;
 		}
-		if (!hasStaffAccessKey())
-		{
-			if (panel != null) panel.setSentMessagesStatus("Configure a chave da staff");
-			return;
-		}
 		getJson("admin/sent-messages", new okhttp3.Callback()
 		{
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
@@ -4239,7 +4173,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 					if (!response.isSuccessful() || response.body() == null)
 					{
 						if (panel != null) panel.setSentMessagesStatus(response.code() == 403
-							? "Check a chave da staff"
+							? "Staff permission denied"
 							: "Error " + response.code());
 						return;
 					}
@@ -4277,7 +4211,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			{
 				try (Response ignored = response)
 				{
-					if (panel != null) panel.setSentMessagesStatus(response.isSuccessful() ? "Message removida" : "Error " + response.code());
+					if (panel != null) panel.setSentMessagesStatus(response.isSuccessful() ? "Message removed" : "Error " + response.code());
 					if (response.isSuccessful()) fetchSentMessages();
 				}
 			}
@@ -4329,7 +4263,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 					if (panel != null)
 					{
 						panel.setSentMessagesStatus(response.isSuccessful()
-							? (newPinnedValue ? "Message fixada" : "Message desfixada")
+							? (newPinnedValue ? "Message pinned" : "Message unpinned")
 							: "Error " + response.code());
 					}
 					if (response.isSuccessful()) fetchSentMessages();
@@ -4350,7 +4284,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			@Override public void onFailure(okhttp3.Call call, IOException exception) { log.debug("Unable to clear clan messages", exception); if (panel != null) panel.setStatus("Failed to clear messages"); }
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
 			{
-				try (Response ignored = response) { if (panel != null) panel.setStatus(response.isSuccessful() ? "Messages limpas" : "Error " + response.code()); }
+				try (Response ignored = response) { if (panel != null) panel.setStatus(response.isSuccessful() ? "Messages cleared" : "Error " + response.code()); }
 			}
 		});
 	}
@@ -4360,7 +4294,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		String playerName = authenticatedPlayerName;
 		if (playerName == null || playerName.isEmpty())
 		{
-			if (panel != null) panel.setStatus("Valide sua conta pelo WOM");
+			if (panel != null) panel.setStatus("Verify your account through WOM");
 			return;
 		}
 		String currentRank = panel.getCurrentRank();
@@ -4420,7 +4354,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 						{
 							int retryAfter = rankRetryAfter(responseBody, response.header("Retry-After"));
 							panel.setRankRequestState(false, retryAfter);
-							panel.setStatus("Aguarde " + Math.max(1, (retryAfter + 59) / 60) + " min before requesting again");
+							panel.setStatus("Wait " + Math.max(1, (retryAfter + 59) / 60) + " min before requesting again");
 						}
 						else panel.setStatus("Error " + response.code());
 					}
@@ -4515,10 +4449,11 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 				String roleName = cached.role;
 				if (member)
 				{
-					boolean staff = isNightLegionStaffRank(rsn);
+					boolean staff = WomMembership.isStaffRole(roleName) || isNightLegionStaffRank(rsn);
 					isStaff = staff;
-					isDeputyOwner = isNightLegionDeputyOrOwner(rsn);
-					canPublishBroadcast = staff;
+					isDeputyOwner = isDeputyOwnerRole(roleName) || isNightLegionDeputyOrOwner(rsn);
+					canPublishBroadcast = WomMembership.canPublishBroadcast(roleName)
+						|| isNightLegionBroadcastRank(rsn);
 					switchMessageCursorAccount(rsn);
 					authenticatedPlayerName = rsn;
 					configurePolling();
@@ -4527,7 +4462,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 					fetchRankRequestStatus();
 					if (panel != null) { panel.setAccessMessage(""); panel.clearRanksStatus(); panel.setAuthenticated(true, staff); panel.setDeputyOwner(isDeputyOwner); panel.setBroadcastAllowed(canPublishBroadcast); panel.setAuthenticatedPlayer(rsn); }
 					fetchPbCategories();
-					if (staff && hasStaffAccessKey())
+					if (staff)
 					{
 						fetchRankRequests();
 						fetchSentMessages();
@@ -4616,10 +4551,11 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 							womCache.put(key, new CacheEntry(member, roleName, expires));
 							if (member)
 							{
-								boolean staff = isNightLegionStaffRank(rsn);
+								boolean staff = WomMembership.isStaffRole(roleName) || isNightLegionStaffRank(rsn);
 					isStaff = staff;
-					isDeputyOwner = isNightLegionDeputyOrOwner(rsn);
-					canPublishBroadcast = staff;
+					isDeputyOwner = isDeputyOwnerRole(roleName) || isNightLegionDeputyOrOwner(rsn);
+					canPublishBroadcast = WomMembership.canPublishBroadcast(roleName)
+						|| isNightLegionBroadcastRank(rsn);
 								switchMessageCursorAccount(rsn);
 							authenticatedPlayerName = rsn;
 								configurePolling();
@@ -4628,7 +4564,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 								fetchRankRequestStatus();
 								if (panel != null) { panel.setAccessMessage(""); panel.clearRanksStatus(); panel.setAuthenticated(true, staff); panel.setDeputyOwner(isDeputyOwner); panel.setBroadcastAllowed(canPublishBroadcast); panel.setAuthenticatedPlayer(rsn); }
 								fetchPbCategories();
-								if (staff && hasStaffAccessKey())
+								if (staff)
 								{
 									fetchRankRequests();
 									fetchSentMessages();
@@ -4673,6 +4609,17 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		return member.getRank() == ClanRank.OWNER || member.getRank() == ClanRank.DEPUTY_OWNER;
 	}
 
+	private boolean isNightLegionBroadcastRank(String playerName)
+	{
+		if (playerName == null || client.getClanSettings() == null) return false;
+		net.runelite.api.clan.ClanMember member = client.getClanSettings().findMember(playerName);
+		if (member == null || member.getRank() == null) return false;
+		ClanRank rank = member.getRank();
+		if (rank == ClanRank.OWNER || rank == ClanRank.DEPUTY_OWNER) return true;
+		ClanTitle title = client.getClanSettings().titleForRank(rank);
+		return title != null && "General".equalsIgnoreCase(title.getName());
+	}
+
 	private void postJson(String path, String json, okhttp3.Callback callback)
 	{
 		HttpUrl base = serverBaseUrl();
@@ -4708,41 +4655,8 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		if (playerName != null && !playerName.isEmpty())
 		{
 			builder.header("X-Live-On-Player", playerName);
-			String staffAccessKey = config.staffAccessKey() == null
-				? ""
-				: config.staffAccessKey().trim();
-			if (isStaff && !staffAccessKey.isEmpty())
-			{
-				builder.header("Authorization", "Bearer " + staffAccessKey);
-			}
-			else
-			{
-				builder.header("Authorization", "LiveOnPlayer " + playerName);
-			}
 		}
 		return builder;
-	}
-
-	private boolean hasStaffAccessKey()
-	{
-		return true;
-	}
-
-	private void saveStaffAccessKey(String staffAccessKey)
-	{
-		configManager.setConfiguration(
-			"live-on-clan-messages",
-			"staffAccessKey",
-			staffAccessKey == null ? "" : staffAccessKey.trim());
-		if (isStaff && staffAccessKey != null && !staffAccessKey.trim().isEmpty())
-		{
-			configurePolling();
-			fetchLives();
-			fetchRankRequests();
-			fetchSentMessages();
-			fetchMvpMembers();
-			fetchClanTags();
-		}
 	}
 
 	private synchronized void switchMessageCursorAccount(String playerName)
@@ -4844,11 +4758,6 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			log.debug("Not staff, skipping rank requests fetch");
 			return;
 		}
-		if (!hasStaffAccessKey())
-		{
-			if (panel != null) panel.setRankRequestsStatus("Configure a chave da staff");
-			return;
-		}
 		if (!rankRequestsFetchInFlight.compareAndSet(false, true))
 		{
 			return;
@@ -4884,7 +4793,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 						log.debug("Failed to fetch rank requests: " + response.code());
 						if (response.code() == 403 && panel != null)
 						{
-							panel.setRankRequestsStatus("Check a chave da staff");
+							panel.setRankRequestsStatus("Staff permission denied");
 						}
 						return;
 					}
@@ -4947,7 +4856,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 
 	private void fetchRankRequestActivity()
 	{
-		if (!isStaff || !hasStaffAccessKey())
+		if (!isStaff)
 		{
 			return;
 		}
@@ -4967,7 +4876,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 						log.debug("Failed to fetch rank request activity: {}", response.code());
 						if (response.code() == 403 && panel != null)
 						{
-							panel.setRankRequestsStatus("Check a chave da staff");
+							panel.setRankRequestsStatus("Staff permission denied");
 						}
 						return;
 					}
@@ -5051,8 +4960,8 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 					if (panel != null)
 					{
 						panel.setRankRequestsStatus("DECLINED".equals(decision)
-							? "Request recusada"
-							: "Request aceita");
+							? "Request declined"
+							: "Request accepted");
 					}
 					fetchRankRequests();
 				}
@@ -5112,7 +5021,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		String rsnName = authenticatedPlayerName;
 		if (rsnName == null || rsnName.isEmpty())
 		{
-			if (panel != null) panel.setRankRequestsStatus("Valide sua conta pelo WOM");
+			if (panel != null) panel.setRankRequestsStatus("Verify your account through WOM");
 			return;
 		}
 		java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();

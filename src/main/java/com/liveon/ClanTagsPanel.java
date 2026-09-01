@@ -47,7 +47,7 @@ final class ClanTagsPanel extends JPanel
 		JPanel forms = new JPanel(new GridLayout(0, 1, 3, 3));
 		JPanel createForm = new JPanel(new GridLayout(0, 1, 3, 3));
 		createForm.setBorder(BorderFactory.createTitledBorder("Create tag"));
-		createForm.add(new JLabel("Sigla (maximum 5 caracteres)"));
+		createForm.add(new JLabel("Code (maximum 5 characters)"));
 		createForm.add(code);
 		createForm.add(new JLabel("Cor"));
 		createForm.add(color);
@@ -60,7 +60,7 @@ final class ClanTagsPanel extends JPanel
 		memberForm.setBorder(BorderFactory.createTitledBorder("Add member"));
 		memberForm.add(new JLabel("Tag"));
 		memberForm.add(tag);
-		memberForm.add(new JLabel("Nome do member"));
+		memberForm.add(new JLabel("Member name"));
 		memberForm.add(rsn);
 		addMember.setBackground(new Color(190, 104, 0));
 		addMember.setForeground(Color.WHITE);
@@ -90,7 +90,7 @@ final class ClanTagsPanel extends JPanel
 		removeMember.addActionListener(event ->
 		{
 			int selectedRow = table.getSelectedRow();
-			if (selectedRow < 0 || selectedRow >= rows.size()) setStatus("Select um member");
+			if (selectedRow < 0 || selectedRow >= rows.size()) setStatus("Select a member");
 			else removeMemberAction.accept(rows.get(selectedRow).tag, rows.get(selectedRow).member);
 		});
 		removeMember.setToolTipText("Remove the selected member from the tag");

@@ -1,8 +1,5 @@
 package com.liveon;
 
-import lombok.Getter;
-
-@Getter
 final class ClanMessage
 {
 	private String id;
@@ -24,4 +21,10 @@ final class ClanMessage
 		this.mode = mode;
 		this.pinned = pinned;
 	}
+
+	String getId() { return id; }
+	String getAuthor() { return author; }
+	String getMessage() { return message; }
+	String getMode() { return mode; }
+	Object getPinned() { return pinned; }
 }

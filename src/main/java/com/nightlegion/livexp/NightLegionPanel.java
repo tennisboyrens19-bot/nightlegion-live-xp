@@ -42,15 +42,14 @@ import net.runelite.client.util.AsyncBufferedImage;
 class NightLegionPanel extends PluginPanel
 {
     private static final int ROW_HEIGHT = 30;
+    private static final String[] EVENT_SECTIONS = {"BOTW", "SOTW", "GIVEAWAY"};
 
     private final Client client;
     private final NightLegionApi api;
     private final ItemManager itemManager;
     private final Map<Integer, ImageIcon> itemIcons = new HashMap<>();
 
-    private final JComboBox<String> section = new JComboBox<>(new String[]{
-        "BOTW", "SOTW", "GIVEAWAY", "GROUP FINDER"
-    });
+    private final JComboBox<String> section = new JComboBox<>(EVENT_SECTIONS);
     private final JComboBox<String> activityFilter = new JComboBox<>();
     private final JLabel connection = new JLabel("● Not connected");
     private final ViewportPanel body = new ViewportPanel();
@@ -58,19 +57,11 @@ class NightLegionPanel extends PluginPanel
     private JsonObject latest;
     private List<String> activities = new ArrayList<>();
     private boolean syncingActivities;
-    private final String fixedSection;
-
     NightLegionPanel(Client client, NightLegionApi api, ItemManager itemManager)
-    {
-        this(client, api, itemManager, null);
-    }
-
-    NightLegionPanel(Client client, NightLegionApi api, ItemManager itemManager, String fixedSection)
     {
         this.client = client;
         this.api = api;
         this.itemManager = itemManager;
-        this.fixedSection = fixedSection;
 
         setLayout(new BorderLayout());
         setBackground(NightLegionTheme.BACKGROUND);
@@ -97,20 +88,9 @@ class NightLegionPanel extends PluginPanel
         scroll.getViewport().setBackground(NightLegionTheme.BACKGROUND);
 
         add(buildHeader(), BorderLayout.NORTH);
-        if (fixedSection != null)
-        {
-            section.setSelectedItem(fixedSection);
-        }
         add(scroll, BorderLayout.CENTER);
 
         section.addActionListener(e -> render());
-        activityFilter.addActionListener(e ->
-        {
-            if (!syncingActivities && "GROUP FINDER".equals(String.valueOf(section.getSelectedItem())))
-            {
-                render();
-            }
-        });
 
     }
 
@@ -132,10 +112,10 @@ class NightLegionPanel extends PluginPanel
         JPanel names = new JPanel();
         names.setLayout(new BoxLayout(names, BoxLayout.Y_AXIS));
         names.setBackground(NightLegionTheme.HEADER);
-        JLabel title = new JLabel("GROUP FINDER".equals(fixedSection) ? "NightLegion Groups" : "NightLegion");
+        JLabel title = new JLabel("NightLegion Events");
         title.setForeground(NightLegionTheme.PURPLE_BRIGHT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
-        JLabel subtitle = new JLabel("GROUP FINDER".equals(fixedSection) ? "Find your next PvM team" : "Find your next clan activity");
+        JLabel subtitle = new JLabel("Find your next clan activity");
         subtitle.setForeground(NightLegionTheme.MUTED);
         subtitle.setFont(subtitle.getFont().deriveFont(9.5f));
         names.add(title);
@@ -148,11 +128,8 @@ class NightLegionPanel extends PluginPanel
 
         header.add(brand);
         header.add(Box.createVerticalStrut(5));
-        if (fixedSection == null)
-        {
-            header.add(section);
-            header.add(Box.createVerticalStrut(5));
-        }
+        header.add(section);
+        header.add(Box.createVerticalStrut(5));
         header.add(connection);
         return header;
     }
@@ -268,7 +245,7 @@ class NightLegionPanel extends PluginPanel
             return;
         }
 
-        String selected = fixedSection == null ? String.valueOf(section.getSelectedItem()) : fixedSection;
+        String selected = String.valueOf(section.getSelectedItem());
         if ("BOTW".equals(selected))
         {
             renderEvent("botw", "JOIN BOTW", "Boss of the Week");
@@ -281,11 +258,12 @@ class NightLegionPanel extends PluginPanel
         {
             renderGiveaway();
         }
-        else
-        {
-            renderGroups();
-        }
         repaintBody();
+    }
+
+    static String[] eventSections()
+    {
+        return EVENT_SECTIONS.clone();
     }
 
     private void renderEvent(String key, String joinText, String subtitle)

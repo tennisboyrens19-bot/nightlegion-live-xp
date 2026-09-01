@@ -72,7 +72,7 @@ final class RankRequestsPanel extends JPanel
 		confirm.setMargin(new java.awt.Insets(3, 2, 3, 2));
 		confirm.setBackground(new Color(190, 104, 0));
 		confirm.setForeground(Color.WHITE);
-		confirm.setToolTipText("Accept request selecionada");
+		confirm.setToolTipText("Accept selected request");
 		confirm.addActionListener(event ->
 		{
 			int selectedRow = requestsTable.getSelectedRow();
@@ -82,12 +82,12 @@ final class RankRequestsPanel extends JPanel
 			}
 			else
 			{
-				setStatus("Select uma request");
+				setStatus("Select a request");
 			}
 		});
 		JButton delete = new JButton("Delete");
 		delete.setMargin(new java.awt.Insets(3, 2, 3, 2));
-		delete.setToolTipText("Delete request selecionada");
+		delete.setToolTipText("Delete selected request");
 		delete.addActionListener(event ->
 		{
 			int selectedRow = requestsTable.getSelectedRow();
@@ -97,12 +97,12 @@ final class RankRequestsPanel extends JPanel
 			}
 			else
 			{
-				setStatus("Select uma request");
+				setStatus("Select a request");
 			}
 		});
 		JButton decline = new JButton("Decline");
 		decline.setMargin(new java.awt.Insets(3, 2, 3, 2));
-		decline.setToolTipText("Decline request selecionada");
+		decline.setToolTipText("Decline selected request");
 		decline.addActionListener(event ->
 		{
 			int selectedRow = requestsTable.getSelectedRow();
@@ -112,7 +112,7 @@ final class RankRequestsPanel extends JPanel
 			}
 			else
 			{
-				setStatus("Select uma request");
+				setStatus("Select a request");
 			}
 		});
 		actions.add(confirm);
@@ -159,7 +159,7 @@ statusLabel.setText("");
 			StringBuilder text = new StringBuilder();
 			for (RankRequestActivity activity : activities)
 			{
-				String decision = "ACCEPTED".equalsIgnoreCase(activity.decision) ? "ACEITO" : "RECUSADO";
+				String decision = "ACCEPTED".equalsIgnoreCase(activity.decision) ? "ACCEPTED" : "DECLINED";
 				text.append(activity.playerName)
 					.append(" / ").append(activity.rankName)
 					.append(" — ").append(decision)

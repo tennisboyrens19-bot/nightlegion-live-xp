@@ -1,9 +1,6 @@
 package com.liveon;
 
 import com.google.gson.annotations.SerializedName;
-import lombok.Getter;
-
-@Getter
 final class MvpEfficiencyEntry
 {
 	@SerializedName("player_name")
@@ -12,4 +9,9 @@ final class MvpEfficiencyEntry
 	private String accountType;
 	private double gained;
 	private MvpEfficiencyContribution[] breakdown;
+
+	String getPlayerName() { return playerName; }
+	String getAccountType() { return accountType; }
+	double getGained() { return gained; }
+	MvpEfficiencyContribution[] getBreakdown() { return breakdown; }
 }

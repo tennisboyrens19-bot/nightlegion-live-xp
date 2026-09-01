@@ -1,9 +1,6 @@
 package com.liveon;
 
 import com.google.gson.annotations.SerializedName;
-import lombok.Getter;
-
-@Getter
 final class MvpDropEntry
 {
 	@SerializedName("player_name")
@@ -27,4 +24,10 @@ final class MvpDropEntry
 		this.totalValue = totalValue;
 		this.dropCount = dropCount;
 	}
+
+	String getPlayerName() { return playerName; }
+	long getTotalValue() { return totalValue; }
+	int getDropCount() { return dropCount; }
+	MvpDropDetail[] getTopDrops() { return topDrops; }
+	String getAccountType() { return accountType; }
 }
