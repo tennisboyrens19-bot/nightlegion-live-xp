@@ -3,6 +3,7 @@ package com.liveon;
 import com.nightlegion.livexp.NightLegionExtrasBridge;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.google.inject.Provides;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -16,6 +17,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -66,13 +68,15 @@ import javax.swing.JOptionPane;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.SwingUtilities;
-import net.runelite.client.events.NpcLootReceived;
+import net.runelite.client.events.ServerNpcLoot;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemStack;
 import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.loottracker.LootReceived;
 import net.runelite.client.plugins.loottracker.LootTrackerConfig;
+import net.runelite.client.plugins.loottracker.LootTrackerPlugin;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
@@ -90,10 +94,12 @@ import okhttp3.MultipartBody;
 import net.runelite.http.api.loottracker.LootRecordType;
 
 @PluginDescriptor(name = "NightLegion")
+@PluginDependency(LootTrackerPlugin.class)
 public class ClanMessagesPlugin extends Plugin
 {
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ClanMessagesPlugin.class);
 	private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+	static final long MVP_DROP_MIN_VALUE = 1_000_000L;
 	private static final Pattern RANK_REQUEST_MESSAGE_PATTERN = Pattern.compile("(?<player>.+) requested a rank: (?<rank>.+)");
 	private static final Pattern PROMOTION_MESSAGE_PATTERN = Pattern.compile("(?:Promotion: )?(?<player>.+?) was promoted to (?<rank>.+)!");
 	private static final Pattern URL_PATTERN = Pattern.compile("(?i)\\b(?:https?://|twitch\\.tv/)[^\\s<>]+");
@@ -106,7 +112,7 @@ public class ClanMessagesPlugin extends Plugin
 	private static final Pattern PET_COLLECTION_PATTERN = Pattern.compile(
 		"(?:New item added to your collection log|Collection log):\\s*(.+)", Pattern.CASE_INSENSITIVE);
 	private static final Pattern VALUABLE_DROP_PATTERN = Pattern.compile(
-		"(?:Valuable drop|Untradeable drop):\\s*(?:(\\d+)\\s*x\\s*)?(.+?)\\s*\\(([0-9,]+)\\s+coins?\\)\\s*\\.?$",
+		"(Valuable drop|Untradeable drop):\\s*(?:(\\d+)\\s*x\\s*)?(.+?)\\s*\\(([0-9,]+)\\s+coins?\\)\\s*\\.?$",
 		Pattern.CASE_INSENSITIVE);
 	private static final String PB_TEAM_SIZE = "(?<teamsize>\\d+(?:\\+|-\\d+)? players?|Solo)";
 	private static final Pattern PB_KILLCOUNT_PATTERN = Pattern.compile(
@@ -251,7 +257,20 @@ public class ClanMessagesPlugin extends Plugin
 	private int bossStatisticsBoardScanTicks;
 	private final java.util.LinkedHashSet<Integer> bossStatisticsBoardGroupIds = new java.util.LinkedHashSet<>();
 	private final java.util.Map<String, PendingAllowlistedDrop> pendingAllowlistedDrops = new java.util.HashMap<>();
-	private final java.util.Map<String, Integer> recentAllowlistedLootTicks = new java.util.HashMap<>();
+	private final java.util.Map<String, Integer> recentAllowlistedLootTicks = boundedDropMap();
+	private final java.util.Map<String, Integer> recentLootItemIds = boundedDropMap();
+
+	private static <T> java.util.Map<String, T> boundedDropMap()
+	{
+		return new java.util.LinkedHashMap<String, T>()
+		{
+			@Override
+			protected boolean removeEldestEntry(Map.Entry<String, T> eldest)
+			{
+				return size() > 128;
+			}
+		};
+	}
 
 	static final class PendingAllowlistedDrop
 	{
@@ -283,8 +302,10 @@ public class ClanMessagesPlugin extends Plugin
 		executor = Executors.newSingleThreadScheduledExecutor();
 		RankVisuals.registerChatIcons(chatIconManager);
 		clanLiveBadgeDecorator = new ClanLiveBadgeDecorator(client, this);
-		nightLegionExtras = new NightLegionExtrasBridge(client, okHttpClient, executor, config::personalLinkToken, gson, itemManager);
+		nightLegionExtras = new NightLegionExtrasBridge(client, okHttpClient, executor,
+			config::personalLinkToken, config::enabled, this::currentLocalClanRank, gson, itemManager);
 		panel = new ClanMessagesPanel(() -> publishDraft("BROADCAST"), () -> publishDraft("CLAN"), () -> verifyToken(true), this::clearMessages, this::refreshRanks, this::resetRanks, this::requestRank, this::fetchRankRequests, this::deleteRankRequest, this::confirmRankRequest, this::declineRankRequest, this::fetchSentMessages, this::deleteSentMessage, this::resendSentMessage, this::togglePinnedMessage, this::publishPanelNotice, this::removePanelNotice, this::fetchLives, this::saveLiveChannel, this::deleteLiveChannel, this::fetchClanTags, this::createClanTag, this::addClanTagMember, this::deleteClanTag, this::removeClanTagMember, this::fetchPbCategories, this::fetchPbRanking, nightLegionExtras.eventsPanel(), nightLegionExtras.groupsPanel());
+		nightLegionExtras.setRankProfileConsumer(this::updateContributionProfile);
 		nightLegionExtras.refreshAll();
 		panel.setPbParticipationEnabled(config.pbRankingEnabled());
 		panel.setMvpParticipationEnabled(config.statsEnabled());
@@ -305,9 +326,14 @@ public class ClanMessagesPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
+		if (nightLegionExtras != null)
+		{
+			nightLegionExtras.shutDown();
+		}
 		resetPendingPet();
 		pendingAllowlistedDrops.clear();
 		recentAllowlistedLootTicks.clear();
+		recentLootItemIds.clear();
 		if (pollingTask != null)
 		{
 			pollingTask.cancel(false);
@@ -480,6 +506,10 @@ public class ClanMessagesPlugin extends Plugin
 	@Subscribe
 	public void onChatMessage(ChatMessage event)
 	{
+		if (nightLegionExtras != null)
+		{
+			nightLegionExtras.onChatMessage(event);
+		}
 		if (event.getType() != ChatMessageType.GAMEMESSAGE
 			&& event.getType() != ChatMessageType.FRIENDSCHATNOTIFICATION
 			&& event.getType() != ChatMessageType.CLAN_MESSAGE)
@@ -584,6 +614,16 @@ public class ClanMessagesPlugin extends Plugin
 		{
 			return;
 		}
+		String decoratedSender = decorateClanChatSender(sender, isMvp, isLive, tagBadges);
+		if (!sender.equals(decoratedSender))
+		{
+			objectStack[1] = decoratedSender;
+		}
+	}
+
+	static String decorateClanChatSender(String sender, boolean isMvp, boolean isLive, String tagBadges)
+	{
+		if (sender == null) return null;
 		StringBuilder badges = new StringBuilder();
 		if (isMvp)
 		{
@@ -593,15 +633,16 @@ public class ClanMessagesPlugin extends Plugin
 		{
 			badges.append(" <col=96ffaa>LIVE</col>");
 		}
-		badges.append(tagBadges);
+		badges.append(tagBadges == null ? "" : tagBadges);
 		int colonIndex = sender.lastIndexOf(':');
 		if (badges.length() > 0 && colonIndex >= 0 && !sender.contains(badges.toString()))
 		{
 			// Keep the native clan rank at the beginning and place our optional
 			// badges after the sender name, immediately before the chat colon.
-			objectStack[1] = sender.substring(0, colonIndex) + badges
+			return sender.substring(0, colonIndex) + badges
 				+ sender.substring(colonIndex);
 		}
+		return sender;
 	}
 
 	private void decorateAchievementMessage(Object[] objectStack, int objectStackSize)
@@ -673,9 +714,10 @@ public class ClanMessagesPlugin extends Plugin
 	}
 
 	@Subscribe
-	public void onNpcLootReceived(NpcLootReceived event)
+	public void onServerNpcLoot(ServerNpcLoot event)
 	{
-		notifyDiscordDrop(event.getNpc().getName(), event.getItems(), "NPC", event.getNpc().getId());
+		String source = Text.removeTags(event.getComposition().getName());
+		notifyDiscordDrop(source, event.getItems(), "NPC", event.getComposition().getId());
 	}
 
 	@Subscribe
@@ -696,18 +738,34 @@ public class ClanMessagesPlugin extends Plugin
 		Integer npcId, Long singleItemValueOverride)
 	{
 		if (items.isEmpty() || isTemporaryLootWorld()) return;
+		String currentRsn = currentLocalRsn();
+		log.debug("MVP loot event received: source={}, category={}, itemCount={}, currentRsn={}",
+			source, category, items.size(), currentRsn);
 		long totalValue = 0;
 		for (ItemStack item : items)
 		{
 			long value = effectiveDropValue(item, items.size(), singleItemValueOverride);
 			totalValue += value;
-			String itemName = itemManager.getItemComposition(item.getId()).getName();
-			if (matchesDiscordFilter(DROP_ITEM_ALLOWLIST, itemName))
+			net.runelite.api.ItemComposition composition = itemManager.getItemComposition(item.getId());
+			String itemName = composition.getName();
+			String itemKey = normalizeDropFilterValue(itemName);
+			boolean specialValueItem = !composition.isTradeable()
+				|| matchesDiscordFilter(DROP_ITEM_ALLOWLIST, itemName);
+			if (specialValueItem)
 			{
-				recentAllowlistedLootTicks.put(normalizeDropFilterValue(itemName), client.getTickCount());
+				recentLootItemIds.put(itemKey, item.getId());
 			}
+			if (specialValueItem && value > 0)
+			{
+				recentAllowlistedLootTicks.put(itemKey, client.getTickCount());
+			}
+			log.debug("MVP loot item: itemId={}, name={}, quantity={}, unitPrice={}, totalValue={}, qualifies={}, currentRsn={}",
+				item.getId(), itemName, item.getQuantity(),
+				itemManager.getItemPrice(item.getId()), value, qualifiesForMvpDrop(value), currentRsn);
 		}
-		if (config.statsEnabled() && totalValue >= 1_000_000L)
+		log.debug("MVP loot threshold: eventTotal={}, minimum={}, statsEnabled={}, qualifies={}, currentRsn={}",
+			totalValue, MVP_DROP_MIN_VALUE, config.statsEnabled(), qualifiesForMvpDrop(totalValue), currentRsn);
+		if (config.statsEnabled() && qualifiesForMvpDrop(totalValue))
 		{
 			submitDropStats(items, source, singleItemValueOverride);
 		}
@@ -732,7 +790,10 @@ public class ClanMessagesPlugin extends Plugin
 			String itemName = itemManager.getItemComposition(item.getId()).getName();
 			boolean denied = matchesDiscordFilter(DISCORD_ITEM_DENYLIST, itemName);
 			boolean allowed = matchesDiscordFilter(DROP_ITEM_ALLOWLIST, itemName);
-			if (denied || (value < minimumValue && !allowed))
+			// An untradeable allowlisted item may have a zero GE price. Its game
+			// message supplies the real value shortly afterwards, so defer it to
+			// that path instead of sending a zero-value Discord duplicate.
+			if (denied || value <= 0 || (value < minimumValue && !allowed))
 			{
 				continue;
 			}
@@ -785,7 +846,17 @@ public class ClanMessagesPlugin extends Plugin
 		{
 			return Math.max(0L, singleItemValueOverride);
 		}
-		return (long) itemManager.getItemPrice(item.getId()) * item.getQuantity();
+		return totalDropValue(itemManager.getItemPrice(item.getId()), item.getQuantity());
+	}
+
+	static long totalDropValue(long unitPrice, long quantity)
+	{
+		return Math.max(0L, unitPrice) * Math.max(0L, quantity);
+	}
+
+	static boolean qualifiesForMvpDrop(long totalValue)
+	{
+		return totalValue >= MVP_DROP_MIN_VALUE;
 	}
 
 	static boolean matchesDiscordFilter(List<String> filters, String value)
@@ -822,12 +893,13 @@ public class ClanMessagesPlugin extends Plugin
 		if (message == null) return null;
 		Matcher matcher = VALUABLE_DROP_PATTERN.matcher(message.replace('\u00A0', ' ').trim());
 		if (!matcher.find()) return null;
-		String itemName = matcher.group(2).trim();
-		if (!matchesDiscordFilter(DROP_ITEM_ALLOWLIST, itemName)) return null;
+		boolean untradeable = "Untradeable drop".equalsIgnoreCase(matcher.group(1));
+		String itemName = matcher.group(3).trim();
+		if (!untradeable && !matchesDiscordFilter(DROP_ITEM_ALLOWLIST, itemName)) return null;
 		try
 		{
-			int quantity = matcher.group(1) == null ? 1 : Integer.parseInt(matcher.group(1));
-			long totalValue = Long.parseLong(matcher.group(3).replace(",", ""));
+			int quantity = matcher.group(2) == null ? 1 : Integer.parseInt(matcher.group(2));
+			long totalValue = Long.parseLong(matcher.group(4).replace(",", ""));
 			return new PendingAllowlistedDrop(itemName, quantity, totalValue);
 		}
 		catch (NumberFormatException ignored)
@@ -893,6 +965,11 @@ public class ClanMessagesPlugin extends Plugin
 
 	private ItemStack resolveCollectionLogItem(String itemName)
 	{
+		Integer recentItemId = recentLootItemIds.get(normalizeDropFilterValue(itemName));
+		if (recentItemId != null)
+		{
+			return new ItemStack(recentItemId, 1);
+		}
 		for (net.runelite.http.api.item.ItemPrice candidate : itemManager.search(itemName))
 		{
 			if (candidate.getName() != null && candidate.getName().trim().equalsIgnoreCase(itemName))
@@ -1018,6 +1095,10 @@ public class ClanMessagesPlugin extends Plugin
 	public void onWidgetLoaded(WidgetLoaded event)
 	{
 		int groupId = event.getGroupId();
+		if (isPbParticipationEnabled())
+		{
+			log.debug("PB interface loaded: groupId={}, currentRsn={}", groupId, currentLocalRsn());
+		}
 		// Physical scoreboards do not share one stable interface group. Restrict
 		// the short inspection window to the group that actually loaded instead
 		// of collecting text from every visible game interface.
@@ -1389,7 +1470,7 @@ public class ClanMessagesPlugin extends Plugin
 		ClanRank rank = member.getRank();
 		if (rank.equals(ClanRank.OWNER)) return "Owner";
 		if (rank.equals(ClanRank.DEPUTY_OWNER)) return "Deputy Owner";
-		if (rank.equals(ClanRank.ADMINISTRATOR)) return "Administrador";
+		if (rank.equals(ClanRank.ADMINISTRATOR)) return "Administrator";
 		if (rank.equals(ClanRank.GUEST)) return "Recruit";
 		return "Rank " + rank.getRank();
 	}
@@ -1926,34 +2007,58 @@ public class ClanMessagesPlugin extends Plugin
 		if (questPoints >= 250 && fireCape && easyCombatAchievements) return "Student";
 		if (questPoints >= 200 && fireCape) return "Corporal";
 		if (!fireCape) return "Fire cape pending";
-		if (questPoints < 0) return "Quest points not synchronizeds";
+		if (questPoints < 0) return "Quest points not synchronized";
 		return "Quest points pending";
 	}
 
 	private void submitDropStats(Collection<ItemStack> items, String source, Long singleItemValueOverride)
 	{
-		if (client.getLocalPlayer() == null) return;
+		String currentRsn = currentLocalRsn();
+		if (currentRsn.isEmpty()) return;
+		Map<Integer, Long> quantitiesByItem = aggregateDropQuantities(items);
 		List<Map<String, Object>> validDrops = new ArrayList<>();
-		for (ItemStack item : items)
+		for (Map.Entry<Integer, Long> item : quantitiesByItem.entrySet())
 		{
-			long value = effectiveDropValue(item, items.size(), singleItemValueOverride);
-			if (value < 1_000_000L) continue;
+			long quantity = item.getValue();
+			long unitPrice = Math.max(0L, itemManager.getItemPrice(item.getKey()));
+			long value = singleItemValueOverride != null && quantitiesByItem.size() == 1
+				? Math.max(0L, singleItemValueOverride)
+				: totalDropValue(unitPrice, quantity);
+			if (!qualifiesForMvpDrop(value)) continue;
 			Map<String, Object> validDrop = new LinkedHashMap<>();
-			validDrop.put("item", item.getQuantity() + "x " + itemManager.getItemComposition(item.getId()).getName());
+			validDrop.put("item", quantity + "x " + itemManager.getItemComposition(item.getKey()).getName());
+			validDrop.put("itemId", item.getKey());
+			validDrop.put("quantity", quantity);
+			validDrop.put("unitPrice", unitPrice);
 			validDrop.put("value", value);
 			validDrops.add(validDrop);
 		}
-		if (validDrops.isEmpty()) return;
+		if (validDrops.isEmpty())
+		{
+			log.debug("MVP loot event had no individually qualifying drops: source={}, currentRsn={}",
+				source, currentRsn);
+			return;
+		}
 		// Prepare payload; include playerName so server can verify via WOM
 		java.util.Map<String, Object> dropPayload = new java.util.LinkedHashMap<>();
-		dropPayload.put("playerName", client.getLocalPlayer().getName());
+		dropPayload.put("playerName", currentRsn);
+		dropPayload.put("eventId", UUID.randomUUID().toString());
 		dropPayload.put("drops", validDrops);
 		dropPayload.put("source", source);
-		postJson("stats/drops", gson.toJson(dropPayload), new okhttp3.Callback()
+		String payload = gson.toJson(dropPayload);
+		log.debug("Submitting MVP loot: source={}, qualifyingDrops={}, currentRsn={}",
+			source, validDrops.size(), currentRsn);
+		submitDropPayload(payload, 0);
+	}
+
+	private void submitDropPayload(String payload, int attempt)
+	{
+		postJson("stats/drops", payload, new okhttp3.Callback()
 		{
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
 			{
-				log.debug("Unable to submit drop statistics", exception);
+				log.debug("Unable to submit drop statistics (attempt {})", attempt + 1, exception);
+				scheduleDropRetry(payload, attempt);
 			}
 
 			@Override public void onResponse(okhttp3.Call call, Response response) throws IOException
@@ -1962,15 +2067,43 @@ public class ClanMessagesPlugin extends Plugin
 				{
 					if (response.isSuccessful())
 					{
+						log.debug("MVP drop submission accepted: HTTP {}; refreshing monthly leaderboard",
+							response.code());
 						fetchMvpDrops();
+						fetchMvpMembers();
 					}
 					else
 					{
-						log.debug("Drop statistics submission failed: {}", response.code());
+						log.debug("MVP drop submission rejected: HTTP {}", response.code());
+						if (response.code() == 429 || response.code() >= 500)
+						{
+							scheduleDropRetry(payload, attempt);
+						}
 					}
 				}
 			}
 		});
+	}
+
+	static Map<Integer, Long> aggregateDropQuantities(Collection<ItemStack> items)
+	{
+		Map<Integer, Long> quantitiesByItem = new LinkedHashMap<>();
+		if (items == null) return quantitiesByItem;
+		for (ItemStack item : items)
+		{
+			if (item == null || item.getQuantity() <= 0) continue;
+			quantitiesByItem.merge(item.getId(), (long) item.getQuantity(), Long::sum);
+		}
+		return quantitiesByItem;
+	}
+
+	private void scheduleDropRetry(String payload, int attempt)
+	{
+		if (attempt >= 3) return;
+		ScheduledExecutorService currentExecutor = executor;
+		if (currentExecutor == null || currentExecutor.isShutdown()) return;
+		long delaySeconds = 1L << attempt;
+		currentExecutor.schedule(() -> submitDropPayload(payload, attempt + 1), delaySeconds, TimeUnit.SECONDS);
 	}
 
 	private void sendDiscordDrop(String playerName, String description, int thumbnailItemId, String source,
@@ -2444,7 +2577,8 @@ public class ClanMessagesPlugin extends Plugin
 	{
 		if (bossStatisticsBoardScanTicks <= 0 || (client.getTickCount() & 1) != 0) return;
 		if (combatAchievementPbScanTicks > 0) return;
-		if (authenticatedPlayerName == null || authenticatedPlayerName.isEmpty()) return;
+		String currentRsn = currentLocalRsn();
+		if (currentRsn.isEmpty()) return;
 		bossStatisticsBoardScanTicks--;
 		List<String> texts = new ArrayList<>();
 		List<Map<String, Object>> parsedRecords = parseOfficialBossScoreboards();
@@ -2476,10 +2610,13 @@ public class ClanMessagesPlugin extends Plugin
 			String detectedMode = (String) parsed.get("mode");
 			Map<String, Object> payload = pbPayload(
 				boss + (detectedMode == null || detectedMode.isEmpty() ? "" : " " + detectedMode), 0, seconds);
-			String signature = authenticatedPlayerName + "\n" + payload.get("boss") + "\n"
+			log.debug("PB boss statistics parsed: boss={}, mode={}, seconds={}, currentRsn={}",
+				payload.get("boss"), payload.get("mode"), seconds, currentRsn);
+			String signature = currentRsn + "\n" + payload.get("boss") + "\n"
 				+ payload.get("mode") + "\n" + seconds;
 			if (!submittedPbSignatures.add(signature)) continue;
-			submitPb((String) payload.get("boss"), (String) payload.get("mode"), 0, seconds, signature);
+			submitPb((String) payload.get("boss"), (String) payload.get("mode"), 0, seconds,
+				signature, "boss_statistics");
 		}
 	}
 
@@ -2532,7 +2669,8 @@ public class ClanMessagesPlugin extends Plugin
 	private void processCombatAchievementBossPb()
 	{
 		if (combatAchievementPbScanTicks <= 0 || (client.getTickCount() & 1) != 0) return;
-		if (authenticatedPlayerName == null || authenticatedPlayerName.isEmpty()) return;
+		String currentRsn = currentLocalRsn();
+		if (currentRsn.isEmpty()) return;
 		combatAchievementPbScanTicks--;
 		Widget bossName = client.getWidget(InterfaceID.CaBoss.BOSS_NAME);
 		Widget bossStats = client.getWidget(InterfaceID.CaBoss.CA_BOSS_STATS);
@@ -2547,10 +2685,13 @@ public class ClanMessagesPlugin extends Plugin
 		String boss = (String) parsed.get("boss");
 		double seconds = (Double) parsed.get("seconds");
 		Map<String, Object> payload = pbPayload(boss, 0, seconds);
-		String signature = authenticatedPlayerName + "\n" + payload.get("boss") + "\n"
+		log.debug("PB Combat Achievement parsed: boss={}, mode={}, seconds={}, currentRsn={}",
+			payload.get("boss"), payload.get("mode"), seconds, currentRsn);
+		String signature = currentRsn + "\n" + payload.get("boss") + "\n"
 			+ payload.get("mode") + "\n" + seconds;
 		if (!submittedPbSignatures.add(signature)) return;
-		submitPb((String) payload.get("boss"), (String) payload.get("mode"), 0, seconds, signature);
+		submitPb((String) payload.get("boss"), (String) payload.get("mode"), 0, seconds,
+			signature, "combat_achievements");
 	}
 
 	private void armCombatAchievementPbScanForVisiblePage()
@@ -2564,9 +2705,10 @@ public class ClanMessagesPlugin extends Plugin
 			if (combatAchievementPbScanTicks <= 0) visibleCombatAchievementPage = "";
 			return;
 		}
-		if (authenticatedPlayerName == null || authenticatedPlayerName.isEmpty()) return;
+		if (currentLocalRsn().isEmpty()) return;
 		if (!page.equalsIgnoreCase(visibleCombatAchievementPage))
 		{
+			log.debug("PB Combat Achievement boss page detected: page={}, currentRsn={}", page, currentLocalRsn());
 			visibleCombatAchievementPage = page;
 			combatAchievementPbScanTicks = 6;
 		}
@@ -2739,10 +2881,11 @@ public class ClanMessagesPlugin extends Plugin
 
 	private void capturePersonalBest(String rawMessage, String plainMessage)
 	{
-		Matcher kill = PB_KILLCOUNT_PATTERN.matcher(plainMessage);
-		if (kill.find())
+		String detectedBoss = parsePbChatBoss(plainMessage);
+		if (detectedBoss != null)
 		{
-			String boss = kill.group("boss").trim().replace(":", "");
+			String boss = detectedBoss;
+			log.debug("PB chat boss detected: boss={}, currentRsn={}", boss, currentLocalRsn());
 			if (pendingPbSeconds > 0 && pendingPbTick >= 0 && client.getTickCount() - pendingPbTick <= 5)
 			{
 				submitCategorizedPb(boss, pendingPbTeamSize, pendingPbSeconds);
@@ -2758,14 +2901,12 @@ public class ClanMessagesPlugin extends Plugin
 			return;
 		}
 
-		Matcher raid = PB_RAID_PATTERN.matcher(rawMessage);
-		Matcher time = PB_NEW_TIME_PATTERN.matcher(rawMessage);
-		Matcher matched = raid.find() ? raid : (time.find() ? time : null);
-		if (matched == null) return;
-		double seconds = parsePbTime(matched.group("pb"));
-		int teamSize = 0;
-		try { teamSize = parseTeamSize(matched.group("teamsize")); }
-		catch (IllegalArgumentException ignored) { }
+		Map<String, Object> parsedTime = parsePbChatTime(rawMessage);
+		if (parsedTime == null) return;
+		double seconds = ((Number) parsedTime.get("seconds")).doubleValue();
+		int teamSize = ((Number) parsedTime.get("teamSize")).intValue();
+		log.debug("PB chat time detected: seconds={}, teamSize={}, currentRsn={}",
+			seconds, teamSize, currentLocalRsn());
 		if (pendingPbBoss != null && pendingPbTick >= 0 && client.getTickCount() - pendingPbTick <= 5)
 		{
 			submitCategorizedPb(pendingPbBoss, teamSize, seconds);
@@ -2778,6 +2919,31 @@ public class ClanMessagesPlugin extends Plugin
 			pendingPbTeamSize = teamSize;
 			pendingPbTick = client.getTickCount();
 		}
+	}
+
+	static String parsePbChatBoss(String plainMessage)
+	{
+		Matcher kill = PB_KILLCOUNT_PATTERN.matcher(plainMessage == null ? "" : plainMessage);
+		return kill.find() ? kill.group("boss").trim().replace(":", "") : null;
+	}
+
+	static Map<String, Object> parsePbChatTime(String rawMessage)
+	{
+		String message = rawMessage == null ? "" : rawMessage;
+		Matcher raid = PB_RAID_PATTERN.matcher(message);
+		Matcher time = PB_NEW_TIME_PATTERN.matcher(message);
+		Matcher matched = raid.find() ? raid : (time.find() ? time : null);
+		if (matched == null) return null;
+		double seconds;
+		try { seconds = parsePbTime(matched.group("pb")); }
+		catch (NumberFormatException ignored) { return null; }
+		int teamSize = 0;
+		try { teamSize = parseTeamSize(matched.group("teamsize")); }
+		catch (IllegalArgumentException ignored) { }
+		Map<String, Object> result = new LinkedHashMap<>();
+		result.put("seconds", seconds);
+		result.put("teamSize", teamSize);
+		return result;
 	}
 
 	private void processAdventureLog()
@@ -2796,7 +2962,11 @@ public class ClanMessagesPlugin extends Plugin
 		if (!adventureLogCountersLoaded) return;
 		adventureLogCountersLoaded = false;
 		if (adventureLogOwner == null || !WomMembership.normalizePlayerName(adventureLogOwner)
-			.equals(WomMembership.normalizePlayerName(client.getLocalPlayer().getName()))) return;
+			.equals(WomMembership.normalizePlayerName(client.getLocalPlayer().getName())))
+		{
+			log.debug("PB Adventure Log ignored: owner={}, currentRsn={}", adventureLogOwner, currentLocalRsn());
+			return;
+		}
 		Widget parent = client.getWidget(InterfaceID.Journalscroll.TEXTLAYER);
 		if (parent == null || parent.getStaticChildren() == null) return;
 		Widget[] children = parent.getStaticChildren();
@@ -2805,6 +2975,7 @@ public class ClanMessagesPlugin extends Plugin
 		List<Map<String, Object>> records = parseAdventureLogPbs(lines);
 		if (!records.isEmpty())
 		{
+			log.debug("PB Adventure Log parsed: records={}, currentRsn={}", records.size(), currentLocalRsn());
 			submitPbBatch(records);
 		}
 	}
@@ -2891,7 +3062,8 @@ public class ClanMessagesPlugin extends Plugin
 			else if (recordedBoss.contains("Theatre of Blood")) teamSize = tobTeamSize();
 		}
 		Map<String, Object> values = pbPayload(recordedBoss, teamSize, seconds);
-		submitPb((String) values.get("boss"), (String) values.get("mode"), teamSize, seconds);
+		submitPb((String) values.get("boss"), (String) values.get("mode"), teamSize, seconds,
+			null, "chat");
 	}
 
 	private int tobTeamSize()
@@ -3103,7 +3275,7 @@ public class ClanMessagesPlugin extends Plugin
 					}
 					ClanMessage[] received = gson.fromJson(response.body().string(), ClanMessage[].class);
 					log.debug("Message fetch for {} returned {} message(s) after id {}",
-						authenticatedPlayerName,
+						currentLocalRsn(),
 						received == null ? 0 : received.length,
 						lastMessageId);
 					if (received != null)
@@ -3149,7 +3321,7 @@ public class ClanMessagesPlugin extends Plugin
 							queueBroadcast(message.getMessage(), "CLAN".equalsIgnoreCase(message.getMode()));
 						}
 					}
-					if (panel != null) panel.setAuthenticatedPlayer(authenticatedPlayerName);
+					if (panel != null) panel.setAuthenticatedPlayer(currentLocalRsn());
 				}
 				finally
 				{
@@ -3191,6 +3363,8 @@ public class ClanMessagesPlugin extends Plugin
 						return;
 					}
 					MvpDropEntry[] ranking = gson.fromJson(response.body().string(), MvpDropEntry[].class);
+					log.debug("MVP drops leaderboard refresh succeeded: entries={}, currentRsn={}",
+						ranking == null ? 0 : ranking.length, currentLocalRsn());
 					if (panel != null)
 					{
 						panel.setMvpDrops(ranking == null
@@ -3243,7 +3417,7 @@ public class ClanMessagesPlugin extends Plugin
 	{
 		if (!isStaff || message == null || message.trim().isEmpty()) return;
 		Map<String, Object> payload = new LinkedHashMap<>();
-		payload.put("playerName", authenticatedPlayerName);
+		payload.put("playerName", currentLocalRsn());
 		payload.put("message", message.trim());
 		postJson("admin/panel-notice", gson.toJson(payload), new okhttp3.Callback()
 		{
@@ -3296,7 +3470,7 @@ public class ClanMessagesPlugin extends Plugin
 		if (client.getGameState() != GameState.LOGGED_IN || authenticatedPlayerName == null
 			|| authenticatedPlayerName.isEmpty()) return;
 		long generation = connectionSessionGeneration.get();
-		String account = authenticatedPlayerName;
+		String account = currentLocalRsn();
 		getJson("stats/recent-activity", new okhttp3.Callback()
 		{
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
@@ -3364,7 +3538,7 @@ public class ClanMessagesPlugin extends Plugin
 			return;
 		}
 		long generation = connectionSessionGeneration.get();
-		String account = authenticatedPlayerName;
+		String account = currentLocalRsn();
 		getJson("lives", liveChannelsCallback(false, generation, account));
 		if (isStaff)
 		{
@@ -3423,7 +3597,7 @@ public class ClanMessagesPlugin extends Plugin
 	{
 		return generation == connectionSessionGeneration.get()
 			&& client.getGameState() == GameState.LOGGED_IN
-			&& account != null && account.equals(authenticatedPlayerName);
+			&& account != null && account.equals(currentLocalRsn());
 	}
 
 	private void saveLiveChannel(String rsn, String twitchLogin)
@@ -3434,7 +3608,7 @@ public class ClanMessagesPlugin extends Plugin
 			return;
 		}
 		java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
-		payload.put("playerName", authenticatedPlayerName);
+		payload.put("playerName", currentLocalRsn());
 		payload.put("rsn", rsn);
 		payload.put("twitchLogin", twitchLogin);
 		postJson("admin/live-channels", gson.toJson(payload), new okhttp3.Callback()
@@ -3448,7 +3622,7 @@ public class ClanMessagesPlugin extends Plugin
 			{
 				try (Response ignored = response)
 				{
-					if (panel != null) panel.setLivesStatus(response.isSuccessful() ? "Channel associado" : "Error " + response.code());
+					if (panel != null) panel.setLivesStatus(response.isSuccessful() ? "Channel linked" : "Error " + response.code());
 					if (response.isSuccessful())
 					{
 						if (panel != null) panel.clearLiveFields();
@@ -3521,6 +3695,8 @@ public class ClanMessagesPlugin extends Plugin
 							mvpMembers.add(normalizeChatPlayerName(member.playerName));
 						}
 					}
+					log.debug("Automatic Overall MVP badge refresh: winners={}, currentRsn={}",
+						mvpMembers.size(), currentLocalRsn());
 					clientThread.invokeLater(() -> client.runScript(ScriptID.BUILD_CHATBOX));
 				}
 			}
@@ -3576,8 +3752,10 @@ public class ClanMessagesPlugin extends Plugin
 
 	private void fetchPbCategories()
 	{
-		if (authenticatedPlayerName == null || authenticatedPlayerName.isEmpty()) return;
+		String currentRsn = currentLocalRsn();
+		if (currentRsn.isEmpty()) return;
 		if (!pbCategoriesFetchInFlight.compareAndSet(false, true)) return;
+		log.debug("Refreshing PB categories for currentRsn={}", currentRsn);
 		if (panel != null) panel.setPbRefreshEnabled(false);
 		getJson("stats/pb-categories", new okhttp3.Callback()
 		{
@@ -3596,6 +3774,8 @@ public class ClanMessagesPlugin extends Plugin
 						return;
 					}
 					PbCategory[] values = gson.fromJson(response.body().string(), PbCategory[].class);
+					log.debug("PB category refresh succeeded: categories={}, currentRsn={}",
+						values == null ? 0 : values.length, currentRsn);
 					if (panel != null) panel.updatePbCategories(values == null
 						? java.util.Collections.emptyList() : java.util.Arrays.asList(values));
 				}
@@ -3612,7 +3792,8 @@ public class ClanMessagesPlugin extends Plugin
 
 	private void fetchPbRanking(PbCategory category)
 	{
-		if (category == null || authenticatedPlayerName == null || authenticatedPlayerName.isEmpty()) return;
+		String currentRsn = currentLocalRsn();
+		if (category == null || currentRsn.isEmpty()) return;
 		long requestGeneration = pbRankingRequestGeneration.incrementAndGet();
 		if (panel != null) panel.beginPbRankingRequest(requestGeneration);
 		HttpUrl base = serverBaseUrl();
@@ -3640,6 +3821,8 @@ public class ClanMessagesPlugin extends Plugin
 						return;
 					}
 					PbRankingResponse parsed = gson.fromJson(response.body().string(), PbRankingResponse.class);
+					log.debug("PB ranking refresh succeeded: boss={}, mode={}, currentRsn={}",
+						category.boss, category.mode, currentRsn);
 					if (parsed != null && panel != null) panel.updatePbRanking(parsed, requestGeneration);
 				}
 			}
@@ -3648,19 +3831,29 @@ public class ClanMessagesPlugin extends Plugin
 
 	private void submitPb(String boss, String mode, int teamSize, double seconds)
 	{
-		submitPb(boss, mode, teamSize, seconds, null);
+		submitPb(boss, mode, teamSize, seconds, null, "chat");
 	}
 
 	private void submitPb(String boss, String mode, int teamSize, double seconds, String combatAchievementSignature)
 	{
-		if (!isPbParticipationEnabled() || boss == null || boss.trim().isEmpty() || authenticatedPlayerName == null
-			|| authenticatedPlayerName.isEmpty() || seconds <= 0) return;
+		submitPb(boss, mode, teamSize, seconds, combatAchievementSignature, "interface");
+	}
+
+	private void submitPb(String boss, String mode, int teamSize, double seconds,
+		String combatAchievementSignature, String source)
+	{
+		String currentRsn = currentLocalRsn();
+		if (!isPbParticipationEnabled() || boss == null || boss.trim().isEmpty()
+			|| currentRsn.isEmpty() || seconds <= 0) return;
 		java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
-		payload.put("playerName", authenticatedPlayerName);
+		payload.put("playerName", currentRsn);
 		payload.put("boss", boss.trim());
 		payload.put("mode", mode == null ? "" : mode.trim());
 		payload.put("teamSize", Math.max(0, teamSize));
 		payload.put("seconds", seconds);
+		payload.put("source", source == null ? "interface" : source);
+		log.debug("Submitting PB: source={}, boss={}, mode={}, teamSize={}, seconds={}, currentRsn={}",
+			source, boss, mode, teamSize, seconds, currentRsn);
 		postJson("stats/pbs", gson.toJson(payload), new okhttp3.Callback()
 		{
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
@@ -3674,6 +3867,8 @@ public class ClanMessagesPlugin extends Plugin
 				{
 					if (response.isSuccessful())
 					{
+						log.debug("PB submission accepted: HTTP {}, source={}, boss={}, currentRsn={}; refreshing PB list",
+							response.code(), source, boss, currentRsn);
 						fetchPbCategories();
 					}
 					else
@@ -3698,11 +3893,13 @@ public class ClanMessagesPlugin extends Plugin
 
 	private void submitPbBatch(List<Map<String, Object>> records)
 	{
-		if (!isPbParticipationEnabled() || records == null || records.isEmpty() || authenticatedPlayerName == null
-			|| authenticatedPlayerName.isEmpty()) return;
+		String currentRsn = currentLocalRsn();
+		if (!isPbParticipationEnabled() || records == null || records.isEmpty() || currentRsn.isEmpty()) return;
 		Map<String, Object> payload = new LinkedHashMap<>();
-		payload.put("playerName", authenticatedPlayerName);
+		payload.put("playerName", currentRsn);
+		payload.put("source", "adventure_log");
 		payload.put("pbs", records);
+		log.debug("Submitting Adventure Log PB batch: records={}, currentRsn={}", records.size(), currentRsn);
 		postJson("stats/pbs", gson.toJson(payload), new okhttp3.Callback()
 		{
 			@Override public void onFailure(okhttp3.Call call, IOException exception)
@@ -3715,6 +3912,8 @@ public class ClanMessagesPlugin extends Plugin
 				{
 					if (response.isSuccessful())
 					{
+						log.debug("Adventure Log PB submission accepted: HTTP {}, currentRsn={}; refreshing PB list",
+							response.code(), currentRsn);
 						fetchPbCategories();
 					}
 					else log.debug("Adventure Log PB import returned HTTP {}", response.code());
@@ -3732,7 +3931,7 @@ public class ClanMessagesPlugin extends Plugin
 			return;
 		}
 		java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
-		payload.put("playerName", authenticatedPlayerName);
+		payload.put("playerName", currentLocalRsn());
 		payload.put("code", normalizedCode);
 		payload.put("color", color);
 		postJson("admin/clan-tags", gson.toJson(payload), clanTagWriteCallback("Tag created", panel::clearClanTagCode));
@@ -3746,7 +3945,7 @@ public class ClanMessagesPlugin extends Plugin
 			return;
 		}
 		java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
-		payload.put("playerName", authenticatedPlayerName);
+		payload.put("playerName", currentLocalRsn());
 		payload.put("rsn", rsn.trim());
 		postJson("admin/clan-tags/" + clanTag.id + "/members", gson.toJson(payload),
 			clanTagWriteCallback("Member added", panel::clearClanTagMember));
@@ -3915,6 +4114,10 @@ public class ClanMessagesPlugin extends Plugin
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event)
 	{
+		if (nightLegionExtras != null)
+		{
+			nightLegionExtras.onGameStateChanged(event.getGameState());
+		}
 		if (event.getGameState() == GameState.LOGIN_SCREEN)
 		{
 			configurePolling();
@@ -3925,6 +4128,7 @@ public class ClanMessagesPlugin extends Plugin
 			deliveredPinnedMessageIds.clear();
 			pendingAllowlistedDrops.clear();
 			recentAllowlistedLootTicks.clear();
+			recentLootItemIds.clear();
 			rankBankItems.clear();
 			rankBankItemIds.clear();
 			rankBankAccount = "";
@@ -4050,7 +4254,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			panel.setPublishing(false);
 			return;
 		}
-		String rsnName = authenticatedPlayerName;
+		String rsnName = currentLocalRsn();
 		if (rsnName == null || rsnName.isEmpty())
 		{
 			panel.setStatus("Verify your account through WOM");
@@ -4245,7 +4449,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		boolean newPinnedValue = !sentMessage.isPinned();
 		java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
 		payload.put("pinned", newPinnedValue);
-		payload.put("playerName", authenticatedPlayerName);
+		payload.put("playerName", currentLocalRsn());
 		RequestBody body = RequestBody.create(JSON, gson.toJson(payload));
 		HttpUrl url = base.newBuilder().addPathSegment("admin").addPathSegment("messages")
 			.addPathSegment(sentMessage.id).addPathSegment("pin").build();
@@ -4291,7 +4495,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 
 	private void requestRank()
 	{
-		String playerName = authenticatedPlayerName;
+		String playerName = currentLocalRsn();
 		if (playerName == null || playerName.isEmpty())
 		{
 			if (panel != null) panel.setStatus("Verify your account through WOM");
@@ -4651,12 +4855,48 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		Request.Builder builder = new Request.Builder().url(url);
 		String personalLinkToken = config.personalLinkToken() == null ? "" : config.personalLinkToken().trim();
 		if (!personalLinkToken.isEmpty()) builder.header("X-NightLegion-Token", personalLinkToken);
-		String playerName = authenticatedPlayerName;
+		// The token identifies the Discord member. It must never choose the OSRS
+		// character for the request; the currently logged-in local player does.
+		String playerName = currentLocalRsn();
 		if (playerName != null && !playerName.isEmpty())
 		{
 			builder.header("X-Live-On-Player", playerName);
 		}
 		return builder;
+	}
+
+	private String currentLocalRsn()
+	{
+		return authoritativeRsn(client.getLocalPlayer() == null ? null : client.getLocalPlayer().getName());
+	}
+
+	private String currentLocalClanRank()
+	{
+		String rsn = currentLocalRsn();
+		return rsn.isEmpty() ? "" : currentClanRankTitle(rsn);
+	}
+
+	private void updateContributionProfile(JsonObject profile)
+	{
+		if (profile == null || panel == null) return;
+		JsonObject rank = profile.has("rank") && profile.get("rank").isJsonObject()
+			? profile.getAsJsonObject("rank") : new JsonObject();
+		double points = profile.has("points") ? profile.get("points").getAsDouble() : 0.0;
+		String normalRank = rank.has("title") && !rank.get("title").isJsonNull()
+			? rank.get("title").getAsString() : "Quester";
+		String nextNormalRank = rank.has("next_title") && !rank.get("next_title").isJsonNull()
+			? rank.get("next_title").getAsString() : "";
+		Double nextThreshold = rank.has("next_threshold") && !rank.get("next_threshold").isJsonNull()
+			? rank.get("next_threshold").getAsDouble() : null;
+		String currentClanRank = profile.has("current_clan_rank")
+			&& !profile.get("current_clan_rank").isJsonNull()
+			? profile.get("current_clan_rank").getAsString() : currentLocalClanRank();
+		panel.updateActivityProfile(points, normalRank, nextNormalRank, nextThreshold, currentClanRank);
+	}
+
+	static String authoritativeRsn(String localPlayerName)
+	{
+		return localPlayerName == null ? "" : localPlayerName.replace('\u00A0', ' ').trim();
 	}
 
 	private synchronized void switchMessageCursorAccount(String playerName)
@@ -4930,7 +5170,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 		}
 		java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
 		payload.put("decision", decision);
-		payload.put("playerName", authenticatedPlayerName);
+		payload.put("playerName", currentLocalRsn());
 		RequestBody body = RequestBody.create(JSON, gson.toJson(payload));
 		HttpUrl url = base.newBuilder()
 			.addPathSegment("admin")
@@ -5018,7 +5258,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 			return;
 		}
 		String message = request.playerName + " was promoted to " + request.rankName + "!";
-		String rsnName = authenticatedPlayerName;
+		String rsnName = currentLocalRsn();
 		if (rsnName == null || rsnName.isEmpty())
 		{
 			if (panel != null) panel.setRankRequestsStatus("Verify your account through WOM");
@@ -5049,7 +5289,7 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 						log.debug("Unable to publish promotion message: code={} body={}", response.code(), responseBody);
 						return;
 					}
-					if (panel != null) panel.setRankRequestsStatus("Promo\u00E7\u00E3o publicada in the clan channel");
+					if (panel != null) panel.setRankRequestsStatus("Promotion published in the clan channel");
 					displayPublishedMessage(responseBody, "Staff", message, "CLAN", false);
 					resolveRankRequest(request, "ACCEPTED");
 					scheduleMessageRefresh();

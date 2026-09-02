@@ -224,9 +224,9 @@ final class LiveOnPanel extends JPanel
 						detail = detail.substring(0, timeMatcher.start()).trim();
 					}
 					detail = detail.replaceFirst("(?i)^novo recorde\\s+em\\s+",
-						"New clan best time em ");
+						"New clan best time for ");
 					detail = detail.replaceFirst("(?i)^new best time\\s+em\\s+",
-						"New clan best time em ");
+						"New clan best time for ");
 				}
 				boolean collective = player.isEmpty();
 				boolean clanRecord = "CLAN_RECORD".equals(activity.type);
@@ -314,7 +314,7 @@ final class LiveOnPanel extends JPanel
 			JLabel recordLabel = new JLabel("New clan best time");
 			recordLabel.setToolTipText(tooltip);
 			text.add(recordLabel);
-			String boss = detail.replaceFirst("(?i)^new best time in the clan em\\s+", "").trim();
+			String boss = detail.replaceFirst("(?i)^new (?:clan )?best time (?:in the clan )?(?:for|em)\\s+", "").trim();
 			JLabel bossLabel = expanded
 				? new JLabel("<html><div style='width:125px'><b>" + escapeHtml(boss) + "</b></div></html>")
 				: new JLabel("<html><b>" + escapeHtml(abbreviate(boss, 24)) + "</b></html>");

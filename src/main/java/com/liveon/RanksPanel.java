@@ -52,6 +52,10 @@ final class RanksPanel extends JPanel
 	private final JLabel specialTitle = new JLabel("Special rank");
 	private final JLabel specialNotice = new JLabel(wrapped("", BODY_TEXT_WIDTH));
 	private final JPanel specialCard = new JPanel(new BorderLayout());
+	private final JLabel activityPoints = new JLabel("Activity points: loading…");
+	private final JLabel activityEquivalent = new JLabel("Normal progression equivalent: loading…");
+	private final JLabel activityNext = new JLabel("Next normal threshold: loading…");
+	private final JPanel activityCard = new JPanel(new BorderLayout());
 	private final JLabel requirementsTitle = new JLabel("Requirements");
 	private final JLabel helper = new JLabel(wrapped("Equip the required items and open the necessary menus before checking.", BODY_TEXT_WIDTH));
 	private final JPanel detected = new JPanel();
@@ -130,6 +134,26 @@ final class RanksPanel extends JPanel
 		specialCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 132));
 		specialCard.setVisible(false);
 		header.add(specialCard);
+		JLabel activityTitle = new JLabel("Activity progression");
+		activityTitle.setFont(activityTitle.getFont().deriveFont(Font.BOLD));
+		JPanel activityBody = new JPanel();
+		activityBody.setOpaque(false);
+		activityBody.setLayout(new BoxLayout(activityBody, BoxLayout.Y_AXIS));
+		activityBody.setBorder(BorderFactory.createEmptyBorder(5, 8, 6, 8));
+		activityBody.add(activityTitle);
+		activityBody.add(Box.createVerticalStrut(4));
+		activityBody.add(activityPoints);
+		activityBody.add(activityEquivalent);
+		activityBody.add(activityNext);
+		activityPoints.setForeground(new Color(220, 190, 105));
+		activityEquivalent.setForeground(new Color(180, 180, 180));
+		activityNext.setForeground(new Color(180, 180, 180));
+		activityCard.setBorder(BorderFactory.createLineBorder(new Color(58, 58, 58)));
+		activityCard.add(activityBody, BorderLayout.CENTER);
+		activityCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+		activityCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 112));
+		header.add(activityCard);
+		header.add(Box.createVerticalStrut(3));
 		header.add(availableCard);
 		header.add(Box.createVerticalStrut(3));
 
@@ -261,7 +285,7 @@ final class RanksPanel extends JPanel
 			else if (specialRank)
 			{
 				specialTitle.setText("Special rank");
-				specialNotice.setText(wrapped("You currently have a special rank, so automatic rank changes are disabled. Ask staff on Discord if you want it changed.", BODY_TEXT_WIDTH));
+				specialNotice.setText(wrapped("This rank is protected and will never be overwritten or demoted automatically. Activity progression continues below.", BODY_TEXT_WIDTH));
 			}
 			else if (eligibleIndex > currentIndex)
 			{
@@ -363,6 +387,30 @@ final class RanksPanel extends JPanel
 		});
 	}
 
+	void updateActivityProfile(double points, String normalRank, String nextNormalRank,
+		Double nextThreshold, String currentClanRank)
+	{
+		SwingUtilities.invokeLater(() ->
+		{
+			activityPoints.setText(String.format(Locale.ROOT, "Activity points: %.1f", points));
+			activityEquivalent.setText("Normal progression equivalent: "
+				+ (normalRank == null || normalRank.trim().isEmpty() ? "Quester" : normalRank));
+			if (nextNormalRank == null || nextNormalRank.trim().isEmpty() || nextThreshold == null)
+			{
+				activityNext.setText("Next normal threshold: maximum reached");
+			}
+			else
+			{
+				activityNext.setText(String.format(Locale.ROOT, "Next normal threshold: %s at %.0f",
+					nextNormalRank, nextThreshold));
+			}
+			if (currentClanRank != null && !currentClanRank.trim().isEmpty())
+			{
+				actualRank.setText("Current rank • " + displayedClanRank(currentClanRank));
+			}
+		});
+	}
+
 	void reset()
 	{
 		SwingUtilities.invokeLater(() ->
@@ -429,7 +477,7 @@ final class RanksPanel extends JPanel
 			case "brigadier": return "General";
 			case "completionist": return "Diary 50%+";
 			case "quester": return "Diary 100%";
-			case "beast": return "Colaborador";
+			case "beast": return "Contributor";
 			case "berserker": return "MVP EHB";
 			case "skiller": return "MVP EHP";
 			case "gold": return "MVP Drops";

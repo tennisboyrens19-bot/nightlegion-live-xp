@@ -21,7 +21,7 @@ class NightLegionApi
     // nightlegion-companion-test URL had its own queue, while the Discord bot
     // polls nightlegion-livexp. Requests sent to the test queue therefore sat
     // pending until the RuneLite client timed out.
-    private static final String BASE = "https://nightlegion-livexp.onrender.com";
+    static final String BASE = "https://nightlegion-livexp.onrender.com";
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
     private final OkHttpClient client;

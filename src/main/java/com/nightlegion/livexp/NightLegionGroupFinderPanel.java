@@ -30,14 +30,17 @@ import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
 import net.runelite.api.Client;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.AsyncBufferedImage;
 
 /**
- * NightLegion Group Finder using the RaidMates visual layout and the existing
- * NightLegion Discord-backed Group Finder API.
+ * NightLegion Group Finder adapted from the BSD-2-Clause RaidMates behavior/UI
+ * at commit b53eedb656310791e481310ed3413eadf7a3960b. Runtime traffic uses only
+ * the NightLegion Discord-backed Group Finder API. See THIRD_PARTY_NOTICES.md.
  */
 class NightLegionGroupFinderPanel extends PluginPanel
 {
@@ -58,6 +61,8 @@ class NightLegionGroupFinderPanel extends PluginPanel
     private final JLabel status = new JLabel("0 open listing(s) · auto-refresh 10s");
     private final JPanel listings = new JPanel();
     private final Timer refreshTimer;
+    private final JButton requestsButton = new JButton("Requests");
+    private final java.util.Set<String> knownRequestKeys = new java.util.HashSet<>();
 
     private JsonObject latest;
     private List<String> activities = new ArrayList<>();
@@ -141,9 +146,8 @@ class NightLegionGroupFinderPanel extends PluginPanel
         styleButton(create, true, false);
         create.addActionListener(event -> createListing());
 
-        JButton requests = new JButton("Requests");
-        styleButton(requests, false, false);
-        requests.addActionListener(event -> showRequests());
+        styleButton(requestsButton, false, false);
+        requestsButton.addActionListener(event -> showRequests());
 
         JButton myGroup = new JButton("My Group");
         styleButton(myGroup, false, false);
@@ -155,7 +159,7 @@ class NightLegionGroupFinderPanel extends PluginPanel
         buttons.setAlignmentX(LEFT_ALIGNMENT);
         buttons.add(refresh);
         buttons.add(create);
-        buttons.add(requests);
+        buttons.add(requestsButton);
         buttons.add(myGroup);
 
         status.setForeground(BRAND_GOLD);
@@ -207,6 +211,7 @@ class NightLegionGroupFinderPanel extends PluginPanel
             }
             rebuildFilter();
             renderListings();
+            refreshRequestCount();
         }), error -> SwingUtilities.invokeLater(() -> status.setText(error)));
     }
 
@@ -270,14 +275,19 @@ class NightLegionGroupFinderPanel extends PluginPanel
 
     private List<JsonObject> filteredGroups()
     {
+        String wanted = filter.getSelectedItem() == null ? "All activities" : String.valueOf(filter.getSelectedItem());
+        return filterGroups(latest, wanted);
+    }
+
+    static List<JsonObject> filterGroups(JsonObject overview, String wantedActivity)
+    {
         List<JsonObject> out = new ArrayList<>();
-        if (latest == null || !latest.has("groups") || !latest.get("groups").isJsonArray())
+        if (overview == null || !overview.has("groups") || !overview.get("groups").isJsonArray())
         {
             return out;
         }
-
-        String wanted = filter.getSelectedItem() == null ? "All activities" : String.valueOf(filter.getSelectedItem());
-        for (JsonElement element : latest.getAsJsonArray("groups"))
+        String wanted = wantedActivity == null ? "All activities" : wantedActivity;
+        for (JsonElement element : overview.getAsJsonArray("groups"))
         {
             if (!element.isJsonObject())
             {
@@ -368,13 +378,39 @@ class NightLegionGroupFinderPanel extends PluginPanel
 
     private void requestJoin(JsonObject group)
     {
+        JComboBox<String> role = new JComboBox<>(new String[]{"ANY", "DPS", "Tank", "Support", "Learner"});
+        JTextField experience = new JTextField();
+        JTextField message = new JTextField();
+        JPanel form = new JPanel(new GridLayout(0, 1, 3, 3));
+        form.add(new JLabel("Preferred role"));
+        form.add(role);
+        form.add(new JLabel("Experience / kill count (optional)"));
+        form.add(experience);
+        form.add(new JLabel("Message to host (optional)"));
+        form.add(message);
+        int choice = JOptionPane.showConfirmDialog(this, form, "Request to Join",
+            JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (choice != JOptionPane.OK_OPTION)
+        {
+            return;
+        }
         JsonObject data = new JsonObject();
         data.addProperty("group_id", text(group, "id", ""));
+        data.addProperty("role", String.valueOf(role.getSelectedItem()));
+        try
+        {
+            data.addProperty("experience_kc", Math.max(0, Integer.parseInt(experience.getText().trim())));
+        }
+        catch (NumberFormatException ignored)
+        {
+            data.addProperty("experience_kc", 0);
+        }
+        data.addProperty("message", message.getText().trim());
         status.setText("Sending request...");
         api.action("group_join", rsn(), data, result -> SwingUtilities.invokeLater(() ->
         {
-            String message = text(result, "message", "Request sent.");
-            JOptionPane.showMessageDialog(this, message, "NightLegion", JOptionPane.INFORMATION_MESSAGE);
+            String responseMessage = text(result, "message", "Request sent.");
+            JOptionPane.showMessageDialog(this, responseMessage, "NightLegion", JOptionPane.INFORMATION_MESSAGE);
             refresh();
         }), error -> SwingUtilities.invokeLater(() -> status.setText(error)));
     }
@@ -405,6 +441,17 @@ class NightLegionGroupFinderPanel extends PluginPanel
                     + text(row, "group_title", "Group"));
                 title.setForeground(BRAND_GOLD);
                 card.add(title);
+                JLabel details = new JLabel(text(row, "requester_rsn", "Player") + " · "
+                    + text(row, "role", "ANY") + " · " + integer(row, "experience_kc", 0) + " KC");
+                details.setForeground(MUTED_TEXT);
+                card.add(details);
+                String requestMessage = text(row, "message", "");
+                if (!requestMessage.isEmpty())
+                {
+                    JLabel note = new JLabel(requestMessage);
+                    note.setForeground(MUTED_TEXT);
+                    card.add(note);
+                }
 
                 JButton accept = new JButton("Accept");
                 JButton reject = new JButton("Reject");
@@ -427,6 +474,34 @@ class NightLegionGroupFinderPanel extends PluginPanel
         }), error -> SwingUtilities.invokeLater(() -> status.setText(error)));
     }
 
+    private void refreshRequestCount()
+    {
+        api.action("group_requests", rsn(), new JsonObject(), result -> SwingUtilities.invokeLater(() ->
+        {
+            JsonArray rows = result.has("requests") && result.get("requests").isJsonArray()
+                ? result.getAsJsonArray("requests") : new JsonArray();
+            java.util.Set<String> current = new java.util.HashSet<>();
+            for (JsonElement element : rows)
+            {
+                if (!element.isJsonObject()) continue;
+                JsonObject row = element.getAsJsonObject();
+                current.add(text(row, "group_id", "") + ":" + longValue(row, "user_id", 0L));
+            }
+            if (!knownRequestKeys.isEmpty())
+            {
+                java.util.Set<String> added = new java.util.HashSet<>(current);
+                added.removeAll(knownRequestKeys);
+                if (!added.isEmpty())
+                {
+                    status.setText(added.size() + " new join request(s)");
+                }
+            }
+            knownRequestKeys.clear();
+            knownRequestKeys.addAll(current);
+            requestsButton.setText(rows.size() == 0 ? "Requests" : "Requests (" + rows.size() + ")");
+        }), ignored -> { });
+    }
+
     private void decide(JsonObject row, boolean accept)
     {
         JsonObject data = new JsonObject();
@@ -439,49 +514,130 @@ class NightLegionGroupFinderPanel extends PluginPanel
 
     private void showMyGroups()
     {
-        if (latest == null || !latest.has("groups") || !latest.get("groups").isJsonArray())
+        status.setText("Loading your group...");
+        api.action("group_my", rsn(), new JsonObject(), result -> SwingUtilities.invokeLater(() ->
         {
-            refresh();
-            return;
-        }
-
-        List<JsonObject> mine = new ArrayList<>();
-        for (JsonElement element : latest.getAsJsonArray("groups"))
-        {
-            if (element.isJsonObject() && bool(element.getAsJsonObject(), "is_host"))
+            if (!result.has("group") || result.get("group").isJsonNull()
+                || !result.get("group").isJsonObject())
             {
-                mine.add(element.getAsJsonObject());
+                JOptionPane.showMessageDialog(this, "You have no active group.", "NightLegion",
+                    JOptionPane.INFORMATION_MESSAGE);
+                refresh();
+                return;
             }
-        }
+            showGroupLobby(result.getAsJsonObject("group"));
+        }), error -> SwingUtilities.invokeLater(() -> status.setText(error)));
+    }
 
-        if (mine.isEmpty())
+    private void showGroupLobby(JsonObject group)
+    {
+        JPanel lobby = new JPanel();
+        lobby.setLayout(new BoxLayout(lobby, BoxLayout.Y_AXIS));
+
+        JLabel title = new JLabel(text(group, "title", text(group, "activity", "My Group")));
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 15f));
+        title.setForeground(BRAND_GOLD);
+        lobby.add(title);
+        lobby.add(new JLabel(text(group, "activity", "Group") + " · World "
+            + text(group, "world", "Any") + " · expires " + expiryLabel(longValue(group, "expires_at", 0L))));
+        lobby.add(Box.createVerticalStrut(7));
+
+        JLabel membersTitle = new JLabel("Members");
+        membersTitle.setFont(membersTitle.getFont().deriveFont(Font.BOLD));
+        lobby.add(membersTitle);
+        JsonArray members = group.has("members") && group.get("members").isJsonArray()
+            ? group.getAsJsonArray("members") : new JsonArray();
+        for (JsonElement element : members)
         {
-            JOptionPane.showMessageDialog(this, "You have no active groups.", "NightLegion", JOptionPane.INFORMATION_MESSAGE);
-            return;
+            if (!element.isJsonObject()) continue;
+            JsonObject member = element.getAsJsonObject();
+            String ready = bool(member, "ready") ? "Ready" : "Not ready";
+            JLabel row = new JLabel((bool(member, "is_host") ? "★ " : "• ")
+                + text(member, "rsn", "Player") + " · " + text(member, "role", "ANY") + " · " + ready);
+            row.setForeground(bool(member, "ready") ? BRAND_GREEN.brighter() : MUTED_TEXT);
+            lobby.add(row);
         }
 
-        JPanel list = new JPanel();
-        list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
-        for (JsonObject group : mine)
+        lobby.add(Box.createVerticalStrut(8));
+        JButton ready = new JButton(bool(group, "viewer_ready") ? "Mark Not Ready" : "Mark Ready");
+        styleButton(ready, true, false);
+        ready.addActionListener(event -> setReady(!bool(group, "viewer_ready")));
+        JButton chat = new JButton("Lobby Chat");
+        styleButton(chat, false, false);
+        chat.addActionListener(event -> showLobbyChat());
+        JButton exit = new JButton(bool(group, "is_host") ? "Close Group" : "Leave Group");
+        styleButton(exit, false, true);
+        exit.addActionListener(event ->
         {
-            JPanel card = new JPanel();
-            card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-            styleCard(card);
+            if (bool(group, "is_host")) closeGroup(group);
+            else leaveGroup(group);
+        });
+        JPanel actions = new JPanel(new GridLayout(1, 3, 4, 0));
+        actions.add(ready);
+        actions.add(chat);
+        actions.add(exit);
+        lobby.add(actions);
+        JOptionPane.showMessageDialog(this, lobby, "My Group", JOptionPane.PLAIN_MESSAGE);
+        refresh();
+    }
 
-            JLabel title = new JLabel(text(group, "title", text(group, "activity", "My Group")));
-            title.setForeground(BRAND_GOLD);
-            title.setFont(title.getFont().deriveFont(Font.BOLD));
-            card.add(title);
+    private void setReady(boolean ready)
+    {
+        JsonObject data = new JsonObject();
+        data.addProperty("ready", ready);
+        status.setText(ready ? "Marking you ready..." : "Updating ready status...");
+        api.action("group_ready", rsn(), data, result -> SwingUtilities.invokeLater(this::showMyGroups),
+            error -> SwingUtilities.invokeLater(() -> status.setText(error)));
+    }
 
-            JButton close = new JButton("Close group");
-            styleButton(close, false, true);
-            close.addActionListener(event -> closeGroup(group));
-            card.add(Box.createVerticalStrut(5));
-            card.add(close);
-            list.add(card);
-            list.add(Box.createVerticalStrut(6));
-        }
-        JOptionPane.showMessageDialog(this, list, "My Group", JOptionPane.PLAIN_MESSAGE);
+    private void leaveGroup(JsonObject group)
+    {
+        JsonObject data = new JsonObject();
+        data.addProperty("group_id", text(group, "id", ""));
+        api.action("group_leave", rsn(), data, result -> SwingUtilities.invokeLater(this::refresh),
+            error -> SwingUtilities.invokeLater(() -> status.setText(error)));
+    }
+
+    private void showLobbyChat()
+    {
+        status.setText("Loading lobby chat...");
+        api.action("group_chat_get", rsn(), new JsonObject(), result -> SwingUtilities.invokeLater(() ->
+        {
+            JsonArray messages = result.has("messages") && result.get("messages").isJsonArray()
+                ? result.getAsJsonArray("messages") : new JsonArray();
+            JTextArea history = new JTextArea(12, 28);
+            history.setEditable(false);
+            history.setLineWrap(true);
+            history.setWrapStyleWord(true);
+            StringBuilder text = new StringBuilder();
+            for (JsonElement element : messages)
+            {
+                if (!element.isJsonObject()) continue;
+                JsonObject row = element.getAsJsonObject();
+                text.append(text(row, "sender_rsn", "Player")).append(": ")
+                    .append(text(row, "body", "")).append('\n');
+            }
+            history.setText(text.toString());
+            history.setCaretPosition(history.getDocument().getLength());
+            JTextField message = new JTextField();
+            JPanel chat = new JPanel(new BorderLayout(4, 4));
+            chat.add(new JScrollPane(history), BorderLayout.CENTER);
+            chat.add(message, BorderLayout.SOUTH);
+            int choice = JOptionPane.showConfirmDialog(this, chat, "NightLegion Lobby Chat",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            if (choice == JOptionPane.OK_OPTION && !message.getText().trim().isEmpty())
+            {
+                sendLobbyChat(message.getText().trim());
+            }
+        }), error -> SwingUtilities.invokeLater(() -> status.setText(error)));
+    }
+
+    private void sendLobbyChat(String message)
+    {
+        JsonObject data = new JsonObject();
+        data.addProperty("message", message);
+        api.action("group_chat_send", rsn(), data, result -> SwingUtilities.invokeLater(this::showLobbyChat),
+            error -> SwingUtilities.invokeLater(() -> status.setText(error)));
     }
 
     private void closeGroup(JsonObject group)
@@ -608,5 +764,13 @@ class NightLegionGroupFinderPanel extends PluginPanel
         {
             return false;
         }
+    }
+
+    private static String expiryLabel(long expiresAt)
+    {
+        long seconds = Math.max(0L, expiresAt - System.currentTimeMillis() / 1000L);
+        if (seconds <= 0) return "now";
+        long minutes = Math.max(1L, (seconds + 59L) / 60L);
+        return minutes + (minutes == 1 ? " minute" : " minutes");
     }
 }

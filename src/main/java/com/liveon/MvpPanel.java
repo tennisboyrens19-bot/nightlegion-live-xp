@@ -468,7 +468,7 @@ final class MvpPanel extends JPanel
 			BorderFactory.createEmptyBorder(7, 8, 7, 8)));
 		card.setAlignmentX(Component.LEFT_ALIGNMENT);
 		card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 61));
-		JLabel place = new JLabel(position + "º");
+		JLabel place = new JLabel("#" + position);
 		place.setForeground(new Color(160, 160, 160));
 		place.setFont(place.getFont().deriveFont(Font.BOLD, 12f));
 		place.setPreferredSize(new Dimension(28, 20));
@@ -640,7 +640,7 @@ final class MvpPanel extends JPanel
 		JPanel summary = new JPanel(new BorderLayout(7, 0));
 		summary.setBackground(background);
 		summary.setBorder(BorderFactory.createEmptyBorder(7, 8, 7, 8));
-		JLabel place = new JLabel(position + "º");
+		JLabel place = new JLabel("#" + position);
 		place.setForeground(new Color(160, 160, 160));
 		place.setFont(place.getFont().deriveFont(Font.BOLD, 12f));
 		place.setPreferredSize(new Dimension(28, 20));
