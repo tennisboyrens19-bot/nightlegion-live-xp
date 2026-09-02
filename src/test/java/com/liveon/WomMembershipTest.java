@@ -8,16 +8,18 @@ import static org.junit.Assert.assertTrue;
 public class WomMembershipTest
 {
 	@Test
-	public void administratorKeepsStaffAccessWithoutBroadcastAccess()
+	public void nonAuthorizedRanksDoNotReceiveStaffAccess()
 	{
-		assertTrue(WomMembership.isStaffRole("administrator"));
+		assertFalse(WomMembership.isStaffRole("administrator"));
 		assertFalse(WomMembership.canPublishBroadcast("administrator"));
+		assertFalse(WomMembership.isStaffRole("moderator"));
 	}
 
 	@Test
-	public void higherStaffRolesCanPublishBroadcasts()
+	public void onlyApprovedInGameStaffRanksCanPublishBroadcasts()
 	{
-		assertTrue(WomMembership.canPublishBroadcast("moderator"));
+		assertTrue(WomMembership.canPublishBroadcast("major"));
+		assertTrue(WomMembership.canPublishBroadcast("general"));
 		assertTrue(WomMembership.canPublishBroadcast("deputy_owner"));
 		assertTrue(WomMembership.canPublishBroadcast("owner"));
 		assertFalse(WomMembership.canPublishBroadcast("member"));

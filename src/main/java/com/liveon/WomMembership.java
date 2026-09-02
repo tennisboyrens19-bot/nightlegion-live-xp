@@ -10,12 +10,10 @@ final class WomMembership
 {
 	static final int NIGHTLEGION_GROUP_ID = 26182;
 	private static final Set<String> STAFF_ROLES = new HashSet<>(Arrays.asList(
+		"major",
+		"general",
 		"owner",
-		"deputy_owner",
-		"overseer",
-		"supervisor",
-		"moderator",
-		"administrator"
+		"deputy_owner"
 	));
 
 	private WomMembership()
@@ -56,8 +54,7 @@ final class WomMembership
 		{
 			return false;
 		}
-		String normalizedRole = role.trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
-		return !"administrator".equals(normalizedRole);
+		return true;
 	}
 
 	static String normalizePlayerName(String playerName)

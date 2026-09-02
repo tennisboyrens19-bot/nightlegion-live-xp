@@ -6,6 +6,7 @@ import java.util.Map;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 public class PbPayloadTest
@@ -72,6 +73,37 @@ public class PbPayloadTest
 		assertEquals("", records.get(0).get("mode"));
 		assertEquals("Awakened", records.get(1).get("mode"));
 		assertEquals(228.2, (Double) records.get(1).get("seconds"), 0.001);
+	}
+
+	@Test
+	public void readsSupportedChatPbMessages()
+	{
+		assertEquals("Vorkath", ClanMessagesPlugin.parsePbChatBoss("Your Vorkath kill count is: 1,234"));
+		Map<String, Object> raid = ClanMessagesPlugin.parsePbChatTime(
+			"Team size: 3 players Duration: <col=ff0000>18:42.60</col> (new personal best)");
+		assertNotNull(raid);
+		assertEquals(3, raid.get("teamSize"));
+		assertEquals(1122.6, (Double) raid.get("seconds"), 0.001);
+		Map<String, Object> boss = ClanMessagesPlugin.parsePbChatTime(
+			"Fight duration: <col=ff0000>1:03.20</col> (new personal best)");
+		assertNotNull(boss);
+		assertEquals(63.2, (Double) boss.get("seconds"), 0.001);
+	}
+
+	@Test
+	public void collectionLogNeverFabricatesAPb()
+	{
+		assertNull(ClanMessagesPlugin.parsePbChatBoss("New item added to your collection log: Pet"));
+		assertNull(ClanMessagesPlugin.parsePbChatTime("New item added to your collection log: Pet"));
+		assertNull(ClanMessagesPlugin.parseCombatAchievementBossPb(Arrays.asList(
+			"Collection Log", "Vorkath", "Obtained: 12/12")));
+	}
+
+	@Test
+	public void localRuneLiteRsnIsTheAuthoritativeSubmissionIdentity()
+	{
+		assertEquals("Plant Lover", ClanMessagesPlugin.authoritativeRsn(" Plant\u00A0Lover "));
+		assertEquals("", ClanMessagesPlugin.authoritativeRsn(null));
 	}
 
 	private static void assertPayload(String recorded, String boss, String mode)

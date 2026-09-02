@@ -6,6 +6,7 @@ The active NightLegion implementation was compared file-by-file against:
 
 - Upstream repository: `https://github.com/MilicoOSRS/live-on-clan`
 - Pinned commit: `8f69ae9b1906f75fe2896d780fb6858d4a969139`
+- Current upstream audited on 2026-09-02: `3ea822805a874a0a1e374e317e7229046bb845b4`
 - Upstream source root: `src/main/java/com/liveon`
 - NightLegion production entrypoint: `com.liveon.ClanMessagesPlugin`
 
@@ -60,8 +61,8 @@ logo resource keeps its compatibility filename but contains NightLegion artwork.
   independently resolves NightLegion WOM membership and owner/deputy/staff/
   broadcast capabilities for the current RSN.
 - Local NightLegion clan titles map Major/General/Deputy Owner/Owner into the
-  upstream staff presentation while preserving the administrator broadcast
-  restriction and deputy/owner-only clan-tag management.
+  upstream staff presentation. Those four ranks are also the exact server-side
+  staff allowlist; deputy/owner-only clan-tag management remains narrower.
 
 ### NightLegion extras
 
@@ -69,7 +70,11 @@ logo resource keeps its compatibility filename but contains NightLegion artwork.
   surfaces around the upstream panel.
 - The Events dropdown is exactly `BOTW`, `SOTW`, `GIVEAWAY`.
 - Group Finder is absent only from Events. The standalone top-level Groups page
-  and its existing backend/bot behavior remain.
+  uses the BSD-2-Clause RaidMates behavior/UI reference pinned at
+  `b53eedb656310791e481310ed3413eadf7a3960b`, adapted only to NightLegion
+  branding and the NightLegion companion/Discord-backed group state. Create,
+  refresh/filter, requests, accepted My Group lobby, leave, ready state, private
+  lobby chat, and expiry do not call RaidMates infrastructure.
 - The previous rewritten NightLegion Home/Ranks/MVP/PB/Staff/root plugin stack
   was removed so it cannot become an alternative production implementation.
 
@@ -94,6 +99,12 @@ logo resource keeps its compatibility filename but contains NightLegion artwork.
   normalized RSN alphabetically.
 - MVP and LIVE are evaluated independently, so both upstream badges can appear
   on the same player.
+- Current upstream commit `3ea822805a874a0a1e374e317e7229046bb845b4` is also
+  authoritative for drop capture: the Loot Tracker dependency and
+  `ServerNpcLoot` hook cover NPC loot, while non-NPC raid/chest/event loot uses
+  `LootReceived`. Stacks are valued by total quantity, submission retries reuse
+  one event ID, and the NightLegion backend deduplicates that event ID without
+  merging legitimate separate identical drops.
 
 ### PB synchronization
 
@@ -103,8 +114,26 @@ logo resource keeps its compatibility filename but contains NightLegion artwork.
 - Supported Combat Achievement boss pages, boss statistics boards, scoreboard/
   stat interfaces, and chat PB messages submit exposed PB times immediately;
   successful submissions refresh PB categories.
+- Collection Log events remain drop/pet inputs exactly where applicable. They
+  expose no PB time in current Live On and are never converted into PB records.
+- Debug-level diagnostics record interface detection, boss/time resolution,
+  current RSN, submission result, and refresh without normal-user UI spam.
 - PB storage, ranking ownership, and drop/MVP ownership use normalized current
   RSN rather than the Discord member ID or a previously linked RSN.
+
+### NightLegion activity statistics
+
+- The recoverable RuneLite contribution sender is restored as a narrow helper;
+  it observes only the current local player's clan chat/GZ and boss-kill session
+  counters and submits them through the Personal Link Token.
+- The existing backend thresholds, weights, persistence, and per-threshold
+  notification deduplication remain authoritative. Qualification notices go
+  only to NightLegion channel `1404796969481801729` and never alter an OSRS
+  clan rank automatically.
+- Activity points are supplementary statistics. They do not replace or change
+  the active Live On rank-requirement calculation. Protected Major, General,
+  Deputy Owner, and Owner ranks continue to show activity progression without
+  being overwritten or demoted.
 
 ### Build and package integration
 

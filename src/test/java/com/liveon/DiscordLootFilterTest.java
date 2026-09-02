@@ -1,6 +1,8 @@
 package com.liveon;
 
 import java.util.Arrays;
+import java.util.Map;
+import net.runelite.client.game.ItemStack;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -54,5 +56,35 @@ public class DiscordLootFilterTest
 		assertEquals(Long.valueOf(7_200_000L), drop.totalValue);
 		assertNull(ClanMessagesPlugin.allowlistedValuableDrop(
 			"Valuable drop: 1 x Big bones (4,000,000 coins)"));
+	}
+
+	@Test
+	public void usesInclusiveOneMillionMvpThresholdAndStackTotalValue()
+	{
+		assertFalse(ClanMessagesPlugin.qualifiesForMvpDrop(999_999L));
+		assertTrue(ClanMessagesPlugin.qualifiesForMvpDrop(1_000_000L));
+		assertTrue(ClanMessagesPlugin.qualifiesForMvpDrop(2_000_000L));
+		assertEquals(1_200_000L, ClanMessagesPlugin.totalDropValue(400_000L, 3L));
+		assertTrue(ClanMessagesPlugin.qualifiesForMvpDrop(
+			ClanMessagesPlugin.totalDropValue(400_000L, 3L)));
+		Map<Integer, Long> quantities = ClanMessagesPlugin.aggregateDropQuantities(Arrays.asList(
+			new ItemStack(123, 1), new ItemStack(123, 2), new ItemStack(456, 1)));
+		assertEquals(Long.valueOf(3L), quantities.get(123));
+		assertEquals(Long.valueOf(1L), quantities.get(456));
+	}
+
+	@Test
+	public void extractsAnyUntradeableDropWithItsGameReportedTotalValue()
+	{
+		ClanMessagesPlugin.PendingAllowlistedDrop drop = ClanMessagesPlugin.allowlistedValuableDrop(
+			"Untradeable drop: Araxyte fang (18,400,000 coins)");
+		assertEquals("Araxyte fang", drop.itemName);
+		assertEquals(1, drop.quantity);
+		assertEquals(Long.valueOf(18_400_000L), drop.totalValue);
+
+		ClanMessagesPlugin.PendingAllowlistedDrop future = ClanMessagesPlugin.allowlistedValuableDrop(
+			"Untradeable drop: Future untradeable reward (2,500,000 coins)");
+		assertEquals("Future untradeable reward", future.itemName);
+		assertEquals(Long.valueOf(2_500_000L), future.totalValue);
 	}
 }

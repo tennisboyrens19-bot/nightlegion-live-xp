@@ -71,7 +71,7 @@ final class PbPanel extends JPanel
 		configureParticipationNotice();
 		top.add(participationNotice);
 		top.add(Box.createVerticalStrut(7));
-		JLabel title = new JLabel("MELHORES TEMPOS DO CLAN");
+		JLabel title = new JLabel("CLAN BEST TIMES");
 		title.setForeground(ORANGE);
 		JPanel titleRow = new JPanel(new BorderLayout(4, 0));
 		titleRow.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -428,9 +428,9 @@ final class PbPanel extends JPanel
 			BorderFactory.createMatteBorder(0, 3, 0, 0, BLUE),
 			BorderFactory.createEmptyBorder(6, 8, 6, 5)));
 		JLabel instructions = new JLabel("<html><div style='width:160px'>"
-			+ "1. Open the <b>Adventure Log</b> in your POH to import all your times.<br><br>"
-			+ "2. In <b>Combat Achievements</b>, open the boss page you want to register.<br><br>"
-			+ "3. Scoreboards are also recognized.<br><br>"
+			+ "1. In <b>Combat Achievements</b>, open a boss page that displays a personal best.<br><br>"
+			+ "2. Supported boss statistics pages and scoreboards are recognized automatically.<br><br>"
+			+ "3. Optionally open the <b>Adventure Log</b> in your POH for a bulk historical import.<br><br>"
 			+ "With <b>Participate in PB rankings</b> enabled, your new PBs are recorded automatically."
 			+ "</div></html>");
 		instructions.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -479,7 +479,7 @@ final class PbPanel extends JPanel
 			ranking.removeAll();
 			ranking.add(centered("No PB synced in this category."));
 			setTutorialExpanded(true);
-			ownPb.setText("<html><div style='text-align:center'>Open the Adventure Log<br>to import your PBs</div></html>");
+			ownPb.setText("<html><div style='text-align:center'>Open a supported boss PB page,<br>scoreboard, or optional Adventure Log</div></html>");
 			ranking.revalidate();
 			ranking.repaint();
 		}
@@ -710,7 +710,7 @@ final class PbPanel extends JPanel
 				ranking.add(rankingRow(entry));
 			}
 			String ownText = response.own == null ? "You do not have a PB<br>in this category yet"
-				: "Your PB: " + formatTime(response.own.seconds) + " · " + response.own.position + "º place";
+				: "Your PB: " + formatTime(response.own.seconds) + " · place #" + response.own.position;
 			ownPb.setText("<html><div style='text-align:center'>" + ownText + "</div></html>");
 			ranking.revalidate();
 			ranking.repaint();
@@ -739,7 +739,7 @@ final class PbPanel extends JPanel
 		row.setBorder(BorderFactory.createCompoundBorder(
 			BorderFactory.createMatteBorder(0, entry.position <= 3 ? 3 : 1, 1, 0, medalColor(entry.position)),
 			BorderFactory.createEmptyBorder(5, 6, 5, 6)));
-		JLabel place = new JLabel(entry.position + "º");
+		JLabel place = new JLabel("#" + entry.position);
 		place.setPreferredSize(new Dimension(entry.position <= 3 ? 48 : 30, 24));
 		if (entry.position <= 3)
 		{

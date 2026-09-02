@@ -22,7 +22,7 @@ import javax.swing.table.DefaultTableModel;
 final class ClanTagsPanel extends JPanel
 {
 	private final JTextField code = new JTextField();
-	private final JComboBox<String> color = new JComboBox<>(new String[]{"Dourado", "Vermelho", "Azul", "Verde", "Roxo", "Branco"});
+	private final JComboBox<String> color = new JComboBox<>(new String[]{"Gold", "Red", "Blue", "Green", "Purple", "White"});
 	private final JComboBox<ClanTag> tag = new JComboBox<>();
 	private final JTextField rsn = new JTextField();
 	private final JButton create = new JButton("Create tag");
@@ -49,7 +49,7 @@ final class ClanTagsPanel extends JPanel
 		createForm.setBorder(BorderFactory.createTitledBorder("Create tag"));
 		createForm.add(new JLabel("Code (maximum 5 characters)"));
 		createForm.add(code);
-		createForm.add(new JLabel("Cor"));
+		createForm.add(new JLabel("Color"));
 		createForm.add(color);
 		create.setBackground(new Color(190, 104, 0));
 		create.setForeground(Color.WHITE);

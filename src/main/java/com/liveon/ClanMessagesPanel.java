@@ -724,9 +724,9 @@ final class ClanMessagesPanel extends PluginPanel
 				mainArea.repaint();
 				return;
 			}
-			addNavigationButton("Home", "home", liveOnTab, "home", "Home principal in the clan");
+			addNavigationButton("Home", "home", liveOnTab, "home", "Open the clan home page");
 			addNavigationButton("Ranks", "star", ranksTab, "ranks", "Request ranks");
-			addNavigationButton("MVPs", "crown", mvpTab, "mvp", "Rankings MVP");
+			addNavigationButton("MVPs", "crown", mvpTab, "mvp", "Open MVP rankings");
 			addNavigationButton("PBs", "trophy", pbTab, "pbs", "Clan personal bests");
 			addNavigationButton("Events", "star", eventsTab, "events", "BOTW, SOTW and Giveaways");
 			addNavigationButton("Groups", "live", groupsTab, "groups", "NightLegion Group Finder");
@@ -851,6 +851,11 @@ final class ClanMessagesPanel extends PluginPanel
 	void setPbRefreshEnabled(boolean enabled) { pbTab.setRefreshEnabled(enabled); }
 	void setPbParticipationEnabled(boolean enabled) { pbTab.setParticipationEnabled(enabled); }
 	PbCategory selectedPbCategory() { return pbTab.selectedCategory(); }
+	void updateActivityProfile(double points, String normalRank, String nextNormalRank,
+		Double nextThreshold, String currentClanRank)
+	{
+		ranksTab.updateActivityProfile(points, normalRank, nextNormalRank, nextThreshold, currentClanRank);
+	}
 	void setMvpEfficiency(java.util.List<MvpEfficiencyEntry> ehb, java.util.List<MvpEfficiencyEntry> ehp)
 	{
 		mvpTab.updateEfficiencyRankings(ehb, ehp);
