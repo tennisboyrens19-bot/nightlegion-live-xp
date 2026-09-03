@@ -856,6 +856,14 @@ final class ClanMessagesPanel extends PluginPanel
 	{
 		ranksTab.updateActivityProfile(points, normalRank, nextNormalRank, nextThreshold, currentClanRank);
 	}
+	void initializeRanks(net.runelite.client.game.ItemManager itemManager,
+		net.runelite.client.game.SpriteManager spriteManager, net.runelite.api.Client client,
+		net.runelite.client.callback.ClientThread clientThread)
+	{
+		ranksTab.initialize(itemManager, spriteManager, client, clientThread);
+	}
+	void setPointsCatalogue(PointsResponse response) { ranksTab.setCatalogue(response); }
+	void updateRankProfile(com.google.gson.JsonObject profile) { ranksTab.setProfile(profile); }
 	void setMvpEfficiency(java.util.List<MvpEfficiencyEntry> ehb, java.util.List<MvpEfficiencyEntry> ehp)
 	{
 		mvpTab.updateEfficiencyRankings(ehb, ehp);

@@ -1,8 +1,10 @@
 package com.liveon;
 
 import com.nightlegion.livexp.NightLegionExtrasBridge;
+import com.nightlegion.livexp.NightLegionLootPointTracker;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.inject.Provides;
 import java.awt.Color;
@@ -45,6 +47,7 @@ import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.gameval.DBTableID;
 import net.runelite.api.gameval.ItemID;
 import net.runelite.api.gameval.VarbitID;
+import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageBuilder;
@@ -56,6 +59,7 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.events.GameTick;
@@ -69,6 +73,8 @@ import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.SwingUtilities;
 import net.runelite.client.events.ServerNpcLoot;
+import net.runelite.client.events.NpcLootReceived;
+import net.runelite.client.events.PlayerLootReceived;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemStack;
 import net.runelite.client.plugins.Plugin;
@@ -80,6 +86,7 @@ import net.runelite.client.plugins.loottracker.LootTrackerPlugin;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.game.SpriteManager;
 import net.runelite.client.Notifier;
 import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.ImageUtil;
@@ -131,6 +138,21 @@ public class ClanMessagesPlugin extends Plugin
 	private static final Pattern ADVENTURE_LOG_TIME_ONLY_PATTERN = Pattern.compile(
 		"^(?<time>[0-9:]+(?:\\.[0-9]+)?)$");
 	private static final int PET_DETAILS_WAIT_TICKS = 5;
+	private static final java.util.Set<String> MINIQUEST_NAMES = java.util.Set.of(
+		"Alfred Grimhand's Barcrawl", "Barbarian Training", "Bear Your Soul",
+		"Curse of the Empty Lord", "Daddy's Home", "The Enchanted Key", "Enter the Abyss",
+		"Family Pest", "The Frozen Door", "The General's Shadow", "His Faithful Servants",
+		"Hopespear's Will", "In Search of Knowledge", "Into the Tombs",
+		"Lair of Tarn Razorlor", "Mage Arena I", "Mage Arena II",
+		"Skippy and the Mogres", "Vale Totems");
+	private static final int[] ACHIEVEMENT_DIARY_VARBITS = {
+		4458, 4459, 4460, 4461, 4483, 4484, 4485, 4486,
+		4462, 4463, 4464, 4465, 4491, 4492, 4493, 4494,
+		4475, 4476, 4477, 4478, 3578, 3599, 3611, 4566,
+		7925, 7926, 7927, 7928, 4495, 4496, 4497, 4498,
+		4487, 4488, 4489, 4490, 4479, 4480, 4481, 4482,
+		4471, 4472, 4473, 4474, 4466, 4467, 4468, 4469
+	};
 	static final String DISCORD_LOOT_ATTACHMENT = "loot.png";
 	static final String DISCORD_PET_ATTACHMENT = "pet.png";
 	private static final int DISCORD_EMBED_DESCRIPTION_LIMIT = 4096;
@@ -179,6 +201,7 @@ public class ClanMessagesPlugin extends Plugin
 	@Inject private ChatIconManager chatIconManager;
 	@Inject private ClientThread clientThread;
 	@Inject private ItemManager itemManager;
+	@Inject private SpriteManager spriteManager;
 	@Inject private DropRarityService dropRarityService;
 	@Inject private DrawManager drawManager;
 	@Inject private ChatMessageBuilder chatMessageBuilder;
@@ -235,6 +258,8 @@ public class ClanMessagesPlugin extends Plugin
 	private int pendingPetTicks;
 	private String questAccount = "";
 	private boolean rankSyncCompleted;
+	private volatile boolean pointsCatalogueLoaded;
+	private final java.util.Set<Integer> rankPointItemIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
 	private boolean rankWidgetRefreshPending;
 	private int lastCombatAchievementRankRefreshTick = -1000;
 	private final java.util.Set<String> rankBankItems = new java.util.HashSet<>();
@@ -287,6 +312,7 @@ public class ClanMessagesPlugin extends Plugin
 	}
 	private ScheduledFuture<?> rankRequestsPollingTask;
 	private ScheduledFuture<?> mvpDropsPollingTask;
+	private ScheduledFuture<?> rankFullSyncTask;
 	// If true, the user manually disconnected and auto-verification should be paused until they click Verify
 	private final java.util.Map<String, LiveChannel> onlineLiveChannels = new java.util.concurrent.ConcurrentHashMap<>();
 	private final java.util.Set<String> mvpMembers = java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -295,6 +321,7 @@ public class ClanMessagesPlugin extends Plugin
 	private volatile boolean isDeputyOwner;
 	private ClanLiveBadgeDecorator clanLiveBadgeDecorator;
 	private NightLegionExtrasBridge nightLegionExtras;
+	private NightLegionLootPointTracker rankLootTracker;
 
 	@Override
 	protected void startUp()
@@ -304,9 +331,17 @@ public class ClanMessagesPlugin extends Plugin
 		clanLiveBadgeDecorator = new ClanLiveBadgeDecorator(client, this);
 		nightLegionExtras = new NightLegionExtrasBridge(client, okHttpClient, executor,
 			config::personalLinkToken, config::enabled, this::currentLocalClanRank, gson, itemManager);
+		rankLootTracker = new NightLegionLootPointTracker(client, itemManager,
+			() -> config.enabled() && !config.personalLinkToken().trim().isEmpty(),
+			() -> rankPointItemIds, this::currentLocalRsn, this::submitRankPointEvent);
 		panel = new ClanMessagesPanel(() -> publishDraft("BROADCAST"), () -> publishDraft("CLAN"), () -> verifyToken(true), this::clearMessages, this::refreshRanks, this::resetRanks, this::requestRank, this::fetchRankRequests, this::deleteRankRequest, this::confirmRankRequest, this::declineRankRequest, this::fetchSentMessages, this::deleteSentMessage, this::resendSentMessage, this::togglePinnedMessage, this::publishPanelNotice, this::removePanelNotice, this::fetchLives, this::saveLiveChannel, this::deleteLiveChannel, this::fetchClanTags, this::createClanTag, this::addClanTagMember, this::deleteClanTag, this::removeClanTagMember, this::fetchPbCategories, this::fetchPbRanking, nightLegionExtras.eventsPanel(), nightLegionExtras.groupsPanel());
+		panel.initializeRanks(itemManager, spriteManager, client, clientThread);
 		nightLegionExtras.setRankProfileConsumer(this::updateContributionProfile);
 		nightLegionExtras.refreshAll();
+		refreshRanksAutomatically();
+		rankFullSyncTask = executor.scheduleWithFixedDelay(
+			() -> clientThread.invoke(() -> syncRankPointsOnClientThread(false)),
+			2, 10, TimeUnit.MINUTES);
 		panel.setPbParticipationEnabled(config.pbRankingEnabled());
 		panel.setMvpParticipationEnabled(config.statsEnabled());
 		panel.clearRankDetails();
@@ -330,6 +365,7 @@ public class ClanMessagesPlugin extends Plugin
 		{
 			nightLegionExtras.shutDown();
 		}
+		rankLootTracker = null;
 		resetPendingPet();
 		pendingAllowlistedDrops.clear();
 		recentAllowlistedLootTicks.clear();
@@ -345,6 +381,11 @@ public class ClanMessagesPlugin extends Plugin
 		if (mvpDropsPollingTask != null)
 		{
 			mvpDropsPollingTask.cancel(false);
+		}
+		if (rankFullSyncTask != null)
+		{
+			rankFullSyncTask.cancel(false);
+			rankFullSyncTask = null;
 		}
 		if (executor != null)
 		{
@@ -367,6 +408,8 @@ public class ClanMessagesPlugin extends Plugin
 			currentWomCall = null;
 		}
 		verifiedAccount = "";
+		pointsCatalogueLoaded = false;
+		rankPointItemIds.clear();
 		authenticatedPlayerName = "";
 		submittedPbSignatures.clear();
 		visibleCombatAchievementPage = "";
@@ -491,6 +534,12 @@ public class ClanMessagesPlugin extends Plugin
 		}
 	}
 
+	@Subscribe
+	public void onMenuOptionClicked(MenuOptionClicked event)
+	{
+		if (rankLootTracker != null) rankLootTracker.onMenuOptionClicked(event);
+	}
+
 	private static String validChatUrl(String candidate)
 	{
 		String url = candidate;
@@ -519,6 +568,7 @@ public class ClanMessagesPlugin extends Plugin
 		String message = Text.removeTags(event.getMessage()).replace('\u00A0', ' ').trim();
 		if (event.getType() == ChatMessageType.GAMEMESSAGE)
 		{
+			if (rankLootTracker != null) rankLootTracker.onGameMessage(message);
 			if (isPbParticipationEnabled())
 			{
 				capturePersonalBest(event.getMessage(), message);
@@ -539,7 +589,7 @@ public class ClanMessagesPlugin extends Plugin
 		}
 		if (event.getType() == ChatMessageType.GAMEMESSAGE && PET_TRIGGER_PATTERN.matcher(message).matches())
 		{
-			if (config.discordDropsEnabled() && client.getLocalPlayer() != null)
+			if ((config.discordDropsEnabled() || config.enabled()) && client.getLocalPlayer() != null)
 			{
 				pendingPet = true;
 				pendingPetName = null;
@@ -716,6 +766,7 @@ public class ClanMessagesPlugin extends Plugin
 	@Subscribe
 	public void onServerNpcLoot(ServerNpcLoot event)
 	{
+		if (rankLootTracker != null) rankLootTracker.onServerNpcLoot(event);
 		String source = Text.removeTags(event.getComposition().getName());
 		notifyDiscordDrop(source, event.getItems(), "NPC", event.getComposition().getId());
 	}
@@ -723,10 +774,23 @@ public class ClanMessagesPlugin extends Plugin
 	@Subscribe
 	public void onLootReceived(LootReceived event)
 	{
+		if (rankLootTracker != null) rankLootTracker.onLootReceived(event);
 		if (event.getType() != LootRecordType.NPC && event.getType() != LootRecordType.PLAYER)
 		{
 			notifyDiscordDrop(event.getName(), event.getItems(), event.getType().name(), null);
 		}
+	}
+
+	@Subscribe
+	public void onNpcLootReceived(NpcLootReceived event)
+	{
+		if (rankLootTracker != null) rankLootTracker.onNpcLootReceived(event);
+	}
+
+	@Subscribe
+	public void onPlayerLootReceived(PlayerLootReceived event)
+	{
+		if (rankLootTracker != null) rankLootTracker.onPlayerLootReceived(event);
 	}
 
 	private void notifyDiscordDrop(String source, Collection<ItemStack> items, String category, Integer npcId)
@@ -1046,6 +1110,7 @@ public class ClanMessagesPlugin extends Plugin
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event)
 	{
+		if (rankLootTracker != null) rankLootTracker.onItemContainerChanged(event);
 		if (event.getContainerId() == InventoryID.BANK)
 		{
 			if (client.getLocalPlayer() == null) return;
@@ -1086,9 +1151,9 @@ public class ClanMessagesPlugin extends Plugin
 
 	private int currentTotalLevel()
 	{
-		int totalLevel = 0;
-		for (Skill skill : Skill.values()) totalLevel += client.getRealSkillLevel(skill);
-		return totalLevel;
+		// Reval uses RuneLite's authoritative aggregate instead of summing the
+		// skill enum (which can include synthetic entries such as OVERALL).
+		return client.getTotalLevel();
 	}
 
 	@Subscribe
@@ -1181,8 +1246,141 @@ public class ClanMessagesPlugin extends Plugin
 		});
 	}
 
+	/** Build Reval-style account state on the client thread, then let NightLegion award it. */
+	private void syncRankPointsOnClientThread(boolean explicit)
+	{
+		if (nightLegionExtras == null || panel == null || client.getLocalPlayer() == null
+			|| !config.enabled()) return;
+		String rsn = currentLocalRsn();
+		if (rsn.isEmpty()) return;
+		ensureRankBankAccount(rsn);
+		java.util.Set<Integer> itemIds = new java.util.HashSet<>();
+		collectItemIds(client.getItemContainer(InventoryID.INV), itemIds);
+		collectItemIds(client.getItemContainer(InventoryID.WORN), itemIds);
+		if (rankBankLoaded) itemIds.addAll(rankBankItemIds);
+
+		JsonObject state = new JsonObject();
+		state.addProperty("total_xp", client.getOverallExperience());
+		state.addProperty("total_level", currentTotalLevel());
+		state.addProperty("quest_points", Math.max(0, client.getVarpValue(101)));
+		state.addProperty("combat_achievement_points", Math.max(0, client.getVarbitValue(VarbitID.CA_POINTS)));
+		state.addProperty("collection_count", Math.max(0, client.getVarpValue(VarPlayerID.COLLECTION_COUNT)));
+		state.addProperty("all_quests_complete", allQuestsComplete());
+		state.addProperty("all_diaries_complete", allAchievementDiariesComplete());
+		state.addProperty("current_clan_rank", currentLocalClanRank());
+		JsonObject skills = new JsonObject();
+		for (Skill skill : Skill.values())
+		{
+			if (skill == Skill.OVERALL) continue;
+			JsonObject value = new JsonObject();
+			value.addProperty("level", client.getRealSkillLevel(skill));
+			value.addProperty("xp", Math.max(0, client.getSkillExperience(skill)));
+			skills.add(skill.getName(), value);
+		}
+		state.add("skills", skills);
+		JsonArray items = new JsonArray();
+		for (Integer itemId : new java.util.TreeSet<>(itemIds)) items.add(itemId);
+		state.add("item_ids", items);
+		JsonObject request = new JsonObject();
+		request.addProperty("sync_id", UUID.randomUUID().toString());
+		request.add("state", state);
+		log.debug("NightLegion rank full sync: currentRsn={}, totalLevel={}, itemCount={}, explicit={}",
+			rsn, currentTotalLevel(), itemIds.size(), explicit);
+		nightLegionExtras.rankAction("community_rank_full_sync", rsn, request, response ->
+		{
+			if (response.has("profile") && response.get("profile").isJsonObject())
+				updateContributionProfile(response.getAsJsonObject("profile"));
+		}, error -> log.debug("NightLegion rank full sync failed: {}", error));
+		fetchRankCatalogueAndProfile(explicit);
+	}
+
+	private void submitRankPointEvent(JsonObject event)
+	{
+		if (nightLegionExtras == null || event == null) return;
+		String rsn = currentLocalRsn();
+		if (rsn.isEmpty()) return;
+		nightLegionExtras.rankAction("community_rank_event", rsn, event, response ->
+		{
+			log.debug("NightLegion rank event response: eventType={}, eventId={}, accepted={}",
+				event.has("event_type") ? event.get("event_type").getAsString() : "",
+				event.has("event_id") ? event.get("event_id").getAsString() : "",
+				response.has("accepted") && response.get("accepted").getAsBoolean());
+			if (response.has("profile") && response.get("profile").isJsonObject())
+				updateContributionProfile(response.getAsJsonObject("profile"));
+		}, error -> log.debug("NightLegion rank event submission failed: {}", error));
+	}
+
+	private void submitRankPet(String petName)
+	{
+		if (petName == null || petName.trim().isEmpty())
+		{
+			log.debug("Rank pet event not submitted because no authoritative pet name was resolved");
+			return;
+		}
+		JsonObject event = new JsonObject();
+		event.addProperty("event_type", "pet");
+		event.addProperty("event_id", UUID.randomUUID().toString());
+		event.addProperty("pet_name", petName.trim());
+		submitRankPointEvent(event);
+	}
+
+	private void fetchRankCatalogueAndProfile(boolean forceCatalogue)
+	{
+		if (nightLegionExtras == null || panel == null) return;
+		String rsn = currentLocalRsn();
+		if (forceCatalogue || !pointsCatalogueLoaded)
+		{
+			nightLegionExtras.rankAction("community_points_catalog", rsn, new JsonObject(), response ->
+			{
+				PointsResponse catalogue = gson.fromJson(response, PointsResponse.class);
+				if (catalogue == null || catalogue.data == null) return;
+				pointsCatalogueLoaded = true;
+				rankPointItemIds.clear();
+				if (catalogue.data.pointSources != null)
+				{
+					for (java.util.List<PointsResponse.PointSource> sources : catalogue.data.pointSources.values())
+						for (PointsResponse.PointSource source : sources)
+							if (source.metadata != null && source.metadata.itemId != null)
+								rankPointItemIds.add(source.metadata.itemId);
+				}
+				SwingUtilities.invokeLater(() -> panel.setPointsCatalogue(catalogue));
+			}, error -> log.debug("NightLegion point catalogue failed: {}", error));
+		}
+		nightLegionExtras.rankAction("community_rank_profile", rsn, new JsonObject(), response ->
+		{
+			if (response.has("profile") && response.get("profile").isJsonObject())
+				updateContributionProfile(response.getAsJsonObject("profile"));
+		}, error -> log.debug("NightLegion rank profile failed: {}", error));
+	}
+
+	private boolean allQuestsComplete()
+	{
+		for (Quest quest : Quest.values())
+		{
+			if (!MINIQUEST_NAMES.contains(quest.getName()) && quest.getState(client) != QuestState.FINISHED)
+				return false;
+		}
+		return true;
+	}
+
+	private boolean allAchievementDiariesComplete()
+	{
+		for (int varbit : ACHIEVEMENT_DIARY_VARBITS)
+		{
+			int value = client.getVarbitValue(varbit);
+			if ((varbit == 3578 || varbit == 3599 || varbit == 3611) ? value <= 1 : value <= 0)
+				return false;
+		}
+		return true;
+	}
+
 	private void refreshRanksOnClientThread(boolean explicitSync)
 	{
+		if (nightLegionExtras != null)
+		{
+			syncRankPointsOnClientThread(explicitSync);
+			return;
+		}
 		if (panel == null || client.getLocalPlayer() == null) return;
 		String accountName = client.getLocalPlayer().getName();
 		ensureRankBankAccount(accountName);
@@ -2531,6 +2729,7 @@ public class ClanMessagesPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick tick)
 	{
+		if (rankLootTracker != null) rankLootTracker.onGameTick();
 		if (isPbParticipationEnabled())
 		{
 			processAdventureLog();
@@ -2554,9 +2753,13 @@ public class ClanMessagesPlugin extends Plugin
 			boolean duplicate = pendingPetDuplicate;
 			boolean backpack = pendingPetBackpack;
 			Boolean previouslyOwned = pendingPetPreviouslyOwned == null ? Boolean.TRUE : pendingPetPreviouslyOwned;
+			submitRankPet(petName);
 			resetPendingPet();
-			drawManager.requestNextFrameListener(image -> sendPetNotification(playerName, petName, milestone,
-				gameMessage, duplicate, backpack, previouslyOwned, image));
+			if (config.discordDropsEnabled())
+			{
+				drawManager.requestNextFrameListener(image -> sendPetNotification(playerName, petName, milestone,
+					gameMessage, duplicate, backpack, previouslyOwned, image));
+			}
 		}
 		if (clanLiveBadgeDecorator != null)
 		{
@@ -4143,6 +4346,7 @@ public class ClanMessagesPlugin extends Plugin
 		else if (event.getGameState() == GameState.LOGGED_IN && config.enabled())
 		{
 			configurePolling();
+			clientThread.invoke(() -> syncRankPointsOnClientThread(false));
 		}
 	}
 
@@ -4879,19 +5083,13 @@ private static void appendChatText(ChatMessageBuilder builder, Color color, Stri
 	private void updateContributionProfile(JsonObject profile)
 	{
 		if (profile == null || panel == null) return;
-		JsonObject rank = profile.has("rank") && profile.get("rank").isJsonObject()
-			? profile.getAsJsonObject("rank") : new JsonObject();
-		double points = profile.has("points") ? profile.get("points").getAsDouble() : 0.0;
-		String normalRank = rank.has("title") && !rank.get("title").isJsonNull()
-			? rank.get("title").getAsString() : "Quester";
-		String nextNormalRank = rank.has("next_title") && !rank.get("next_title").isJsonNull()
-			? rank.get("next_title").getAsString() : "";
-		Double nextThreshold = rank.has("next_threshold") && !rank.get("next_threshold").isJsonNull()
-			? rank.get("next_threshold").getAsDouble() : null;
-		String currentClanRank = profile.has("current_clan_rank")
-			&& !profile.get("current_clan_rank").isJsonNull()
-			? profile.get("current_clan_rank").getAsString() : currentLocalClanRank();
-		panel.updateActivityProfile(points, normalRank, nextNormalRank, nextThreshold, currentClanRank);
+		if (!profile.has("actual_clan_rank"))
+		{
+			String actual = profile.has("current_clan_rank") && !profile.get("current_clan_rank").isJsonNull()
+				? profile.get("current_clan_rank").getAsString() : currentLocalClanRank();
+			profile.addProperty("actual_clan_rank", actual);
+		}
+		SwingUtilities.invokeLater(() -> panel.updateRankProfile(profile));
 	}
 
 	static String authoritativeRsn(String localPlayerName)
