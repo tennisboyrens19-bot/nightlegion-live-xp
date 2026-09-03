@@ -64,8 +64,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## Reval Clan
 
-Rank catalogue, profile, point-source UI, icon loading, full-state sync, and
-loot event behavior are adapted from commit
+The RuneLite client structure, shell, screens, styling, interaction behavior,
+settings, profile cards, ranks, point sources, events, competitions, diaries,
+notifiers, sync systems, icons and related public behavior are adapted from commit
 `6033d3188b18d34f4bd4c28e6cf7986c8b95f0f9`.
 
 Source: https://github.com/revalOSRS/reval-cc-plugin
