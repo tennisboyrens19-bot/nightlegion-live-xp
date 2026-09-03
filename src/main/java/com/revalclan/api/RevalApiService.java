@@ -1,0 +1,511 @@
+package com.revalclan.api;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.revalclan.api.account.AccountResponse;
+import com.revalclan.api.achievements.AchievementsResponse;
+import com.revalclan.api.leaderboard.LeaderboardResponse;
+import com.revalclan.api.admin.ActualizeRankChangeResponse;
+import com.revalclan.api.admin.AdminAuthResponse;
+import com.revalclan.api.admin.AdminLoginRequest;
+import com.revalclan.api.admin.PendingRankChangesResponse;
+import com.revalclan.api.challenges.ChallengesResponse;
+import com.revalclan.api.leagues.LeaguesConfigResponse;
+import com.revalclan.api.competitions.*;
+import com.revalclan.api.announcements.AnnouncementsResponse;
+import com.revalclan.api.common.ApiEndpoints;
+import com.revalclan.api.common.ApiResponse;
+import com.revalclan.api.notifications.NotificationAckResponse;
+import com.revalclan.api.notifications.NotificationsResponse;
+import com.revalclan.api.diaries.DiariesResponse;
+import com.revalclan.api.events.ActiveTeamsResponse;
+import com.revalclan.api.playercards.ProfileCardResponse;
+import com.revalclan.api.events.EventsResponse;
+import com.revalclan.api.events.RegistrationResponse;
+import com.revalclan.api.events.RegistrationStatusResponse;
+import com.revalclan.api.points.PointsResponse;
+import com.revalclan.util.PluginVersion;
+import okhttp3.*;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+
+/**
+ * Service for fetching data from the Reval Plugin API.
+ */
+@Singleton
+public class RevalApiService {
+    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+
+    private final Gson gson;
+    private final NightLegionTransport transport;
+
+    // Cache durations
+    private static final long CACHE_DURATION_MS = 5 * 60 * 1000;
+    private static final long ACCOUNT_CACHE_DURATION_MS = 2 * 60 * 1000;
+    private static final long EVENTS_CACHE_DURATION_MS = 60 * 1000;
+
+    // Cached responses
+    private PointsResponse cachedPoints;
+    private long lastPointsFetch = 0;
+    private AccountResponse cachedAccount;
+    private String cachedAccountIdentifier;
+    private long lastAccountFetch = 0;
+    private EventsResponse cachedEvents;
+    private long lastEventsFetch = 0;
+    private ActiveTeamsResponse cachedActiveTeams;
+    private long lastActiveTeamsFetch = 0;
+    private AchievementsResponse cachedAchievements;
+    private long lastAchievementsFetch = 0;
+    private DiariesResponse cachedDiaries;
+    private long lastDiariesFetch = 0;
+    private ChallengesResponse cachedChallenges;
+    private long lastChallengesFetch = 0;
+
+    // Leagues config - session-level cache (no TTL, cleared on logout)
+    private LeaguesConfigResponse.LeaguesConfig cachedLeaguesConfig;
+
+    @Inject
+    public RevalApiService(NightLegionTransport transport, Gson gson) {
+        this.transport = transport;
+        this.gson = gson;
+    }
+
+    // ==================== POINTS API ====================
+
+    public void fetchPoints(Consumer<PointsResponse> onSuccess, Consumer<Exception> onError) {
+        if (cachedPoints != null && System.currentTimeMillis() - lastPointsFetch < CACHE_DURATION_MS) {
+            onSuccess.accept(cachedPoints);
+            return;
+        }
+        get(ApiEndpoints.POINTS, PointsResponse.class, response -> {
+            cachedPoints = response;
+            lastPointsFetch = System.currentTimeMillis();
+            onSuccess.accept(response);
+        }, onError);
+    }
+
+    // ==================== ACCOUNT API ====================
+
+    public void fetchAccount(long accountHash, Consumer<AccountResponse> onSuccess, Consumer<Exception> onError) {
+        String identifier = String.valueOf(accountHash);
+        if (cachedAccount != null && identifier.equals(cachedAccountIdentifier)
+            && System.currentTimeMillis() - lastAccountFetch < ACCOUNT_CACHE_DURATION_MS) {
+            onSuccess.accept(cachedAccount);
+            return;
+        }
+        get(ApiEndpoints.ACCOUNT + "?accountHash=" + accountHash, AccountResponse.class, response -> {
+            cachedAccount = response;
+            cachedAccountIdentifier = identifier;
+            lastAccountFetch = System.currentTimeMillis();
+            onSuccess.accept(response);
+        }, onError);
+    }
+
+    public void refreshAccount(long accountHash, Consumer<AccountResponse> onSuccess, Consumer<Exception> onError) {
+        clearAccountCache();
+        fetchAccount(accountHash, onSuccess, onError);
+    }
+
+    public void fetchAccountById(int osrsAccountId, Consumer<AccountResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.accountById(osrsAccountId), AccountResponse.class, onSuccess, onError);
+    }
+
+    // ==================== LEADERBOARD API ====================
+
+    public void fetchLeaderboard(Consumer<LeaderboardResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.LEADERBOARD, LeaderboardResponse.class, onSuccess, onError);
+    }
+
+    // ==================== EVENTS API ====================
+
+    public void fetchEvents(Consumer<EventsResponse> onSuccess, Consumer<Exception> onError) {
+        if (cachedEvents != null && System.currentTimeMillis() - lastEventsFetch < EVENTS_CACHE_DURATION_MS) {
+            onSuccess.accept(cachedEvents);
+            return;
+        }
+        get(ApiEndpoints.EVENTS, EventsResponse.class, response -> {
+            cachedEvents = response;
+            lastEventsFetch = System.currentTimeMillis();
+            onSuccess.accept(response);
+        }, onError);
+    }
+
+    public void refreshEvents(Consumer<EventsResponse> onSuccess, Consumer<Exception> onError) {
+        cachedEvents = null;
+        lastEventsFetch = 0;
+        fetchEvents(onSuccess, onError);
+    }
+
+    public void fetchActiveTeams(Consumer<ActiveTeamsResponse> onSuccess, Consumer<Exception> onError) {
+        if (cachedActiveTeams != null && System.currentTimeMillis() - lastActiveTeamsFetch < CACHE_DURATION_MS) {
+            onSuccess.accept(cachedActiveTeams);
+            return;
+        }
+        get(ApiEndpoints.EVENTS_ACTIVE_TEAMS, ActiveTeamsResponse.class, response -> {
+            cachedActiveTeams = response;
+            lastActiveTeamsFetch = System.currentTimeMillis();
+            onSuccess.accept(response);
+        }, onError);
+    }
+
+    public void fetchProfileCard(String nickname, Consumer<ProfileCardResponse> onSuccess, Consumer<Exception> onError) {
+        String encoded = URLEncoder.encode(nickname, StandardCharsets.UTF_8);
+        get(ApiEndpoints.PLAYER_PROFILE_CARD + "?nickname=" + encoded, ProfileCardResponse.class, onSuccess, onError);
+    }
+
+    public void registerForEvent(String eventId, long accountHash,
+                                 Consumer<RegistrationResponse> onSuccess, Consumer<Exception> onError) {
+        post(ApiEndpoints.eventRegister(eventId), "{\"accountHash\":\"" + accountHash + "\"}", 
+            RegistrationResponse.class, response -> {
+                cachedEvents = null;
+                onSuccess.accept(response);
+            }, onError);
+    }
+
+    public void cancelEventRegistration(String eventId, long accountHash,
+                                        Consumer<RegistrationResponse> onSuccess, Consumer<Exception> onError) {
+        delete(ApiEndpoints.eventRegister(eventId), "{\"accountHash\":\"" + accountHash + "\"}",
+            RegistrationResponse.class, response -> {
+                cachedEvents = null;
+                onSuccess.accept(response);
+            }, onError);
+    }
+
+    public void checkRegistrationStatus(String eventId, long accountHash,
+                                        Consumer<RegistrationStatusResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.eventRegistrationStatus(eventId) + "?accountHash=" + accountHash,
+            RegistrationStatusResponse.class, onSuccess, onError);
+    }
+
+    public void checkActiveEvents(Consumer<Boolean> onResult) {
+        fetchEvents(
+            response -> {
+                if (response.getData() != null && response.getData().getEvents() != null) {
+                    boolean hasActive = response.getData().getEvents().stream()
+                        .anyMatch(e -> e.isCurrentlyActive() || e.isUpcoming());
+                    onResult.accept(hasActive);
+                } else {
+                    onResult.accept(false);
+                }
+            },
+            error -> onResult.accept(false)
+        );
+    }
+
+    // ==================== ACHIEVEMENTS API ====================
+
+    public void fetchAchievementDefinitions(Long accountHash,
+                                           Consumer<AchievementsResponse> onSuccess, Consumer<Exception> onError) {
+        if (accountHash == null && cachedAchievements != null 
+            && System.currentTimeMillis() - lastAchievementsFetch < CACHE_DURATION_MS) {
+            onSuccess.accept(cachedAchievements);
+            return;
+        }
+        String endpoint = accountHash != null 
+            ? ApiEndpoints.ACHIEVEMENTS + "?accountHash=" + accountHash
+            : ApiEndpoints.ACHIEVEMENTS;
+        get(endpoint, AchievementsResponse.class, response -> {
+            if (accountHash == null) {
+                cachedAchievements = response;
+                lastAchievementsFetch = System.currentTimeMillis();
+            }
+            onSuccess.accept(response);
+        }, onError);
+    }
+
+    public void fetchAchievementDefinitions(Consumer<AchievementsResponse> onSuccess, Consumer<Exception> onError) {
+        fetchAchievementDefinitions(null, onSuccess, onError);
+    }
+
+    // ==================== DIARIES API ====================
+
+    public void fetchDiaries(Long accountHash, Consumer<DiariesResponse> onSuccess, Consumer<Exception> onError) {
+        if (cachedDiaries != null && accountHash == null 
+            && System.currentTimeMillis() - lastDiariesFetch < CACHE_DURATION_MS) {
+            onSuccess.accept(cachedDiaries);
+            return;
+        }
+        String endpoint = accountHash != null 
+            ? ApiEndpoints.DIARIES + "?accountHash=" + accountHash
+            : ApiEndpoints.DIARIES;
+        get(endpoint, DiariesResponse.class, response -> {
+            if (accountHash == null) {
+                cachedDiaries = response;
+                lastDiariesFetch = System.currentTimeMillis();
+            }
+            onSuccess.accept(response);
+        }, onError);
+    }
+
+    public void fetchDiaries(Consumer<DiariesResponse> onSuccess, Consumer<Exception> onError) {
+        fetchDiaries(null, onSuccess, onError);
+    }
+
+    // ==================== CHALLENGES API ====================
+
+    public void fetchChallenges(Long accountHash, Consumer<ChallengesResponse> onSuccess, Consumer<Exception> onError) {
+        if (accountHash == null && cachedChallenges != null 
+            && System.currentTimeMillis() - lastChallengesFetch < CACHE_DURATION_MS) {
+            onSuccess.accept(cachedChallenges);
+            return;
+        }
+        String endpoint = accountHash != null 
+            ? ApiEndpoints.CHALLENGES + "?accountHash=" + accountHash
+            : ApiEndpoints.CHALLENGES;
+        get(endpoint, ChallengesResponse.class, response -> {
+            if (accountHash == null) {
+                cachedChallenges = response;
+                lastChallengesFetch = System.currentTimeMillis();
+            }
+            onSuccess.accept(response);
+        }, onError);
+    }
+    
+    public void fetchChallenges(Consumer<ChallengesResponse> onSuccess, Consumer<Exception> onError) {
+        fetchChallenges(null, onSuccess, onError);
+    }
+
+    // ==================== LEAGUES API ====================
+
+    public void fetchLeaguesConfig(Consumer<LeaguesConfigResponse.LeaguesConfig> onSuccess, Consumer<Exception> onError) {
+        if (cachedLeaguesConfig != null) {
+            onSuccess.accept(cachedLeaguesConfig);
+            return;
+        }
+        get(ApiEndpoints.LEAGUES_CONFIG, LeaguesConfigResponse.class, response -> {
+            cachedLeaguesConfig = response.getData();
+            onSuccess.accept(cachedLeaguesConfig);
+        }, onError);
+    }
+
+    public LeaguesConfigResponse.LeaguesConfig getCachedLeaguesConfig() {
+        return cachedLeaguesConfig;
+    }
+
+    public void clearLeaguesCache() {
+        cachedLeaguesConfig = null;
+    }
+
+    // ==================== COMPETITIONS API ====================
+
+    public void fetchCompetitions(String status, Consumer<CompetitionsResponse> onSuccess, Consumer<Exception> onError) {
+        String endpoint = status != null 
+            ? ApiEndpoints.COMPETITIONS + "?status=" + status
+            : ApiEndpoints.COMPETITIONS;
+        get(endpoint, CompetitionsResponse.class, onSuccess, onError);
+    }
+
+    public void fetchCompetitions(Consumer<CompetitionsResponse> onSuccess, Consumer<Exception> onError) {
+        fetchCompetitions(null, onSuccess, onError);
+    }
+
+    public void fetchScheduledCompetitions(Consumer<CompetitionsResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.COMPETITIONS_SCHEDULED, CompetitionsResponse.class, onSuccess, onError);
+    }
+
+    public void fetchActiveCompetitions(Consumer<CompetitionsResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.COMPETITIONS_ACTIVE, CompetitionsResponse.class, onSuccess, onError);
+    }
+
+    public void fetchCompletedCompetitions(Consumer<CompetitionsResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.COMPETITIONS_COMPLETED, CompetitionsResponse.class, onSuccess, onError);
+    }
+
+    public void fetchCompetitionDetails(String competitionId, Consumer<CompetitionDetailsResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.competitionById(competitionId), CompetitionDetailsResponse.class, onSuccess, onError);
+    }
+
+    public void fetchCompetitionLeaderboard(String competitionId, Consumer<CompetitionLeaderboardResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.competitionLeaderboard(competitionId), CompetitionLeaderboardResponse.class, onSuccess, onError);
+    }
+
+    public void fetchCompetitionActivity(String competitionId, Consumer<CompetitionActivityResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.competitionActivity(competitionId), CompetitionActivityResponse.class, onSuccess, onError);
+    }
+
+    public void fetchMyCompetitionProgress(String competitionId, long accountHash, 
+                                           Consumer<MyProgressResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.competitionMyProgress(competitionId) + "?accountHash=" + accountHash,
+            MyProgressResponse.class, onSuccess, onError);
+    }
+
+    public void fetchMyAllCompetitionsProgress(long accountHash, 
+                                               Consumer<MyProgressAllResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.COMPETITIONS_MY_PROGRESS_ALL + "?accountHash=" + accountHash,
+            MyProgressAllResponse.class, onSuccess, onError);
+    }
+
+    // ==================== COMPETITION VOTES API ====================
+
+    public void fetchVotes(Consumer<VotesResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.COMPETITION_VOTES, VotesResponse.class, onSuccess, onError);
+    }
+
+    public void fetchVoteDetails(String voteId, Consumer<VoteDetailsResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.voteById(voteId), VoteDetailsResponse.class, onSuccess, onError);
+    }
+
+    public void castVote(String voteId, String optionId, long accountHash,
+                         Consumer<CastVoteResponse> onSuccess, Consumer<Exception> onError) {
+        post(ApiEndpoints.voteCast(voteId) + "?accountHash=" + accountHash,
+            "{\"optionId\":\"" + optionId + "\"}", CastVoteResponse.class, onSuccess, onError);
+    }
+
+    public void fetchMyVote(String voteId, long accountHash,
+                            Consumer<MyVoteResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.voteMyVote(voteId) + "?accountHash=" + accountHash,
+            MyVoteResponse.class, onSuccess, onError);
+    }
+
+    // ==================== ADMIN API ====================
+
+    public void adminLogin(String memberCode, Long accountHash, String osrsNickname,
+                           Consumer<AdminAuthResponse> onSuccess, Consumer<Exception> onError) {
+        AdminLoginRequest requestBody = new AdminLoginRequest(
+            accountHash != null ? String.valueOf(accountHash) : null,
+            osrsNickname
+        );
+        postAdmin(ApiEndpoints.ADMIN_AUTH_LOGIN, gson.toJson(requestBody), memberCode,
+            AdminAuthResponse.class, onSuccess, onError);
+    }
+
+    public void fetchPendingRankChanges(String memberCode, int limit,
+                                        Consumer<PendingRankChangesResponse> onSuccess, Consumer<Exception> onError) {
+        getAdmin(ApiEndpoints.ADMIN_RANK_CHANGES_PENDING + "?limit=" + limit, memberCode,
+            PendingRankChangesResponse.class, onSuccess, onError);
+    }
+
+    public void fetchPendingRankChanges(String memberCode,
+                                        Consumer<PendingRankChangesResponse> onSuccess, Consumer<Exception> onError) {
+        fetchPendingRankChanges(memberCode, 100, onSuccess, onError);
+    }
+
+    public void actualizeRankChange(String memberCode, int rankChangeId,
+                                    Consumer<ActualizeRankChangeResponse> onSuccess, Consumer<Exception> onError) {
+        postAdmin(ApiEndpoints.rankChangeActualize(rankChangeId), null, memberCode,
+            ActualizeRankChangeResponse.class, onSuccess, onError);
+    }
+
+    // ==================== ANNOUNCEMENTS API ====================
+
+    public void fetchAnnouncements(Consumer<AnnouncementsResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.ANNOUNCEMENTS, AnnouncementsResponse.class, onSuccess, onError);
+    }
+
+    // ==================== NOTIFICATIONS API ====================
+
+    public void fetchNotifications(long accountHash, Consumer<NotificationsResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.NOTIFICATIONS + "?accountHash=" + accountHash,
+            NotificationsResponse.class, onSuccess, onError);
+    }
+
+    public void acknowledgeNotifications(long accountHash, List<Integer> notificationIds,
+                                         Consumer<NotificationAckResponse> onSuccess, Consumer<Exception> onError) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("accountHash", String.valueOf(accountHash));
+        body.put("notificationIds", notificationIds);
+        post(ApiEndpoints.NOTIFICATIONS_ACK, gson.toJson(body),
+            NotificationAckResponse.class, onSuccess, onError);
+    }
+
+    // ==================== CACHE MANAGEMENT ====================
+
+    public void clearCache() {
+        cachedPoints = null;
+        lastPointsFetch = 0;
+        cachedAccount = null;
+        cachedAccountIdentifier = null;
+        lastAccountFetch = 0;
+        cachedEvents = null;
+        lastEventsFetch = 0;
+        cachedActiveTeams = null;
+        lastActiveTeamsFetch = 0;
+        cachedAchievements = null;
+        lastAchievementsFetch = 0;
+        cachedDiaries = null;
+        lastDiariesFetch = 0;
+        cachedChallenges = null;
+        lastChallengesFetch = 0;
+        cachedLeaguesConfig = null;
+    }
+
+    public void clearAccountCache() {
+        cachedAccount = null;
+        cachedAccountIdentifier = null;
+        lastAccountFetch = 0;
+        cachedAchievements = null;
+        lastAchievementsFetch = 0;
+    }
+
+    // ==================== HTTP HELPERS ====================
+
+    private <T extends ApiResponse> void get(String endpoint, Class<T> responseClass,
+                                             Consumer<T> onSuccess, Consumer<Exception> onError) {
+        request(endpoint, "GET", null, null, responseClass, onSuccess, onError);
+    }
+
+    private <T extends ApiResponse> void getAdmin(String endpoint, String memberCode, Class<T> responseClass,
+                                                  Consumer<T> onSuccess, Consumer<Exception> onError) {
+        request(endpoint, "GET", null, memberCode, responseClass, onSuccess, onError);
+    }
+
+    private <T extends ApiResponse> void post(String endpoint, String body, Class<T> responseClass,
+                                              Consumer<T> onSuccess, Consumer<Exception> onError) {
+        request(endpoint, "POST", body, null, responseClass, onSuccess, onError);
+    }
+
+    private <T extends ApiResponse> void postAdmin(String endpoint, String body, String memberCode,
+                                                   Class<T> responseClass, Consumer<T> onSuccess, Consumer<Exception> onError) {
+        request(endpoint, "POST", body, memberCode, responseClass, onSuccess, onError);
+    }
+
+    private <T extends ApiResponse> void delete(String endpoint, String body, Class<T> responseClass,
+                                                Consumer<T> onSuccess, Consumer<Exception> onError) {
+        request(endpoint, "DELETE", body, null, responseClass, onSuccess, onError);
+    }
+
+    private <T extends ApiResponse> void request(String endpoint, String method, String body,
+                                                 String memberCode, Class<T> responseClass,
+                                                 Consumer<T> onSuccess, Consumer<Exception> onError) {
+        JsonObject data = new JsonObject();
+        data.addProperty("endpoint", endpoint);
+        data.addProperty("method", method);
+        if (memberCode != null && !memberCode.isEmpty()) {
+            // Compatibility field only. NightLegionBot authorizes the linked
+            // Discord member server-side and never trusts this client value.
+            data.addProperty("memberCode", memberCode);
+        }
+        if (body != null && !body.isEmpty()) {
+            try {
+                JsonElement parsed = gson.fromJson(body, JsonElement.class);
+                data.add("body", parsed);
+            } catch (RuntimeException error) {
+                data.addProperty("bodyText", body);
+            }
+        }
+        transport.request("community_reval_api", data, response -> {
+            try {
+                T parsedResponse = gson.fromJson(response, responseClass);
+                if (parsedResponse == null) {
+                    onError.accept(new Exception("NightLegion returned an empty response"));
+                } else if (!parsedResponse.isSuccess()) {
+                    onError.accept(new Exception(parsedResponse.getMessage() != null
+                        ? parsedResponse.getMessage() : "NightLegion request failed"));
+                } else {
+                    onSuccess.accept(parsedResponse);
+                }
+            } catch (RuntimeException error) {
+                onError.accept(error);
+            }
+        }, onError);
+    }
+}

@@ -1,0 +1,77 @@
+package com.revalclan.notifiers;
+
+import net.runelite.api.Skill;
+import net.runelite.api.events.StatChanged;
+
+import javax.inject.Singleton;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Notifies on level ups
+ */
+@Singleton
+public class LevelNotifier extends BaseNotifier {
+	private final Map<Skill, Integer> previousLevels = new EnumMap<>(Skill.class);
+	private final Map<Skill, Integer> previousXp = new EnumMap<>(Skill.class);
+
+	@Override
+	public boolean isEnabled() {
+		return config.notifyLevel() && filterManager.getFilters().isLevelEnabled();
+	}
+
+	@Override
+	protected String getEventType() {
+		return "LEVEL";
+	}
+
+	public void onStatChanged(StatChanged event) {
+		if (!isEnabled()) return;
+
+		Skill skill = event.getSkill();
+		int newLevel = event.getLevel();
+		int newXp = event.getXp();
+
+		// Initialize if first time seeing this skill
+		if (!previousLevels.containsKey(skill)) {
+			previousLevels.put(skill, newLevel);
+			previousXp.put(skill, newXp);
+			return;
+		}
+
+		int oldLevel = previousLevels.get(skill);
+		int oldXp = previousXp.get(skill);
+
+		// Update tracking
+		previousLevels.put(skill, newLevel);
+		previousXp.put(skill, newXp);
+
+		// Check for level up
+		if (newLevel > oldLevel && newXp > oldXp) {
+			handleLevelUp(skill, newLevel, newXp);
+		}
+	}
+
+	private void handleLevelUp(Skill skill, int level, int xp) {
+		int totalLevel = client.getTotalLevel();
+		long totalXp = client.getOverallExperience();
+		int combatLevel = client.getLocalPlayer() != null ? client.getLocalPlayer().getCombatLevel() : 0;
+
+		Map<String, Object> levelData = new HashMap<>();
+		levelData.put("skill", skill.getName());
+		levelData.put("level", level);
+		levelData.put("experience", xp);
+		levelData.put("totalLevel", totalLevel);
+		levelData.put("totalExperience", totalXp);
+		levelData.put("combatLevel", combatLevel);
+
+		sendNotification(levelData);
+	}
+
+	public void reset() {
+		previousLevels.clear();
+		previousXp.clear();
+	}
+}
+
