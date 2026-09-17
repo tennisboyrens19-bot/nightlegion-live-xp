@@ -1,0 +1,59 @@
+name: NightLegion profile regressions
+
+on:
+  push:
+    branches: [fix/september-2026-profile-mvp]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: profile-regressions-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plugin-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Archive source-only fixture for reproducible diagnosis
+        run: |
+          python3 - <<'PY'
+          import subprocess, zipfile
+          paths = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
+          with zipfile.ZipFile('profile-test-source.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+              for path in paths:
+                  if path and (path.startswith('src/') or path in {'build.gradle', 'settings.gradle', 'runelite-plugin.properties'}):
+                      archive.write(path, path)
+              archive.writestr('SOURCE_COMMIT', subprocess.check_output(['git', 'rev-parse', 'HEAD']))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-test-source
+          path: profile-test-source.zip
+          retention-days: 3
+      - name: Compile and run plugin tests
+        env:
+          JAVA_TOOL_OPTIONS: -Djava.awt.headless=true
+        run: gradle --no-daemon clean test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: plugin-test-results
+          path: |
+            build/reports/tests
+            build/test-results
+          if-no-files-found: ignore
+          retention-days: 7
