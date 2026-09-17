@@ -105,7 +105,6 @@ public class RevalClanPlugin extends Plugin {
 
 	@Inject	private EmoteNotifier emoteNotifier;
 
-	@Inject	private ChatNotifier chatNotifier;
 
 	@Inject	private MusicNotifier musicNotifier;
 
@@ -330,7 +329,9 @@ public class RevalClanPlugin extends Plugin {
 		}
 
 		if (revalPanel != null) {
-			revalPanel.onLoggedIn();
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                if (revalPanel != null) revalPanel.onLoggedIn();
+            });
 		}
 	}
 
@@ -413,7 +414,6 @@ public class RevalClanPlugin extends Plugin {
 
 		ChatMessageType type = event.getType();
 
-		chatNotifier.onChatMessage(type, event.getName(), cleanMessage);
 
 		if (type == ChatMessageType.GAMEMESSAGE ||
 			type == ChatMessageType.SPAM ||
@@ -493,6 +493,21 @@ public class RevalClanPlugin extends Plugin {
 	public void onConfigChanged(ConfigChanged event) {
 		if (!"nightlegion".equals(event.getGroup())) return;
 
+        if ("personalLinkToken".equals(event.getKey())) {
+            nightLegionTransport.invalidateRequests();
+            revalApiService.clearCache();
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                if (revalPanel != null) revalPanel.onConnectionChanged();
+            });
+            clientThread.invokeLater(() -> {
+                nightLegionTransport.captureCurrentRsn();
+                inRequiredClan = false;
+                clanValidationAttempt = client.getGameState() == GameState.LOGGED_IN ? 0 : -1;
+                return true;
+            });
+            return;
+        }
+
 		if ("hideCompletedItems".equals(event.getKey()) && revalPanel != null) {
 			revalPanel.getProfilePanel().rebuild();
 		}
@@ -503,5 +518,3 @@ public class RevalClanPlugin extends Plugin {
 		return configManager.getConfig(RevalClanConfig.class);
 	}
 }
-
-

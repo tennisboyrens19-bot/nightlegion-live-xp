@@ -91,6 +91,20 @@ public class CompetitionsPanel extends JPanel {
 		this.onIndicatorUpdate = callback;
 	}
 
+    public void resetConnection() {
+        activeVotes = new ArrayList<>();
+        activeCompetitions = new ArrayList<>();
+        scheduledCompetitions = new ArrayList<>();
+        myVotes.clear();
+        detailViewPanel.removeAll();
+        cardLayout.show(cardContainer, "LIST");
+        contentPanel.removeAll();
+        contentPanel.add(new com.revalclan.ui.components.LoginPrompt("Competitions"));
+        contentPanel.revalidate();
+        contentPanel.repaint();
+        if (onIndicatorUpdate != null) onIndicatorUpdate.accept(false);
+    }
+
 	public void refresh() {
 		loadData(false);
 	}

@@ -35,7 +35,7 @@ public class ProfileRegressionTest {
         assertNull(old.getData().getMonthlyMvp());
         assertFalse(old.getData().isMonthlyMvpWinner());
         assertNull(old.getData().getOsrsAccount().getEhp());
-        AccountResponse value = GSON.fromJson("{\"data\":{\"osrsAccount\":{\"ehp\":null,\"ehb\":0,\"calculatedRank\":\"precept\"},\"pointsBreakdown\":{\"misc\":-40},\"monthlyMvpWinner\":true}}", AccountResponse.class);
+        AccountResponse value = GSON.fromJson("{\"data\":{\"osrsAccount\":{\"ehp\":null,\"ehb\":0,\"calculatedRank\":\"prefect\"},\"pointsBreakdown\":{\"misc\":-40},\"monthlyMvpWinner\":true}}", AccountResponse.class);
         assertEquals("--", ProfilePanel.formatEfficiency(value.getData().getOsrsAccount().getEhp()));
         assertEquals("0.0", ProfilePanel.formatEfficiency(value.getData().getOsrsAccount().getEhb()));
         assertEquals(Integer.valueOf(-40), value.getData().getPointsBreakdown().getMisc());

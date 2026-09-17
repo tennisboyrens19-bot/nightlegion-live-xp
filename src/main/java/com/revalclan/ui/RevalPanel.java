@@ -31,7 +31,7 @@ import java.awt.*;
 
 public class RevalPanel extends PluginPanel {
 	private static final String DISCORD_URL = "https://discord.com/channels/1404482606241943582/";
-	private static final String WEBSITE_URL = "";
+	static final String WEBSITE_URL = "https://nightlegion-web.vercel.app/";
 
 	private final CardLayout cardLayout;
 	private final JPanel contentPanel;
@@ -155,19 +155,18 @@ public class RevalPanel extends PluginPanel {
 
 		row2.add(eventsTab);
 		row2.add(Box.createRigidArea(new Dimension(4, 0)));
-		row2.add(leaderboardTab);
-		row2.add(Box.createRigidArea(new Dimension(4, 0)));
 		row2.add(competitionsTab);
 
 		// Third row: Diary
-		JPanel row3 = new JPanel(new GridLayout(1, 1, 4, 0));
+		JPanel row3 = new JPanel(new BorderLayout(4, 0));
 		row3.setOpaque(false);
 		row3.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
 
 		diaryTab = createTabButton("Diary");
 		diaryTab.addActionListener(e -> selectTab("DIARY"));
 
-		row3.add(diaryTab);
+		row3.add(leaderboardTab, BorderLayout.WEST);
+		row3.add(diaryTab, BorderLayout.CENTER);
 
 		navBar.add(row1);
 		navBar.add(Box.createRigidArea(new Dimension(0, 4)));
@@ -456,12 +455,36 @@ public class RevalPanel extends PluginPanel {
 	// ==================== Lifecycle ====================
 
 	public void onLoggedIn() {
+		rankingPanel.refresh();
+		leaderboardPanel.refresh();
 		profilePanel.refresh();
 		achievementsPanel.onLoggedIn();
 		competitionsPanel.refresh();
 		eventsPanel.onLoggedIn();
 		diaryPanel.onLoggedIn();
 	}
+
+    public void onConnectionChanged() {
+        profilePanel.resetConnection();
+        rankingPanel.resetConnection();
+        leaderboardPanel.resetConnection();
+        competitionsPanel.resetConnection();
+        achievementsPanel.onLoggedOut();
+        eventsPanel.onLoggedOut();
+        diaryPanel.onLoggedOut();
+        if (adminManager != null) adminManager.logout();
+        if (adminLoginPanel != null) contentPanel.remove(adminLoginPanel);
+        if (adminDashboardPanel != null) contentPanel.remove(adminDashboardPanel);
+        if (pendingRankupsPanel != null) contentPanel.remove(pendingRankupsPanel);
+        adminManager = new AdminManager();
+        adminLoginPanel = null;
+        adminDashboardPanel = null;
+        pendingRankupsPanel = null;
+        if (adminButton != null) adminButton.setAdmin(false);
+        setEventsIndicator(false);
+        setCompetitionsIndicator(false);
+        selectTab("PROFILE");
+    }
 
 	public void onLoggedOut() {
 		profilePanel.onLoggedOut();

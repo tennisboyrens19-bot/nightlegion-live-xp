@@ -1,6 +1,8 @@
 package com.revalclan.ui;
 
 import com.revalclan.api.RevalApiService;
+import com.revalclan.api.common.MonthlyMvp;
+import com.revalclan.ui.components.Badge;
 import com.revalclan.api.leaderboard.LeaderboardResponse;
 import com.revalclan.ui.components.BackButton;
 import com.revalclan.ui.components.Clickable;
@@ -34,6 +36,8 @@ public class LeaderboardPanel extends JPanel {
 	private final JPanel profileViewPanel;
 	private JTextField searchField;
 	private RefreshButton refreshButton;
+    private MonthlyMvp monthlyMvp;
+    private volatile long loadGeneration;
 
 	private List<LeaderboardResponse.LeaderboardEntry> allEntries = new ArrayList<>();
 	private List<LeaderboardResponse.LeaderboardEntry> filteredEntries = new ArrayList<>();
@@ -57,7 +61,13 @@ public class LeaderboardPanel extends JPanel {
 		contentPanel.setBackground(UIConstants.BACKGROUND);
 		contentPanel.setBorder(new EmptyBorder(4, 6, 6, 6));
 
-		JPanel contentWrapper = new JPanel(new BorderLayout());
+		JPanel contentWrapper = new JPanel(new BorderLayout()) {
+            @Override public Dimension getPreferredSize() {
+                Dimension size = super.getPreferredSize();
+                if (getParent() != null) size.width = getParent().getWidth();
+                return size;
+            }
+        };
 		contentWrapper.setBackground(UIConstants.BACKGROUND);
 		contentWrapper.add(contentPanel, BorderLayout.NORTH);
 
@@ -132,6 +142,16 @@ public class LeaderboardPanel extends JPanel {
 		loadLeaderboard();
 	}
 
+    public void resetConnection() {
+        loadGeneration++;
+        monthlyMvp = null;
+        allEntries = new ArrayList<>();
+        filteredEntries = new ArrayList<>();
+        profileViewPanel.removeAll();
+        showListView();
+        showMessage("Connect to load the leaderboard");
+    }
+
 	public void refresh() {
 		loadLeaderboard();
 	}
@@ -155,30 +175,34 @@ public class LeaderboardPanel extends JPanel {
 		cardLayout.show(cardContainer, "PROFILE");
 	}
 
-	private void loadLeaderboard() {
-		if (apiService == null) return;
-
-		refreshButton.setLoading(true);
-		showLoading();
-		apiService.fetchLeaderboard(
-			response -> {
-				if (response.getData() != null && response.getData().getLeaderboard() != null) {
-					allEntries = response.getData().getLeaderboard();
-					filteredEntries = new ArrayList<>(allEntries);
-					SwingUtilities.invokeLater(() -> { refreshButton.setLoading(false); buildLeaderboard(); });
-				} else {
-					SwingUtilities.invokeLater(() -> { refreshButton.setLoading(false); showMessage("No leaderboard data"); });
-				}
-			},
-			error -> SwingUtilities.invokeLater(() -> { refreshButton.setLoading(false); showMessage("Failed to load leaderboard"); })
-		);
-	}
+    private void loadLeaderboard() {
+        if (apiService == null) return;
+        final long requestGeneration = ++loadGeneration;
+        refreshButton.setLoading(true);
+        showLoading();
+        apiService.fetchLeaderboard(response -> SwingUtilities.invokeLater(() -> {
+            if (requestGeneration != loadGeneration) return;
+            refreshButton.setLoading(false);
+            if (response != null && response.getData() != null) {
+                monthlyMvp = response.getData().getMonthlyMvp();
+                allEntries = response.getData().getLeaderboard() != null
+                    ? response.getData().getLeaderboard() : new ArrayList<>();
+                filterLeaderboard();
+            } else {
+                showMessage("No leaderboard data");
+            }
+        }), error -> SwingUtilities.invokeLater(() -> {
+            if (requestGeneration != loadGeneration) return;
+            refreshButton.setLoading(false);
+            showMessage("Leaderboard unavailable. Press Refresh to retry.");
+        }));
+    }
 
 	private void filterLeaderboard() {
-		String query = searchField.getText().toLowerCase().trim();
+		String query = searchField.getText().toLowerCase(java.util.Locale.ROOT).trim();
 		filteredEntries = query.isEmpty() ? new ArrayList<>(allEntries) :
 			allEntries.stream()
-				.filter(e -> e.getOsrsNickname().toLowerCase().contains(query))
+				.filter(e -> e.getOsrsNickname() != null && e.getOsrsNickname().toLowerCase(java.util.Locale.ROOT).contains(query))
 				.collect(Collectors.toList());
 		buildLeaderboard();
 	}
@@ -203,6 +227,7 @@ public class LeaderboardPanel extends JPanel {
 		label.setForeground(UIConstants.TEXT_SECONDARY);
 		label.setAlignmentX(Component.CENTER_ALIGNMENT);
 		contentPanel.add(label);
+        contentPanel.add(refreshButton);
 		contentPanel.revalidate();
 		contentPanel.repaint();
 	}
@@ -210,10 +235,8 @@ public class LeaderboardPanel extends JPanel {
 	private void buildLeaderboard() {
 		contentPanel.removeAll();
 
-		if (filteredEntries.isEmpty()) {
-			showMessage(allEntries.isEmpty() ? "No players found" : "No matching players");
-			return;
-		}
+        contentPanel.add(new MonthlyMvpPanel(monthlyMvp));
+        contentPanel.add(Box.createVerticalStrut(10));
 
 		String countText = filteredEntries.size() == allEntries.size()
 			? allEntries.size() + " players"
@@ -231,6 +254,12 @@ public class LeaderboardPanel extends JPanel {
 
 		contentPanel.add(countRow);
 		contentPanel.add(Box.createVerticalStrut(4));
+        if (filteredEntries.isEmpty()) {
+            JLabel empty = new JLabel(allEntries.isEmpty() ? "No players found" : "No matching players");
+            empty.setForeground(UIConstants.TEXT_SECONDARY);
+            empty.setFont(FontManager.getRunescapeSmallFont());
+            contentPanel.add(empty);
+        }
 
 		for (LeaderboardResponse.LeaderboardEntry entry : filteredEntries) {
 			contentPanel.add(createPlayerRow(entry));
@@ -256,29 +285,35 @@ public class LeaderboardPanel extends JPanel {
 		row.setOpaque(false);
 		row.setBackground(UIConstants.CARD_BG);
 		row.setBorder(new EmptyBorder(8, 10, 8, 12));
-		row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+		row.setMaximumSize(new Dimension(Integer.MAX_VALUE, entry.isMonthlyMvpWinner() ? 62 : 44));
 		row.setAlignmentX(Component.LEFT_ALIGNMENT);
 
 		Clickable.onPress(row, () -> showPlayerProfile(entry.getOsrsAccountId(), entry.getOsrsNickname()),
 			UIConstants.CARD_HOVER, UIConstants.CARD_BG);
 
 		// Left: Rank + Name
-		JPanel leftPanel = new JPanel();
-		leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.X_AXIS));
+		JPanel leftPanel = new JPanel(new BorderLayout(4, 0));
 		leftPanel.setOpaque(false);
 
 		JLabel rankLabel = new JLabel("#" + entry.getRank());
 		rankLabel.setFont(FontManager.getRunescapeBoldFont());
 		rankLabel.setForeground(getRankColor(entry.getRank()));
-		rankLabel.setPreferredSize(new Dimension(42, 20));
+		rankLabel.setPreferredSize(new Dimension(28, 20));
 
 		JLabel nameLabel = new JLabel(entry.getOsrsNickname());
 		nameLabel.setFont(FontManager.getRunescapeSmallFont());
 		nameLabel.setForeground(UIConstants.TEXT_PRIMARY);
 
-		leftPanel.add(rankLabel);
-		leftPanel.add(Box.createRigidArea(new Dimension(6, 0)));
-		leftPanel.add(nameLabel);
+        nameLabel.setToolTipText(entry.getOsrsNickname());
+        JPanel nameStack = new JPanel(new BorderLayout());
+        nameStack.setOpaque(false);
+        nameStack.add(nameLabel, BorderLayout.CENTER);
+        if (entry.isMonthlyMvpWinner()) {
+            Badge badge = new Badge("MVP", UIConstants.ACCENT_GOLD);
+            nameStack.add(badge, BorderLayout.SOUTH);
+        }
+        leftPanel.add(rankLabel, BorderLayout.WEST);
+        leftPanel.add(nameStack, BorderLayout.CENTER);
 
 		// Right: Points + Rank
 		JPanel rightPanel = new JPanel();
@@ -298,7 +333,7 @@ public class LeaderboardPanel extends JPanel {
 		rightPanel.add(pointsLabel);
 		rightPanel.add(clanRankLabel);
 
-		row.add(leftPanel, BorderLayout.WEST);
+		row.add(leftPanel, BorderLayout.CENTER);
 		row.add(rightPanel, BorderLayout.EAST);
 
 		return row;

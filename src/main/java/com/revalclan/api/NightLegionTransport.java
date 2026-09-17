@@ -8,6 +8,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -37,12 +38,21 @@ public final class NightLegionTransport
 	private final Client runeLiteClient;
 	private final ScheduledExecutorService poller;
 	private volatile String authoritativeRsn = "";
+    private final AtomicLong generation = new AtomicLong();
+    private final String baseUrl;
 
 	@Inject
 	public NightLegionTransport(OkHttpClient client, Gson gson, RevalClanConfig config,
 		Client runeLiteClient)
-	{
-		this.client = client;
+    {
+        this(client, gson, config, runeLiteClient, BASE);
+    }
+
+    NightLegionTransport(OkHttpClient client, Gson gson, RevalClanConfig config,
+        Client runeLiteClient, String baseUrl)
+    {
+        this.baseUrl = baseUrl;
+        this.client = client;
 		this.gson = gson;
 		this.config = config;
 		this.runeLiteClient = runeLiteClient;
@@ -55,6 +65,9 @@ public final class NightLegionTransport
 		this.poller = Executors.newSingleThreadScheduledExecutor(factory);
 	}
 
+    /** Suppress responses from an old credential/account context. */
+    public void invalidateRequests() { generation.incrementAndGet(); }
+
 	public void request(String action, JsonObject data, Consumer<JsonObject> success,
 		Consumer<Exception> failure)
 	{
@@ -65,18 +78,25 @@ public final class NightLegionTransport
 				"Paste your NightLegion Personal Link Token in the plugin settings first."));
 			return;
 		}
+        final long requestGeneration = generation.get();
+        Consumer<JsonObject> guardedSuccess = value -> {
+            if (generation.get() == requestGeneration) success.accept(value);
+        };
+        Consumer<Exception> guardedFailure = error -> {
+            if (generation.get() == requestGeneration) failure.accept(error);
+        };
 		JsonObject envelope = new JsonObject();
 		envelope.addProperty("action", action);
 		envelope.addProperty("rsn", currentRsn());
 		envelope.add("data", data == null ? new JsonObject() : data);
 		Request request = new Request.Builder()
-			.url(BASE + "/companion/request")
+			.url(baseUrl + "/companion/request")
 			.header("X-NightLegion-Token", token)
 			.post(RequestBody.create(JSON, gson.toJson(envelope)))
 			.build();
 		client.newCall(request).enqueue(new Callback()
 		{
-			@Override public void onFailure(Call call, IOException error) { failure.accept(error); }
+			@Override public void onFailure(Call call, IOException error) { guardedFailure.accept(new IOException("Cannot reach NightLegion. Check your connection and try again.")); }
 			@Override public void onResponse(Call call, Response response)
 			{
 				try (Response ignored = response)
@@ -84,16 +104,16 @@ public final class NightLegionTransport
 					String text = response.body() == null ? "" : response.body().string();
 					if (response.code() != 202)
 					{
-						failure.accept(new IOException(errorText(text, response.code())));
+						guardedFailure.accept(new IOException(errorText(text, response.code())));
 						return;
 					}
 					JsonObject accepted = gson.fromJson(text, JsonObject.class);
 					String id = accepted != null && accepted.has("request_id")
 						? accepted.get("request_id").getAsString() : "";
-					if (id.isEmpty()) failure.accept(new IOException("NightLegion returned no request id."));
-					else poll(id, token, 0, success, failure);
+					if (id.isEmpty()) guardedFailure.accept(new IOException("NightLegion returned no request id."));
+					else poll(id, token, 0, guardedSuccess, guardedFailure, requestGeneration);
 				}
-				catch (Exception error) { failure.accept(error); }
+				catch (Exception error) { guardedFailure.accept(error); }
 			}
 		});
 	}
@@ -114,8 +134,9 @@ public final class NightLegionTransport
 	}
 
 	private void poll(String id, String token, int attempt, Consumer<JsonObject> success,
-		Consumer<Exception> failure)
+		Consumer<Exception> failure, long requestGeneration)
 	{
+        if (generation.get() != requestGeneration) return;
 		if (attempt > MAX_POLLS)
 		{
 			failure.accept(new IOException("NightLegion is taking too long to respond."));
@@ -123,15 +144,16 @@ public final class NightLegionTransport
 		}
 		poller.schedule(() ->
 		{
+            if (generation.get() != requestGeneration) return;
 			Request request = new Request.Builder()
-				.url(BASE + "/companion/result/" + id)
+				.url(baseUrl + "/companion/result/" + id)
 				.header("X-NightLegion-Token", token)
 				.get().build();
 			client.newCall(request).enqueue(new Callback()
 			{
 				@Override public void onFailure(Call call, IOException error)
 				{
-					poll(id, token, attempt + 1, success, failure);
+					poll(id, token, attempt + 1, success, failure, requestGeneration);
 				}
 				@Override public void onResponse(Call call, Response response)
 				{
@@ -139,7 +161,7 @@ public final class NightLegionTransport
 					{
 						if (response.code() == 202)
 						{
-							poll(id, token, attempt + 1, success, failure);
+							poll(id, token, attempt + 1, success, failure, requestGeneration);
 							return;
 						}
 						String text = response.body() == null ? "" : response.body().string();
@@ -168,6 +190,10 @@ public final class NightLegionTransport
 
 	private String errorText(String text, int status)
 	{
+        if (status == 401 || status == 403)
+            return "NightLegion connection not authorized. Check your token and clan membership.";
+        if (status >= 500)
+            return "NightLegion server is unavailable. Please try again later.";
 		try
 		{
 			JsonObject value = gson.fromJson(text, JsonObject.class);

@@ -263,16 +263,7 @@ public interface RevalClanConfig extends Config {
 		return true;
 	}
 
-	@ConfigItem(
-		keyName = "notifyChat",
-		name = "System Chat Messages",
-		description = "Track system chat messages (game events, broadcasts, etc.)",
-		section = eventsSection,
-		position = 15
-	)
-	default boolean notifyChat() {
-		return true;
-	}
+
 
 	@ConfigItem(
 		keyName = "notifyMusic",

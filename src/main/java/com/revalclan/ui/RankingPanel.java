@@ -25,6 +25,14 @@ import java.util.stream.Collectors;
  * Ranking tab panel - displays clan ranks and point sources
  */
 public class RankingPanel extends JPanel {
+    // Defense against old server responses; the backend retires these systems.
+    private static final java.util.Set<String> HIDDEN_POINT_SECTIONS = java.util.Set.of(
+        "CLAN_ACTIVITY", "DISCORD_ACTIVITY", "CLAN_EVENTS", "WOM_ACTIVITY");
+
+    static boolean isPointSectionVisible(String category) {
+        return category != null && !HIDDEN_POINT_SECTIONS.contains(category.toUpperCase(java.util.Locale.ROOT));
+    }
+
 	private final JPanel contentPanel;
 	private final JLabel loadingLabel;
 	private final GridBagConstraints gbc;
@@ -87,6 +95,10 @@ public class RankingPanel extends JPanel {
 		this.rankIconResolver = rankIconResolver;
 		loadData();
 	}
+
+    public void resetConnection() {
+        showPlaceholder();
+    }
 
 	public void refresh() {
 		if (apiService != null) {
@@ -208,7 +220,8 @@ public class RankingPanel extends JPanel {
 				String category = entry.getKey();
 				List<PointsResponse.PointSource> sources = entry.getValue();
 
-				if (sources == null || sources.isEmpty() || category.equals("UNTRADEABLE_DROPS")) continue;
+				if (sources == null || sources.isEmpty() || !isPointSectionVisible(category)
+                    || category.equals("UNTRADEABLE_DROPS")) continue;
 
 				JPanel content = createPointSourcesPanel(sources, category);
 				String displayName = formatCategoryName(category);

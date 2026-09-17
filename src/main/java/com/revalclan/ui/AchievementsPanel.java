@@ -193,7 +193,7 @@ public class AchievementsPanel extends JPanel {
 		desc.setMargin(new Insets(0, 0, 0, 0));
 		desc.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-		card.add(badge);
+		if (achievement.getRarity() != null && !achievement.getRarity().isEmpty()) card.add(badge);
 		card.add(Box.createRigidArea(new Dimension(0, 3)));
 		card.add(name);
 		card.add(Box.createRigidArea(new Dimension(0, 3)));

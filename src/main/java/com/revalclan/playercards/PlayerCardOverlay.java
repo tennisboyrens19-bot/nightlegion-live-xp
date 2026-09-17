@@ -188,6 +188,10 @@ public class PlayerCardOverlay extends Overlay {
 
 		int cx = x + CARD_W / 2;
 		int cy = y + 26;
+        if (card.isMonthlyMvpWinner()) {
+            g.setFont(small);
+            drawShadowed(g, "MVP", x + 18, y + 25, UIConstants.ACCENT_GOLD);
+        }
 
 		BufferedImage sprite = rankSprite;
 		if (sprite != null) {

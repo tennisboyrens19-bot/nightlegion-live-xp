@@ -1,6 +1,7 @@
 package com.revalclan.api.leaderboard;
 
 import com.revalclan.api.common.ApiResponse;
+import com.revalclan.api.common.MonthlyMvp;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -17,6 +18,7 @@ public class LeaderboardResponse extends ApiResponse {
     @Data
     public static class LeaderboardData {
         private List<LeaderboardEntry> leaderboard;
+        private MonthlyMvp monthlyMvp;
     }
 
     /**
@@ -29,5 +31,6 @@ public class LeaderboardResponse extends ApiResponse {
         private String osrsNickname;
         private int activityPoints;
         private String clanRank;
+        private boolean monthlyMvpWinner;
     }
 }
