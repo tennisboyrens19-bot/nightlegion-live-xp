@@ -1,18 +1,14 @@
 name: NightLegion profile regressions
-
 on:
   push:
     branches: [fix/september-2026-profile-mvp]
   pull_request:
     branches: [main]
-
 permissions:
   contents: read
-
 concurrency:
   group: profile-regressions-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   plugin-tests:
     runs-on: ubuntu-latest
@@ -28,7 +24,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
+      - name: Compile, test and package the complete plugin
+        env:
+          JAVA_TOOL_OPTIONS: -Djava.awt.headless=true
+        run: gradle --no-daemon clean test jar
       - name: Archive source-only fixture for reproducible diagnosis
+        if: always()
         run: |
           python3 - <<'PY'
           import subprocess, zipfile
@@ -40,14 +41,11 @@ jobs:
               archive.writestr('SOURCE_COMMIT', subprocess.check_output(['git', 'rev-parse', 'HEAD']))
           PY
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: plugin-test-source
           path: profile-test-source.zip
           retention-days: 3
-      - name: Compile and run plugin tests
-        env:
-          JAVA_TOOL_OPTIONS: -Djava.awt.headless=true
-        run: gradle --no-daemon clean test
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -55,5 +53,12 @@ jobs:
           path: |
             build/reports/tests
             build/test-results
+            build/reports/ui
           if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-candidate
+          path: build/libs/*.jar
+          if-no-files-found: error
           retention-days: 7
