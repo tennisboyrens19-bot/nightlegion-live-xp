@@ -18,9 +18,9 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 
 /**
- * Highlights the path to the "Sync NightLegion" collection log entry while the
+ * Highlights the path to the "Sync Reval" collection log entry while the
  * sync guide is armed: a hint banner until the collection log is open, a
- * pulsing glow on the burger menu button, then on the Sync NightLegion entry once
+ * pulsing glow on the burger menu button, then on the Sync Reval entry once
  * the menu is expanded. Each phase's hint lasts 20 seconds (a slim bar
  * drains along its bottom edge); moving to another phase restarts the
  * clock, running one out disarms the guide.

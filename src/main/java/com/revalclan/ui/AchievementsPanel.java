@@ -18,8 +18,6 @@ import java.util.List;
 
 public class AchievementsPanel extends JPanel {
 	private RevalApiService apiService;
-    private long loadGeneration;
-    private boolean loading;
 	private Client client;
 	private final JPanel contentPanel;
 	private RefreshButton refreshBtn;
@@ -61,12 +59,8 @@ public class AchievementsPanel extends JPanel {
 		this.client = client;
 	}
 
-	public void onLoggedIn() {
-		loadData();
-	}
-
 	public void onLoggedOut() {
-		SwingUtilities.invokeLater(() -> { loadGeneration++; loading = false; achievements = new ArrayList<>(); showNotLoggedIn(); });
+		showNotLoggedIn();
 	}
 
 	public void refresh() {
@@ -74,20 +68,15 @@ public class AchievementsPanel extends JPanel {
 	}
 
 	private void loadData() {
-        if (loading) return;
-        final long generation = loadGeneration;
 		if (client == null || client.getAccountHash() == -1 || apiService == null) {
 			showNotLoggedIn();
 			return;
 		}
 
-		loading = true;
-        if (refreshBtn != null) refreshBtn.setLoading(true);
+		if (refreshBtn != null) refreshBtn.setLoading(true);
 
 		apiService.fetchAchievementDefinitions(client.getAccountHash(),
 			response -> SwingUtilities.invokeLater(() -> {
-                if (generation != loadGeneration) return;
-                loading = false;
 				if (refreshBtn != null) refreshBtn.setLoading(false);
 				achievements = (response != null && response.isSuccess() && response.getData() != null)
 					? response.getData().getAchievements() : new ArrayList<>();
@@ -95,8 +84,6 @@ public class AchievementsPanel extends JPanel {
 				buildUI();
 			}),
 			error -> SwingUtilities.invokeLater(() -> {
-                if (generation != loadGeneration) return;
-                loading = false;
 				if (refreshBtn != null) refreshBtn.setLoading(false);
 				buildUI();
 			})
@@ -202,7 +189,7 @@ public class AchievementsPanel extends JPanel {
 		desc.setMargin(new Insets(0, 0, 0, 0));
 		desc.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-		if (achievement.getRarity() != null && !achievement.getRarity().isEmpty()) card.add(badge);
+		card.add(badge);
 		card.add(Box.createRigidArea(new Dimension(0, 3)));
 		card.add(name);
 		card.add(Box.createRigidArea(new Dimension(0, 3)));

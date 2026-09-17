@@ -10,6 +10,7 @@ import com.revalclan.ui.components.LoginPrompt;
 import com.revalclan.ui.components.PanelTitle;
 import com.revalclan.ui.components.RefreshButton;
 import com.revalclan.ui.components.TriangleIcon;
+import com.revalclan.ui.components.ScrollWrap;
 import com.revalclan.ui.constants.UIConstants;
 import com.revalclan.util.UIAssetLoader;
 import lombok.extern.slf4j.Slf4j;
@@ -26,8 +27,6 @@ import java.util.*;
 public class DiaryPanel extends JPanel {
 
 	private RevalApiService apiService;
-    private long loadGeneration;
-    private boolean loading;
 	private Client client;
 	private UIAssetLoader assetLoader;
 
@@ -53,7 +52,7 @@ public class DiaryPanel extends JPanel {
 		contentPanel.setBackground(UIConstants.BACKGROUND);
 		contentPanel.setBorder(new EmptyBorder(8, 8, 8, 8));
 
-		mainContainer.add(wrapScrollable(contentPanel), "LIST");
+		mainContainer.add(ScrollWrap.of(contentPanel), "LIST");
 		add(mainContainer, BorderLayout.CENTER);
 		showNotLoggedIn();
 	}
@@ -65,15 +64,11 @@ public class DiaryPanel extends JPanel {
 		showNotLoggedIn();
 	}
 
-	public void onLoggedIn() { loadData(); }
-	public void onLoggedOut() { SwingUtilities.invokeLater(() -> { loadGeneration++; loading = false; selectedDiary = null; allDiaries = new ArrayList<>(); showNotLoggedIn(); }); }
+	public void onLoggedOut() { showNotLoggedIn(); }
 	public void refresh() { loadData(); }
 
 	private void loadData() {
-        if (loading) return;
-        final long generation = loadGeneration;
 		if (apiService == null) return;
-        loading = true;
 		if (refreshButton != null) refreshButton.setLoading(true);
 
 		Long accountHash = null;
@@ -84,8 +79,6 @@ public class DiaryPanel extends JPanel {
 
 		apiService.fetchDiaries(accountHash,
 			response -> SwingUtilities.invokeLater(() -> {
-                if (generation != loadGeneration) return;
-                loading = false;
 				if (refreshButton != null) refreshButton.setLoading(false);
 				allDiaries = (response != null && response.getData() != null && response.getData().getDiaries() != null)
 					? response.getData().getDiaries() : new ArrayList<>();
@@ -98,14 +91,9 @@ public class DiaryPanel extends JPanel {
 				}
 			}),
 			error -> SwingUtilities.invokeLater(() -> {
-                if (generation != loadGeneration) return;
-                loading = false;
 				if (refreshButton != null) refreshButton.setLoading(false);
-                buildUI();
-                JLabel errorLabel = new JLabel("Update failed. Showing last saved progress.");
-                errorLabel.setToolTipText("Refresh to retry. Existing progress was not deleted.");
-                contentPanel.add(errorLabel);
-                contentPanel.revalidate();
+				allDiaries = new ArrayList<>();
+				buildUI();
 			})
 		);
 	}
@@ -288,7 +276,7 @@ public class DiaryPanel extends JPanel {
 
 		// Remove old detail view, keep list view (index 0)
 		while (mainContainer.getComponentCount() > 1) mainContainer.remove(1);
-		mainContainer.add(wrapScrollable(detailPanel), "DETAIL");
+		mainContainer.add(ScrollWrap.of(detailPanel), "DETAIL");
 		cardLayout.show(mainContainer, "DETAIL");
 	}
 
@@ -618,26 +606,6 @@ public class DiaryPanel extends JPanel {
 
 	// ── Helpers ──
 
-	private JScrollPane wrapScrollable(JPanel content) {
-		JPanel wrapper = new JPanel(new BorderLayout()) {
-			@Override
-			public Dimension getPreferredSize() {
-				Dimension size = super.getPreferredSize();
-				if (getParent() != null) size.width = getParent().getWidth();
-				return size;
-			}
-		};
-		wrapper.setBackground(UIConstants.BACKGROUND);
-		wrapper.add(content, BorderLayout.NORTH);
-
-		JScrollPane scrollPane = new JScrollPane(wrapper);
-		scrollPane.setBackground(UIConstants.BACKGROUND);
-		scrollPane.setBorder(null);
-		scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-		scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-		scrollPane.getViewport().setBackground(UIConstants.BACKGROUND);
-		return scrollPane;
-	}
 
 	private JPanel roundedWrapper(JPanel content) {
 		JPanel wrapper = new JPanel(new BorderLayout()) {

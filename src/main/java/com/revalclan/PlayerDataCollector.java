@@ -11,6 +11,7 @@ import com.revalclan.util.SyncStateManager;
 import com.revalclan.util.Worlds;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.gameval.VarClientID;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -49,20 +50,13 @@ public class PlayerDataCollector {
 
 	@Inject
 	private SyncStateManager syncStateManager;
-	@Inject private com.revalclan.sync.MilestoneEvidence milestoneEvidence;
 
 	/**
 	 * Full payload for SYNC — the only path that carries the collection log.
 	 */
 	public Map<String, Object> collectSyncData() {
 		Map<String, Object> data = collectFullState();
-		Map<String, Object> log = collectionLogManager.sync();
-        data.put("collectionLog", log);
-        data.put("ownedItemIds", milestoneEvidence.collect());
-        data.put("syncAvailability", Map.of(
-            "bankObserved", milestoneEvidence.hasSeenBank(),
-            "collectionLogSource", String.valueOf(log.getOrDefault("dataSource", "unknown")),
-            "historicalPets", "Open and sync Collection Log / All Pets to import owned pets"));
+		data.put("collectionLog", collectionLogManager.sync());
 		attachFingerprint(data);
 		return data;
 	}
@@ -76,15 +70,21 @@ public class PlayerDataCollector {
 		Map<String, Object> data = collectFullState();
 
 		String fingerprint = attachFingerprint(data);
-		if (fingerprint == null) return data;
-
-		String acked = syncStateManager.getAckedFingerprint(client.getAccountHash());
-		if (fingerprint.equals(acked)) {
-			Map<String, Object> slim = new HashMap<>();
-			slim.put("player", data.get("player"));
-			slim.put("syncFingerprint", fingerprint);
-			return slim;
+		if (fingerprint != null) {
+			String acked = syncStateManager.getAckedFingerprint(client.getAccountHash());
+			if (fingerprint.equals(acked)) {
+				Map<String, Object> slim = new HashMap<>();
+				slim.put("player", data.get("player"));
+				slim.put("syncFingerprint", fingerprint);
+				data = slim;
+			}
 		}
+
+		// Jagex's own "Time played" (minutes): a server snapshot the client receives at
+		// every login/hop, independent of the summary tab's display toggle. The backend
+		// reads it on LOGIN as calibration for the sessions it stores.
+		int playtime = client.getVarcIntValue(VarClientID.ACCOUNT_SUMMARY_PLAYTIME);
+		if (playtime > 0) data.put("playtimeMinutes", playtime);
 
 		return data;
 	}

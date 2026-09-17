@@ -15,7 +15,6 @@ public class PlayerCardData {
 	private static final DateTimeFormatter SINCE_FMT = DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH);
 
 	String playerName;
-	boolean monthlyMvpWinner;
 	String rankName;       // display form, e.g. "Red Topaz"
 	int points;
 	String nextRankName;   // display form; null at max rank
@@ -33,7 +32,6 @@ public class PlayerCardData {
 	static PlayerCardData from(ProfileCardResponse.CardData profile) {
 		return new PlayerCardData(
 			profile.getNickname(),
-			profile.isMonthlyMvpWinner(),
 			RankNames.display(profile.getClanRank()),
 			orZero(profile.getActivityPoints()),
 			profile.getNextRank() != null ? RankNames.display(profile.getNextRank()) : null,

@@ -75,9 +75,8 @@ def adapted(path, content):
     if path in {JAVA+'RevalClanPlugin.java', JAVA+'api/RevalApiService.java',JAVA+'util/WebhookService.java', JAVA+'util/EventFilterManager.java'}:
         pos=source.index('\n\n')+2;source=source[:pos]+AUTH_IMPORT+source[pos:]
     if path == JAVA+'api/RevalApiService.java':
-        source=one(source,'public RevalApiService(OkHttpClient httpClient, Gson gson)',
-            'public RevalApiService(OkHttpClient httpClient, Gson gson, NightLegionAuthentication authentication)')
-        source=one(source,'this.httpClient = httpClient;', 'this.httpClient = authentication.decorate(httpClient);')
+        source=one(source,'@Inject\n    public RevalApiService(OkHttpClient httpClient, Gson gson)',
+    '@Inject\n    public RevalApiService(OkHttpClient httpClient, Gson gson, NightLegionAuthentication authentication) {\n        this(authentication.decorate(httpClient), gson);\n    }\n\n    public RevalApiService(OkHttpClient httpClient, Gson gson)')
     if path in {JAVA+'util/WebhookService.java',JAVA+'util/EventFilterManager.java'}:
         before='\t@Inject\n\tprivate OkHttpClient httpClient;' if path.endswith('WebhookService.java') else '\t@Inject private OkHttpClient httpClient;'
         source=one(source,before,'''\tprivate OkHttpClient httpClient;

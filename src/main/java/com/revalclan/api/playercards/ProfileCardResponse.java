@@ -15,7 +15,6 @@ public class ProfileCardResponse extends ApiResponse {
 	@Data
 	public static class CardData {
 		private String nickname;
-		private boolean monthlyMvpWinner;
 		private String clanRank;        // slug, e.g. "red_topaz"; may be null
 		private Integer activityPoints;
 		private String nextRank;        // slug; null at max rank

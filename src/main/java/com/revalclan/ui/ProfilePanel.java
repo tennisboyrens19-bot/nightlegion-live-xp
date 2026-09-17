@@ -9,7 +9,6 @@ import com.revalclan.ui.components.LoginPrompt;
 import com.revalclan.ui.constants.UIConstants;
 import com.revalclan.ui.components.ArrowIcon;
 import com.revalclan.ui.components.BlockButton;
-import com.revalclan.ui.components.Badge;
 import com.revalclan.ui.components.Clickable;
 import com.revalclan.util.ClanRankIconResolver;
 import com.revalclan.util.NumberFmt;
@@ -40,8 +39,6 @@ public class ProfilePanel extends JPanel {
 	private ClanRankIconResolver rankIconResolver;
 	private Runnable onOpenRanks;
 	private Runnable onSyncGuide;
-    private Runnable onResync;
-    public void setOnResync(Runnable action) { onResync = action; }
 	private Consumer<AccountResponse.AccountData> onAccountLoaded;
 
 	private AccountResponse.AccountData currentAccount;
@@ -50,7 +47,6 @@ public class ProfilePanel extends JPanel {
 	private PointsResponse.PointsData pointsData;
 	private List<AccountResponse.PointsLogEntry> pointsLog;
 	private boolean isLoading = false;
-    private volatile long loadGeneration = 0;
 
 	public ProfilePanel() {
 		setLayout(new BorderLayout());
@@ -107,7 +103,6 @@ public class ProfilePanel extends JPanel {
 		this.config = config;
 		this.itemManager = itemManager;
 		this.rankIconResolver = rankIconResolver;
-		fetchRanks();
 	}
 
 	/** Where the rank-up bar navigates (the Ranking side-panel view) */
@@ -124,33 +119,27 @@ public class ProfilePanel extends JPanel {
 		this.onAccountLoaded = callback;
 	}
 
-    private void fetchRanks() {
-        if (apiService == null) return;
-        final long requestGeneration = loadGeneration;
-        apiService.fetchPoints(response -> SwingUtilities.invokeLater(() -> {
-            if (requestGeneration != loadGeneration) return;
-            if (response != null && response.getData() != null) {
-                pointsData = response.getData();
-                ranks = pointsData.getRanks();
-                if (currentAccount != null) buildProfile();
-            }
-        }), error -> { });
-    }
+	private void fetchRanks() {
+		if (apiService == null) return;
+		apiService.fetchPoints(
+			response -> {
+				if (response.getData() != null) {
+					pointsData = response.getData();
+					if (response.getData().getRanks() != null) {
+						ranks = response.getData().getRanks();
+					}
+					if (currentAccount != null) {
+						SwingUtilities.invokeLater(this::buildProfile);
+					}
+				}
+			},
+			error -> {}
+		);
+	}
 
-    public void resetConnection() {
-        loadGeneration++;
-        isLoading = false;
-        currentAccount = null;
-        pointsData = null;
-        pointsLog = null;
-        ranks = null;
-        disposeAlbum();
-        showNotLoggedIn();
-    }
-
-    public void onLoggedOut() {
-        SwingUtilities.invokeLater(this::resetConnection);
-    }
+	public void onLoggedOut() {
+		showNotLoggedIn();
+	}
 
 	public void loadCurrentAccount() {
 		loadCurrentAccount(false);
@@ -181,27 +170,23 @@ public class ProfilePanel extends JPanel {
 		if (isLoading) return;
 		isLoading = true;
 		showLoading();
+		if (pointsData == null) fetchRanks();
 
-        final long requestGeneration = loadGeneration;
 		apiService.fetchAccount(accountHash,
 			response -> {
-                if (requestGeneration != loadGeneration) return;
 				isLoading = false;
 				SwingUtilities.invokeLater(() -> {
-                    if (requestGeneration != loadGeneration) return;
 					currentAccount = response.getData();
 					if (currentAccount != null) {
 						pointsLog = currentAccount.getPointsLog();
 						if (onAccountLoaded != null) onAccountLoaded.accept(currentAccount);
 					}
 					if (pointsData != null) buildProfile();
-					if (ranks == null || ranks.isEmpty() || pointsData == null) fetchRanks();
 				});
 			},
 			error -> {
-                if (requestGeneration != loadGeneration) return;
 				isLoading = false;
-				SwingUtilities.invokeLater(() -> { if (requestGeneration == loadGeneration) showError(error.getMessage() != null ? error.getMessage() : "Failed to fetch account data"); });
+				SwingUtilities.invokeLater(() -> showError(error.getMessage() != null ? error.getMessage() : "Failed to fetch account data"));
 			}
 		);
 	}
@@ -210,24 +195,20 @@ public class ProfilePanel extends JPanel {
 		if (isLoading) return;
 		isLoading = true;
 		showLoading();
+		if (pointsData == null) fetchRanks();
 
-        final long requestGeneration = loadGeneration;
 		apiService.fetchAccountById(osrsAccountId,
 			response -> {
-                if (requestGeneration != loadGeneration) return;
 				isLoading = false;
 				SwingUtilities.invokeLater(() -> {
-                    if (requestGeneration != loadGeneration) return;
 					currentAccount = response.getData();
 					if (currentAccount != null) pointsLog = currentAccount.getPointsLog();
 					if (pointsData != null) buildProfile();
-					if (ranks == null || ranks.isEmpty() || pointsData == null) fetchRanks();
 				});
 			},
 			error -> {
-                if (requestGeneration != loadGeneration) return;
 				isLoading = false;
-				SwingUtilities.invokeLater(() -> { if (requestGeneration == loadGeneration) showError(error.getMessage() != null ? error.getMessage() : "Player not found"); });
+				SwingUtilities.invokeLater(() -> showError(error.getMessage() != null ? error.getMessage() : "Player not found"));
 			}
 		);
 	}
@@ -294,28 +275,12 @@ public class ProfilePanel extends JPanel {
 		errorIcon.setForeground(UIConstants.ERROR_COLOR);
 		errorIcon.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-		JTextArea errorLabel = new JTextArea(message);
-        errorLabel.setEditable(false);
-        errorLabel.setFocusable(false);
-        errorLabel.setOpaque(false);
-        errorLabel.setLineWrap(true);
-        errorLabel.setWrapStyleWord(true);
-        errorLabel.setColumns(0);
-        errorLabel.setRows(4);
-        errorLabel.setMinimumSize(new Dimension(0, 56));
+		JLabel errorLabel = new JLabel(message);
 		errorLabel.setFont(FontManager.getRunescapeSmallFont());
 		errorLabel.setForeground(UIConstants.ERROR_COLOR);
 		errorLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-		JTextArea hint = new JTextArea("Check the connection settings, then press Retry.");
-        hint.setEditable(false);
-        hint.setFocusable(false);
-        hint.setOpaque(false);
-        hint.setLineWrap(true);
-        hint.setWrapStyleWord(true);
-        hint.setColumns(0);
-        hint.setRows(3);
-        hint.setMinimumSize(new Dimension(0, 42));
+		JLabel hint = new JLabel("Make sure you're in the NightLegion clan");
 		hint.setFont(FontManager.getRunescapeSmallFont());
 		hint.setForeground(UIConstants.TEXT_SECONDARY);
 		hint.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -325,10 +290,6 @@ public class ProfilePanel extends JPanel {
 		placeholder.add(errorLabel);
 		placeholder.add(Box.createRigidArea(new Dimension(0, 6)));
 		placeholder.add(hint);
-        JButton retry = new BlockButton("Retry", UIConstants.ACCENT_GOLD, 26);
-        retry.addActionListener(event -> refresh());
-        placeholder.add(Box.createRigidArea(new Dimension(0, 8)));
-        placeholder.add(retry);
 
 		addComponent(placeholder);
 		revalidateAndRepaint();
@@ -423,20 +384,9 @@ public class ProfilePanel extends JPanel {
 		pointsDisplay.add(pointsValue);
 		pointsDisplay.add(pointsLabel);
 
-		topRow.add(namePanel, BorderLayout.CENTER);
+		topRow.add(namePanel, BorderLayout.WEST);
 		topRow.add(pointsDisplay, BorderLayout.EAST);
 		header.add(topRow);
-        if (currentAccount != null && currentAccount.isMonthlyMvpWinner()) {
-            Badge badge = new Badge("MVP", UIConstants.ACCENT_GOLD);
-            badge.setToolTipText("Automatic overall monthly MVP: 3/2/1 points across Drops, EHB and EHP");
-            badge.setAlignmentX(Component.LEFT_ALIGNMENT);
-            header.add(Box.createRigidArea(new Dimension(0, 4)));
-            header.add(badge);
-        }
-        if (account.getActualClanRank() != null) {
-            nameLabel.setToolTipText("In-game clan rank: " + account.getActualClanRank()
-                + "; points progression: " + getRankDisplayName(account.getClanRank()));
-        }
 
 		JPanel rankProgress = buildRankProgressBar(account);
 		if (rankProgress != null) {
@@ -451,9 +401,6 @@ public class ProfilePanel extends JPanel {
 			JButton refreshButton = buildRefreshProfileButton();
 			refreshButton.setAlignmentX(Component.LEFT_ALIGNMENT);
 			header.add(refreshButton);
-            if (currentAccount.getSyncNotes() != null) {
-                refreshButton.setToolTipText(String.join(" ", currentAccount.getSyncNotes()));
-            }
 		}
 
 		if (onSyncGuide != null) {
@@ -469,10 +416,9 @@ public class ProfilePanel extends JPanel {
 	/** Arms the in-game collection log sync guide */
 	private JButton buildSyncGuideButton() {
 		JButton btn = new BlockButton("Sync missing points", UIConstants.TEXT_SECONDARY, 24);
-		btn.setToolTipText("Resync available progress, then open Collection Log / All Pets for historical pets. Open your bank for stored milestone items.");
+		btn.setToolTipText("Highlights the Sync NightLegion button in your in-game Collection Log");
 		btn.addActionListener(e -> {
-			if (onResync != null) onResync.run();
-            if (onSyncGuide != null) onSyncGuide.run();
+			if (onSyncGuide != null) onSyncGuide.run();
 			btn.setText("Check your Collection Log in-game");
 			Timer reset = new Timer(4000, ev -> btn.setText("Sync missing points"));
 			reset.setRepeats(false);
@@ -496,7 +442,7 @@ public class ProfilePanel extends JPanel {
 		if (ranks == null || ranks.isEmpty()) return null;
 
 		int currentPoints = account.getActivityPoints() != null ? account.getActivityPoints() : 0;
-		String currentRank = account.getCalculatedRank() != null ? account.getCalculatedRank() : account.getClanRank();
+		String currentRank = account.getClanRank();
 
 		PointsResponse.Rank nextRank = null;
 		int previousRankPoints = 0;
@@ -651,19 +597,14 @@ public class ProfilePanel extends JPanel {
 		bottomRow.add(createStatCard(formatNumber(breakdown.getRevalChallenges()), "Challenges", UIConstants.ACCENT_GREEN, "reval_challenge"));
 		bottomRow.add(createStatCard(formatNumber(breakdown.getEvents()), "Events", UIConstants.ACCENT_BLUE, "event"));
 
-		long miscPoints = breakdown.getMisc() != null ? breakdown.getMisc() : breakdown.getTotal()
+		long miscPoints = breakdown.getTotal()
 			- breakdown.getDrops() - breakdown.getPets() - breakdown.getMilestones()
 			- breakdown.getEvents() - breakdown.getRevalDiaries() - breakdown.getRevalChallenges();
 
 		JPanel miscRow = new JPanel(new GridLayout(1, 1));
 		miscRow.setOpaque(false);
 		miscRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-		JPanel miscCard = createStatCard(formatNumber(miscPoints), "Misc", UIConstants.TEXT_SECONDARY, "misc");
-        if (breakdown.getUnreconciledPoints() != null && breakdown.getUnreconciledPoints() != 0) {
-            miscCard.setToolTipText("Includes " + breakdown.getUnreconciledPoints()
-                + " points not reconciled to the ledger. No points were changed.");
-        }
-        miscRow.add(miscCard);
+		miscRow.add(createStatCard(formatNumber(miscPoints), "Misc", UIConstants.TEXT_SECONDARY, "misc"));
 
 		section.add(topRow);
 		section.add(Box.createRigidArea(new Dimension(0, 4)));
@@ -674,20 +615,11 @@ public class ProfilePanel extends JPanel {
 		return section;
 	}
 
-    static String formatEfficiency(Double value) {
-        return value == null || !Double.isFinite(value) || value < 0
-            ? "--" : String.format(java.util.Locale.ROOT, "%.1f", value);
-    }
-
 	private JPanel buildStatsSection(AccountResponse.OsrsAccount account) {
 		JPanel section = new JPanel(new GridLayout(1, 2, 4, 4));
 		section.setOpaque(false);
-		JPanel ehp = createStatCard(formatEfficiency(account.getEhp()), "EHP", UIConstants.ACCENT_GREEN, null);
-        JPanel ehb = createStatCard(formatEfficiency(account.getEhb()), "EHB", UIConstants.ACCENT_BLUE, null);
-        ehp.setToolTipText("--".equals(formatEfficiency(account.getEhp())) ? "EHP unavailable: no verified player statistic was returned." : "Wise Old Man EHP for this character");
-        ehb.setToolTipText("--".equals(formatEfficiency(account.getEhb())) ? "EHB unavailable: no verified player statistic was returned." : "Wise Old Man EHB for this character");
-        section.add(ehp);
-        section.add(ehb);
+		section.add(createStatCard(formatDecimal(account.getEhp() != null ? account.getEhp() : 0.0), "EHP", UIConstants.ACCENT_GREEN, null));
+		section.add(createStatCard(formatDecimal(account.getEhb() != null ? account.getEhb() : 0.0), "EHB", UIConstants.ACCENT_BLUE, null));
 		return section;
 	}
 
@@ -857,23 +789,16 @@ public class ProfilePanel extends JPanel {
 			empty.setForeground(UIConstants.TEXT_SECONDARY);
 			list.add(empty);
 		} else {
-            int itemCount = 0;
-            int previousPoints = 0;
-            for (PointsResponse.PointSource tier : tiers) {
-                Integer threshold = tier.getThreshold();
-                if ("COMBAT_ACHIEVEMENTS".equals(sourceKey) && currentAccount != null
-                    && currentAccount.getCombatAchievementThresholds() != null && tier.getId() != null) {
-                    Integer live = currentAccount.getCombatAchievementThresholds().get(
-                        tier.getId().replace("combat_achievement_", ""));
-                    if (live != null && live > 0) threshold = live;
-                }
-                boolean completed = threshold != null && progress >= threshold;
-                int cumulative = tier.getPointsValue();
-                int additional = Math.max(0, cumulative - previousPoints);
-                previousPoints = Math.max(previousPoints, cumulative);
-                if (hideCompleted && completed) continue;
-                String desc = tier.getDescription() != null ? tier.getDescription() : tier.getName();
-                list.add(new ChecklistItem(desc, completed, additional, assetLoader));
+			int itemCount = 0;
+			int previousPoints = 0;
+			for (PointsResponse.PointSource tier : tiers) {
+				boolean completed = tier.getThreshold() != null && progress >= tier.getThreshold();
+				// Tier points are running totals; reaching a tier only adds the gap to the tier below
+				int addedPoints = Math.max(0, tier.getPointsValue() - previousPoints);
+				previousPoints = Math.max(previousPoints, tier.getPointsValue());
+				if (hideCompleted && completed) continue;
+				String desc = tier.getDescription() != null ? tier.getDescription() : tier.getName();
+				list.add(new ChecklistItem(desc, completed, addedPoints, assetLoader));
 				list.add(Box.createRigidArea(new Dimension(0, 4)));
 				itemCount++;
 			}

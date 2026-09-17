@@ -1,7 +1,6 @@
 package com.revalclan.api.account;
 
 import com.revalclan.api.common.ApiResponse;
-import com.revalclan.api.common.MonthlyMvp;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import java.util.List;
@@ -25,10 +24,6 @@ public class AccountResponse extends ApiResponse {
         private Integer totalKills;
         private List<Milestone> milestones;
         private List<PointsLogEntry> pointsLog;
-        private MonthlyMvp monthlyMvp;
-        private java.util.Map<String, Integer> combatAchievementThresholds;
-        private java.util.List<String> syncNotes;
-        private boolean monthlyMvpWinner;
     }
 
     /**
@@ -42,13 +37,9 @@ public class AccountResponse extends ApiResponse {
         private String womRank;
         private Double ehp;
         private Double ehb;
-        private String efficiencyStatus;
-        private String efficiencyUpdatedAt;
         private Integer activityPoints;
         private Integer maintenancePoints;
         private String clanRank;
-        private String calculatedRank;
-        private String actualClanRank;
         private String lastSyncedAt;
         private String rankUpdatedAt;
     }
@@ -65,8 +56,6 @@ public class AccountResponse extends ApiResponse {
         private int revalDiaries;
         private int revalChallenges;
         private int total;
-        private Integer misc;
-        private Integer unreconciledPoints;
     }
 
     /**
