@@ -40,6 +40,8 @@ public class ProfilePanel extends JPanel {
 	private ClanRankIconResolver rankIconResolver;
 	private Runnable onOpenRanks;
 	private Runnable onSyncGuide;
+    private Runnable onResync;
+    public void setOnResync(Runnable action) { onResync = action; }
 	private Consumer<AccountResponse.AccountData> onAccountLoaded;
 
 	private AccountResponse.AccountData currentAccount;
@@ -449,6 +451,9 @@ public class ProfilePanel extends JPanel {
 			JButton refreshButton = buildRefreshProfileButton();
 			refreshButton.setAlignmentX(Component.LEFT_ALIGNMENT);
 			header.add(refreshButton);
+            if (currentAccount.getSyncNotes() != null) {
+                refreshButton.setToolTipText(String.join(" ", currentAccount.getSyncNotes()));
+            }
 		}
 
 		if (onSyncGuide != null) {
@@ -464,9 +469,10 @@ public class ProfilePanel extends JPanel {
 	/** Arms the in-game collection log sync guide */
 	private JButton buildSyncGuideButton() {
 		JButton btn = new BlockButton("Sync missing points", UIConstants.TEXT_SECONDARY, 24);
-		btn.setToolTipText("Highlights the Sync NightLegion button in your in-game Collection Log");
+		btn.setToolTipText("Resync available progress, then open Collection Log / All Pets for historical pets. Open your bank for stored milestone items.");
 		btn.addActionListener(e -> {
-			if (onSyncGuide != null) onSyncGuide.run();
+			if (onResync != null) onResync.run();
+            if (onSyncGuide != null) onSyncGuide.run();
 			btn.setText("Check your Collection Log in-game");
 			Timer reset = new Timer(4000, ev -> btn.setText("Sync missing points"));
 			reset.setRepeats(false);
@@ -851,12 +857,23 @@ public class ProfilePanel extends JPanel {
 			empty.setForeground(UIConstants.TEXT_SECONDARY);
 			list.add(empty);
 		} else {
-			int itemCount = 0;
-			for (PointsResponse.PointSource tier : tiers) {
-				boolean completed = tier.getThreshold() != null && progress >= tier.getThreshold();
-				if (hideCompleted && completed) continue;
-				String desc = tier.getDescription() != null ? tier.getDescription() : tier.getName();
-				list.add(new ChecklistItem(desc, completed, tier.getPointsValue(), assetLoader));
+            int itemCount = 0;
+            int previousPoints = 0;
+            for (PointsResponse.PointSource tier : tiers) {
+                Integer threshold = tier.getThreshold();
+                if ("COMBAT_ACHIEVEMENTS".equals(sourceKey) && currentAccount != null
+                    && currentAccount.getCombatAchievementThresholds() != null && tier.getId() != null) {
+                    Integer live = currentAccount.getCombatAchievementThresholds().get(
+                        tier.getId().replace("combat_achievement_", ""));
+                    if (live != null && live > 0) threshold = live;
+                }
+                boolean completed = threshold != null && progress >= threshold;
+                int cumulative = tier.getPointsValue();
+                int additional = Math.max(0, cumulative - previousPoints);
+                previousPoints = Math.max(previousPoints, cumulative);
+                if (hideCompleted && completed) continue;
+                String desc = tier.getDescription() != null ? tier.getDescription() : tier.getName();
+                list.add(new ChecklistItem(desc, completed, additional, assetLoader));
 				list.add(Box.createRigidArea(new Dimension(0, 4)));
 				itemCount++;
 			}

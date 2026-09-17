@@ -18,6 +18,8 @@ import java.util.List;
 
 public class AchievementsPanel extends JPanel {
 	private RevalApiService apiService;
+    private long loadGeneration;
+    private boolean loading;
 	private Client client;
 	private final JPanel contentPanel;
 	private RefreshButton refreshBtn;
@@ -64,7 +66,7 @@ public class AchievementsPanel extends JPanel {
 	}
 
 	public void onLoggedOut() {
-		SwingUtilities.invokeLater(this::showNotLoggedIn);
+		SwingUtilities.invokeLater(() -> { loadGeneration++; loading = false; achievements = new ArrayList<>(); showNotLoggedIn(); });
 	}
 
 	public void refresh() {
@@ -72,15 +74,20 @@ public class AchievementsPanel extends JPanel {
 	}
 
 	private void loadData() {
+        if (loading) return;
+        final long generation = loadGeneration;
 		if (client == null || client.getAccountHash() == -1 || apiService == null) {
 			showNotLoggedIn();
 			return;
 		}
 
-		if (refreshBtn != null) refreshBtn.setLoading(true);
+		loading = true;
+        if (refreshBtn != null) refreshBtn.setLoading(true);
 
 		apiService.fetchAchievementDefinitions(client.getAccountHash(),
 			response -> SwingUtilities.invokeLater(() -> {
+                if (generation != loadGeneration) return;
+                loading = false;
 				if (refreshBtn != null) refreshBtn.setLoading(false);
 				achievements = (response != null && response.isSuccess() && response.getData() != null)
 					? response.getData().getAchievements() : new ArrayList<>();
@@ -88,6 +95,8 @@ public class AchievementsPanel extends JPanel {
 				buildUI();
 			}),
 			error -> SwingUtilities.invokeLater(() -> {
+                if (generation != loadGeneration) return;
+                loading = false;
 				if (refreshBtn != null) refreshBtn.setLoading(false);
 				buildUI();
 			})

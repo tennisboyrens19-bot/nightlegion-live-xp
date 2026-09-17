@@ -26,6 +26,8 @@ public class AccountResponse extends ApiResponse {
         private List<Milestone> milestones;
         private List<PointsLogEntry> pointsLog;
         private MonthlyMvp monthlyMvp;
+        private java.util.Map<String, Integer> combatAchievementThresholds;
+        private java.util.List<String> syncNotes;
         private boolean monthlyMvpWinner;
     }
 

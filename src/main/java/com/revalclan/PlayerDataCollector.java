@@ -49,13 +49,20 @@ public class PlayerDataCollector {
 
 	@Inject
 	private SyncStateManager syncStateManager;
+	@Inject private com.revalclan.sync.MilestoneEvidence milestoneEvidence;
 
 	/**
 	 * Full payload for SYNC — the only path that carries the collection log.
 	 */
 	public Map<String, Object> collectSyncData() {
 		Map<String, Object> data = collectFullState();
-		data.put("collectionLog", collectionLogManager.sync());
+		Map<String, Object> log = collectionLogManager.sync();
+        data.put("collectionLog", log);
+        data.put("ownedItemIds", milestoneEvidence.collect());
+        data.put("syncAvailability", Map.of(
+            "bankObserved", milestoneEvidence.hasSeenBank(),
+            "collectionLogSource", String.valueOf(log.getOrDefault("dataSource", "unknown")),
+            "historicalPets", "Open and sync Collection Log / All Pets to import owned pets"));
 		attachFingerprint(data);
 		return data;
 	}

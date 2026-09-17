@@ -26,6 +26,8 @@ import java.util.*;
 public class DiaryPanel extends JPanel {
 
 	private RevalApiService apiService;
+    private long loadGeneration;
+    private boolean loading;
 	private Client client;
 	private UIAssetLoader assetLoader;
 
@@ -64,11 +66,14 @@ public class DiaryPanel extends JPanel {
 	}
 
 	public void onLoggedIn() { loadData(); }
-	public void onLoggedOut() { SwingUtilities.invokeLater(this::showNotLoggedIn); }
+	public void onLoggedOut() { SwingUtilities.invokeLater(() -> { loadGeneration++; loading = false; selectedDiary = null; allDiaries = new ArrayList<>(); showNotLoggedIn(); }); }
 	public void refresh() { loadData(); }
 
 	private void loadData() {
+        if (loading) return;
+        final long generation = loadGeneration;
 		if (apiService == null) return;
+        loading = true;
 		if (refreshButton != null) refreshButton.setLoading(true);
 
 		Long accountHash = null;
@@ -79,6 +84,8 @@ public class DiaryPanel extends JPanel {
 
 		apiService.fetchDiaries(accountHash,
 			response -> SwingUtilities.invokeLater(() -> {
+                if (generation != loadGeneration) return;
+                loading = false;
 				if (refreshButton != null) refreshButton.setLoading(false);
 				allDiaries = (response != null && response.getData() != null && response.getData().getDiaries() != null)
 					? response.getData().getDiaries() : new ArrayList<>();
@@ -91,9 +98,14 @@ public class DiaryPanel extends JPanel {
 				}
 			}),
 			error -> SwingUtilities.invokeLater(() -> {
+                if (generation != loadGeneration) return;
+                loading = false;
 				if (refreshButton != null) refreshButton.setLoading(false);
-				allDiaries = new ArrayList<>();
-				buildUI();
+                buildUI();
+                JLabel errorLabel = new JLabel("Update failed. Showing last saved progress.");
+                errorLabel.setToolTipText("Refresh to retry. Existing progress was not deleted.");
+                contentPanel.add(errorLabel);
+                contentPanel.revalidate();
 			})
 		);
 	}

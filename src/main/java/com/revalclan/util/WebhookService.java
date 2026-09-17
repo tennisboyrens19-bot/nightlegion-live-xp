@@ -22,22 +22,34 @@ public class WebhookService {
 
 	@Inject
 	private NightLegionTransport transport;
+    private final java.util.concurrent.atomic.AtomicLong progressVersion = new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong observationVersion = new java.util.concurrent.atomic.AtomicLong();
+    public long getProgressVersion() { return progressVersion.get(); }
+    public long getObservationVersion() { return observationVersion.get(); }
 
 	/**
 	 * Async send; hands the parsed JSON response to the consumer on success
 	 * (null consumer = fire and forget).
 	 * Consumer runs on the HTTP thread — do not touch the client from it.
 	 */
-	public void sendDataAsync(Map<String, Object> data, Consumer<JsonObject> onResponse) {
-		JsonObject payload = gson.toJsonTree(data).getAsJsonObject();
-		transport.request("community_reval_event", payload, response -> {
-			if (onResponse == null) return;
-			try {
-				onResponse.accept(response);
-			} catch (RuntimeException error) {
-				log.warn("NightLegion event response handler failed: {}", error.getMessage());
-			}
-		}, error -> log.warn("NightLegion event submission failed: {}", error.getMessage()));
-	}
-}
+    public void sendDataAsync(Map<String, Object> data, Consumer<JsonObject> onResponse) {
+        sendDataAsync(data, onResponse,
+            error -> log.warn("NightLegion event submission failed: {}", error.getMessage()));
+    }
 
+    public void sendDataAsync(Map<String, Object> data, Consumer<JsonObject> onResponse,
+                              Consumer<Exception> onFailure) {
+        JsonObject payload = gson.toJsonTree(data).getAsJsonObject();
+        transport.request("community_reval_event", payload, response -> {
+            if (response == null || (response.has("ok") && !response.get("ok").getAsBoolean())) {
+                onFailure.accept(new IOException("NightLegion did not save the update."));
+                return;
+            }
+            progressVersion.incrementAndGet();
+            String type = String.valueOf(data.get("eventType"));
+            if (!"PROGRESS".equals(type) && !"SYNC".equals(type)
+                && !"LOGIN".equals(type) && !"LOGOUT".equals(type)) observationVersion.incrementAndGet();
+            if (onResponse != null) onResponse.accept(response);
+        }, onFailure);
+    }
+}

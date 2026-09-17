@@ -64,6 +64,11 @@ import net.runelite.client.ui.overlay.OverlayManager;
 )
 public class RevalClanPlugin extends Plugin {
 	@Inject private Client client;
+    @Inject private com.revalclan.sync.ProgressSyncService progressSync;
+    @Inject private com.revalclan.util.WebhookService progressWebhook;
+    private long seenProgressVersion;
+    private long nextProgressRefresh;
+    private volatile long progressUiGeneration;
 
 	@Inject	private CollectionLogManager collectionLogManager;
 
@@ -167,6 +172,8 @@ public class RevalClanPlugin extends Plugin {
 	@Override
 	protected void startUp() throws Exception {
 		log.info("NightLegion plugin started!");
+        progressSync.reset();
+        progressUiGeneration++;
 		wasLoggedIn = false;
 		pendingLoginNotification = false;
 		inRequiredClan = false;
@@ -208,7 +215,8 @@ public class RevalClanPlugin extends Plugin {
 			revalPanel = new RevalPanel();
 			revalPanel.init(revalApiService, client, uiAssetLoader, itemManager, spriteManager, config,
 				rankIconResolver);
-			revalPanel.setOnSyncGuide(() -> {
+			revalPanel.setOnResync(() -> clientThread.invokeLater(() -> progressSync.request()));
+            revalPanel.setOnSyncGuide(() -> {
 				syncGuide.arm();
 				clientThread.invoke(() -> {
 					if (client.getGameState() == GameState.LOGGED_IN) {
@@ -236,6 +244,9 @@ public class RevalClanPlugin extends Plugin {
 	@Override
 	protected void shutDown() throws Exception {
 		log.info("NightLegion plugin stopped!");
+        progressSync.reset();
+        progressUiGeneration++;
+        nightLegionTransport.invalidateRequests();
 		inRequiredClan = false;
 		clanValidationAttempt = -1;
 		wasLoggedIn = false;
@@ -291,7 +302,10 @@ public class RevalClanPlugin extends Plugin {
 				clanValidationAttempt = 0;
 			}
 		} else if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN) {
-			boolean wasInClan = inRequiredClan;
+			progressSync.reset();
+            progressUiGeneration++;
+            nightLegionTransport.invalidateRequests();
+            boolean wasInClan = inRequiredClan;
 			inRequiredClan = false;
 			clanValidationAttempt = -1;
 			pendingLoginNotification = false;
@@ -355,6 +369,17 @@ public class RevalClanPlugin extends Plugin {
 			}
 		}
 
+        progressSync.onTick(inRequiredClan);
+        long version = progressWebhook.getProgressVersion();
+        long now = System.nanoTime() / 1_000_000;
+        if (inRequiredClan && version != seenProgressVersion && now >= nextProgressRefresh) {
+            seenProgressVersion = version;
+            nextProgressRefresh = now + 5_000;
+            final long generation = progressUiGeneration;
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                if (generation == progressUiGeneration && revalPanel != null) revalPanel.onProgressChanged();
+            });
+        }
 		if (!inRequiredClan) return;
 
 		announcementService.onGameTick();
@@ -432,8 +457,14 @@ public class RevalClanPlugin extends Plugin {
 		}
 	}
 
+    @Subscribe
+    public void onItemContainerChanged(net.runelite.api.events.ItemContainerChanged event) {
+        if (inRequiredClan) progressSync.request();
+    }
+
 	@Subscribe
 	public void onStatChanged(StatChanged event) {
+        if (inRequiredClan) progressSync.request();
 		if (!inRequiredClan) return;
 		levelNotifier.onStatChanged(event);
 	}
@@ -494,6 +525,8 @@ public class RevalClanPlugin extends Plugin {
 		if (!"nightlegion".equals(event.getGroup())) return;
 
         if ("personalLinkToken".equals(event.getKey())) {
+            progressUiGeneration++;
+            clientThread.invokeLater(() -> progressSync.reset());
             nightLegionTransport.invalidateRequests();
             revalApiService.clearCache();
             javax.swing.SwingUtilities.invokeLater(() -> {

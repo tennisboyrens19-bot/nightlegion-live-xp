@@ -155,18 +155,19 @@ public class RevalPanel extends PluginPanel {
 
 		row2.add(eventsTab);
 		row2.add(Box.createRigidArea(new Dimension(4, 0)));
+        row2.add(leaderboardTab);
+        row2.add(Box.createRigidArea(new Dimension(4, 0)));
 		row2.add(competitionsTab);
 
 		// Third row: Diary
-		JPanel row3 = new JPanel(new BorderLayout(4, 0));
+		JPanel row3 = new JPanel(new GridLayout(1, 1, 4, 0));
 		row3.setOpaque(false);
 		row3.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
 
 		diaryTab = createTabButton("Diary");
 		diaryTab.addActionListener(e -> selectTab("DIARY"));
 
-		row3.add(leaderboardTab, BorderLayout.WEST);
-		row3.add(diaryTab, BorderLayout.CENTER);
+		row3.add(diaryTab);
 
 		navBar.add(row1);
 		navBar.add(Box.createRigidArea(new Dimension(0, 4)));
@@ -453,6 +454,17 @@ public class RevalPanel extends PluginPanel {
 	}
 
 	// ==================== Lifecycle ====================
+
+    public void setOnResync(Runnable action) { profilePanel.setOnResync(action); }
+
+    /** Saved-progress acknowledgements refresh data, not navigation or the panel tree. */
+    public void onProgressChanged() {
+        apiService.clearAccountCache();
+        profilePanel.refresh();
+        achievementsPanel.refresh();
+        diaryPanel.refresh();
+        if ("LEADERBOARD".equals(selectedTab)) leaderboardPanel.refresh();
+    }
 
 	public void onLoggedIn() {
 		rankingPanel.refresh();
