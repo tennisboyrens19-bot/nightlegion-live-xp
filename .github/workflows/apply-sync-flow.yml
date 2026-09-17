@@ -2,7 +2,7 @@ name: Validate sync flow candidate
 on:
   push:
     branches: [fix/september-2026-profile-mvp]
-    paths: [.maintenance/sync-upload.json]
+    paths: [.maintenance/sync-upload.json, .github/workflows/apply-sync-flow.yml]
 permissions:
   contents: write
 jobs:
@@ -32,6 +32,11 @@ jobs:
           assert not any('..' in p or p.endswith(('CollectionLogSyncButton.java','DiaryNotifier.java')) for p in files)
           subprocess.run(['git','apply','--check','-'],input=patch,check=True)
           subprocess.run(['git','apply','-'],input=patch,check=True)
+          path=pathlib.Path('src/main/java/com/revalclan/ui/ProfilePanel.java')
+          source=path.read_text()
+          old='int cumulative = tier.getPointsValue() == null ? 0 : tier.getPointsValue();'
+          assert source.count(old)==1
+          path.write_text(source.replace(old,'int cumulative = tier.getPointsValue();'))
           PY
       - name: Compile and run full plugin regression suite
         env:
