@@ -1,24 +1,35 @@
-# NightLegion profile/MVP repair candidate
+# NightLegion profile and sync repair candidate
 
-Version: **2.18.7-nightlegion.2**. Unreleased until approved and submitted through Plugin Hub.
+Version: **2.18.7-nightlegion.2**. Unreleased until approved and submitted through Plugin Hub. Paired backend: NightLegionBot PR #4; client PR #6. No live database or Plugin Hub manifest was changed by this work.
 
-## Client changes
+## Connection, profile and presentation
 
-- Restore the existing website globe button for https://nightlegion-web.vercel.app/.
-- Refresh authenticated data automatically after a Personal Link Token change; invalidate old transport completions and reset profile/admin state. Wrap connection errors and provide Retry instead of clipping the message.
-- Display backend-verified milestone completion, explicit unknown efficiency values, and full signed point-breakdown fields.
-- Show one automatic overall monthly MVP on the existing leaderboard page with gold badges on the profile, leaderboard entry and player card. Standings use Drops/EHP/EHB and the existing 3/2/1 top-three scoring; incomplete data never assigns a winner.
-- Preserve the official **Prefect** name/icon. The backend keeps Mentor 0, Prefect 500, Leader 1,000 and all other thresholds/maintenance requirements.
-- Remove the obsolete CHAT telemetry collector/setting. Keep actual game-event detection, clan profile cards, event team colours, announcements and notifications.
-- Reject the four retired activity-source sections in old server responses. This is only backward-compatibility defense: the matching backend update removes their collectors, awards and data rather than just hiding the UI.
-- Give the Competitions tab more room and keep the MVP layout compact at narrow sidebar widths.
+Restore the existing globe button for https://nightlegion-web.vercel.app/. Token changes invalidate old transport responses, reset authenticated/admin state and retry after clan validation. Errors wrap instead of clipping and include Retry. EHP/EHB unknown values remain unknown, and profiles consume character-scoped milestone evidence and full signed ledger totals. One automatic overall monthly MVP remains on the leaderboard with gold profile/player-card badges.
 
-## Backend prerequisite
+The original Reval navigation arrangement is restored: Profile / Achievements; Events / trophy / Competitions; Diary. This supersedes the earlier candidate's moved trophy button. Prefect remains the official name/icon, with Mentor 0 / Prefect 500 / Leader 1,000 and unchanged remaining rank policy. The four retired activity-point sections and CHAT collector remain removed; ordinary events, registrations, game-event detection, team colours and profile cards are preserved.
 
-Deploy the matching NightLegionBot profile/retirement changes and complete its reviewed backup-first activity-data migration. It reconciles removed historical activity credits; it does not delete real events, registrations, legitimate game achievements, current Personal Link Tokens or actual in-game staff ranks. The client does not perform that database migration.
+## Automatic sync and refresh
 
-## Tests and remaining acceptance
+A single-flight coordinator performs an initial snapshot after the logged-in account and clan are ready (3-second warm-up), coalesces observed state changes with a 5-second minimum request spacing, and performs a 60-second periodic reconciliation. Failures retry with a 15-second backoff using the same observation identity. Logout, account/token changes and shutdown reset the generation so stale callbacks cannot affect the new context.
 
-The full project test suite compiles the real plugin, tests DTO compatibility, actual Swing milestone/MVP rendering, 180/220/250-pixel layouts, token save/poll/error/cancellation behavior against a mock HTTP server, and removal of retired chat telemetry. Headless screenshots and test reports are retained by CI. The package version is read from the same metadata used for the plugin user agent.
+Snapshots read existing client/cache state only. They do NOT open bank/collection-log interfaces or run a new client script. The bank reader uploads only allowlisted one-time milestone IDs, not the full bank; only positive-quantity, non-placeholder items are eligible. The server retains evidence after the item disappears from the currently visible containers.
 
-These are not an authenticated in-game acceptance test. Before Plugin Hub submission, verify the current live account's profile, milestone sync, MVP standings, website click, token change without restart, event functions and staff panel in RuneLite. The reviewed runScript calls are outside this change scope and remain unchanged.
+After a successful server acknowledgement, the plugin invalidates the account cache and refreshes Profile, Achievements and Diaries together, plus the leaderboard when visible. Refresh work is coalesced, selected tabs/diary detail are preserved, and stale/error responses do not erase known diary completion. The manual Sync missing points button is a resync fallback and retains the existing collection-log guide.
+
+## Historical evidence and scoring limits
+
+For a bank-only Fire cape, open the bank normally once, or expose the item in inventory/equipment. The backend recognizes an actual Avernic defender as evidence of the earlier Dragon defender milestone, but not a tradeable hilt. Historical pets require available All Pets collection-log evidence. Open that page and use the existing collection-log sync when necessary. The plugin cannot reconstruct arbitrary old sold/lost items or unknown duplicate-pet counts without evidence.
+
+CA and collection-log point labels now show incremental rewards rather than adding cumulative targets repeatedly, matching the relevant public Reval change. Available live game CA thresholds are passed through to display/scoring. The preserved reviewed CollectionLogSyncButton.java and DiaryNotifier.java files remain byte-identical to the published release.
+
+EHP/EHB statistics and monthly MVP are supported. The fetched public Reval catalogue does not define an EHP/EHB-to-clan-point rate or ordinary OSRS diary-tier rewards. Those conversions remain unconfigured pending an explicit rule; no rates were invented and the retired WOM Activity points were not reinstated. The all-48-diaries milestone remains 500 points. Third-party efficiency values reflect the provider's stored snapshot, with the existing bounded cache; they are not guaranteed instant hiscores updates.
+
+## Reval source cross-check
+
+Original reference: revalOSRS/reval-cc-plugin at 6033d3188b18d34f4bd4c28e6cf7986c8b95f0f9. Compared Plugin Hub PR #16404 (heartbeat/session preservation) and #16622, source 179faa521b14e4541151effd0f5d28f12ec89597 (incremental tier labels, lazy panels and other changes). Reval's custom Clan Diaries must not be confused with ordinary OSRS achievement diaries. This focused repair is not a claim that all functionality of their private backend or every latest PR change was copied.
+
+## Tests and release acceptance
+
+The complete Gradle build exercises real Java classes, DTOs, Swing rendering and mock HTTP, with additional coordinator timing/retry/logout, bank evidence/placeholder and cross-tab refresh tests. Backend tests exercise service -> state merge -> real SQLite -> scoring -> tab responses using disposable fixtures, including restarts and repeated/concurrent deliveries. Final read-only CI packages the JAR and retains XML reports. These are NOT authenticated live-client tests.
+
+Before release, deploy/test the paired backend in an approved environment, complete its separately reviewed backup-first retirement migration as appropriate, then verify fresh-existing accounts, actual bank and All Pets observations, new CA/diary/item/pet updates, loss/retry/relogin, points consistency, and unchanged collection-log sync in RuneLite. Do not publish an untested live candidate solely because CI is green.
