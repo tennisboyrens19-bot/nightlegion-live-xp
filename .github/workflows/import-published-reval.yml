@@ -2,7 +2,7 @@ name: Import published Reval runtime
 on:
   push:
     branches: [fix/reval-exact-179faa]
-    paths: [tools/reval_source.py]
+    paths: [tools/reval_source.py, .github/workflows/import-published-reval.yml]
 permissions:
   contents: write
 jobs:
@@ -19,6 +19,19 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
+      - name: Preserve upstream test construction with an injected authentication overload
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tools/reval_source.py');s=p.read_text()
+          start=s.index("        source=one(source,'public RevalApiService")
+          end=s.index("    if path in {JAVA+'util/WebhookService.java'",start)
+          replacement='''        source=one(source,'@Inject\\n    public RevalApiService(OkHttpClient httpClient, Gson gson)',
+              '@Inject\\n    public RevalApiService(OkHttpClient httpClient, Gson gson, NightLegionAuthentication authentication) {\\n        this(authentication.decorate(httpClient), gson);\\n    }\\n\\n    public RevalApiService(OkHttpClient httpClient, Gson gson)')
+          '''
+          s=s[:start]+replacement+s[end:]
+          compile(s,str(p),'exec');p.write_text(s)
+          PY
       - name: Import checksum-pinned client, identity and token boundary only
         run: python3 tools/reval_source.py --apply
       - name: Compile and test the complete original client
@@ -30,7 +43,7 @@ jobs:
       - name: Commit validated runtime to candidate branch only
         run: |
           test "$GITHUB_REF_NAME" = 'fix/reval-exact-179faa'
-          git add src build.gradle settings.gradle runelite-plugin.properties LICENSE LICENSES gradlew gradlew.bat gradle
+          git add src tools/reval_source.py build.gradle settings.gradle runelite-plugin.properties LICENSE LICENSES gradlew gradlew.bat gradle
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'Replace adapted plugin with Reval 179faa source plus NightLegion identity and token boundary'
