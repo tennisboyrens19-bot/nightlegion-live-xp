@@ -66,6 +66,17 @@ public class NightLegionAuthenticationTest {
         catch(IOException expected) { assertTrue(expected.getMessage().contains("/runelite_link")); }
         assertEquals(0,server.getRequestCount());
     }
+    @Test public void publicLeaguesBingoMatchesRevalNoAuthContract() throws Exception {
+        token.set(" ");
+        server.enqueue(new MockResponse().setBody("{\"success\":false,\"error\":\"Event not found\"}").setResponseCode(404));
+        try(Response response=authenticated.newCall(new Request.Builder().url(server.url("/leagues-bingo/events/missing")).build()).execute()) {
+            assertEquals(404,response.code());
+        }
+        RecordedRequest received=server.takeRequest();
+        assertNull(received.getHeader("X-NightLegion-Token"));
+        assertNull(received.getHeader("X-NightLegion-Account-Hash"));
+        assertNull(received.getHeader("X-NightLegion-RSN"));
+    }
     @Test public void tokenRotationUsesSavedTokenWithoutReconstructingClient() throws Exception {
         for(String value:new String[]{"first-fixture","second-fixture"}) {
             token.set(value);server.enqueue(new MockResponse());
