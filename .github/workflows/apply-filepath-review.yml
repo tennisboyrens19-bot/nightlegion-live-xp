@@ -6,6 +6,9 @@ on:
     paths: [.maintenance/apply_filepath_review.py, .github/workflows/apply-filepath-review.yml]
 permissions:
   contents: write
+concurrency:
+  group: filepath-review-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   apply:
     runs-on: ubuntu-latest
