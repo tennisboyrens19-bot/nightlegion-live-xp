@@ -5,24 +5,21 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 
+/**
+ * Which game events get tracked and sent to Reval is decided by the backend
+ * (see FilterManager), not by the player. The only per-player switches left
+ * here are the ones that change what the player themself sees or shares.
+ */
 @ConfigGroup("nightlegion")
 public interface RevalClanConfig extends Config {
-	@ConfigSection(
-		name = "NightLegion Connection",
-		description = "Connect this RuneLite client to your NightLegion Discord member",
-		position = -1
-	)
+	@ConfigSection(name = "NightLegion Connection", description = "Connect your NightLegion Discord account", position = -1)
 	String connectionSection = "connectionSection";
 
-	@ConfigItem(
-		keyName = "personalLinkToken",
-		name = "Personal Link Token",
-		description = "The NightLegion token from Discord. It identifies your Discord member and never replaces the current RuneLite RSN.",
-		section = connectionSection,
-		position = 0,
-		secret = true
-	)
+	@ConfigItem(keyName = "personalLinkToken", name = "Personal Link Token",
+		description = "Paste the private token returned by /runelite_link in NightLegion Discord",
+		section = connectionSection, position = 0, secret = true)
 	default String personalLinkToken() { return ""; }
+
 
 	// ── Panel Settings ─────────────────────────────────────────────────
 	@ConfigSection(
@@ -43,12 +40,20 @@ public interface RevalClanConfig extends Config {
 		return false;
 	}
 
+	// ── Profile cards ──────────────────────────────────────────────────
+	@ConfigSection(
+		name = "Profile cards",
+		description = "Where the 'View NightLegion Profile' right-click option appears",
+		position = 1
+	)
+	String profileCardsSection = "profileCardsSection";
+
 	@ConfigItem(
 		keyName = "profileCardsOnPlayers",
-		name = "Profile cards: players",
+		name = "Players",
 		description = "View NightLegion Profile when right-clicking a clan member in the world (off by default to keep the menu short)",
-		section = panelSection,
-		position = 1
+		section = profileCardsSection,
+		position = 0
 	)
 	default boolean profileCardsOnPlayers() {
 		return false;
@@ -56,10 +61,10 @@ public interface RevalClanConfig extends Config {
 
 	@ConfigItem(
 		keyName = "profileCardsInChat",
-		name = "Profile cards: chat",
+		name = "Chat",
 		description = "View NightLegion Profile when right-clicking a clan member's name in chat",
-		section = panelSection,
-		position = 2
+		section = profileCardsSection,
+		position = 1
 	)
 	default boolean profileCardsInChat() {
 		return true;
@@ -67,10 +72,10 @@ public interface RevalClanConfig extends Config {
 
 	@ConfigItem(
 		keyName = "profileCardsInClanList",
-		name = "Profile cards: clan list",
+		name = "Clan list",
 		description = "View NightLegion Profile when right-clicking a member in the clan member list",
-		section = panelSection,
-		position = 3
+		section = profileCardsSection,
+		position = 2
 	)
 	default boolean profileCardsInClanList() {
 		return true;
@@ -80,7 +85,7 @@ public interface RevalClanConfig extends Config {
 	@ConfigSection(
 		name = "Events",
 		description = "Clan event features",
-		position = 1
+		position = 2
 	)
 	String clanEventsSection = "clanEventsSection";
 
@@ -111,177 +116,33 @@ public interface RevalClanConfig extends Config {
 		return false;
 	}
 
-	// ── Event Notifications ────────────────────────────────────────────
+	// ── Notifications ──────────────────────────────────────────────────
 	@ConfigSection(
-		name = "Event Notifications",
-		description = "Disabling notifiers will stop the plugin from tracking and sending the corresponding events to NightLegion. Some features will not work as expected. Disable at your own discretion.",
-		position = 2,
-		closedByDefault = true
+		name = "Notifications",
+		description = "What the plugin shows you and what it shares with the clan",
+		position = 3
 	)
 	String eventsSection = "eventsSection";
 
 	@ConfigItem(
-		keyName = "notifyLoot",
-		name = "Loot Drops",
-		description = "Track valuable loot drops",
+		keyName = "showAnnouncements",
+		name = "Show clan notifications",
+		description = "Show NightLegion announcements and notifications in chat",
 		section = eventsSection,
-		position = 1,
-		warning = "Disabling this will stop loot tracking. Your drop points and loot history will not update."
+		position = 0
 	)
-	default boolean notifyLoot() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "notifyPet",
-		name = "Pet Drops",
-		description = "Track pet drops",
-		section = eventsSection,
-		position = 2,
-		warning = "Disabling this will stop pet tracking. Pet points will not update."
-	)
-	default boolean notifyPet() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "notifyQuest",
-		name = "Quest Completions",
-		description = "Track quest completions",
-		section = eventsSection,
-		position = 3,
-		warning = "Disabling this will stop quest tracking."
-	)
-	default boolean notifyQuest() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "notifyLevel",
-		name = "Level Ups",
-		description = "Track level ups",
-		section = eventsSection,
-		position = 4,
-		warning = "Disabling this will stop level-up tracking. Milestone points tied to levels will not update."
-	)
-	default boolean notifyLevel() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "notifyKillCount",
-		name = "Kill Counts",
-		description = "Track boss kill counts",
-		section = eventsSection,
-		position = 5,
-		warning = "Disabling this will stop kill count tracking."
-	)
-	default boolean notifyKillCount() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "notifyClue",
-		name = "Clue Scrolls",
-		description = "Track clue scroll completions",
-		section = eventsSection,
-		position = 6,
-		warning = "Disabling this will stop clue scroll tracking."
-	)
-	default boolean notifyClue() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "notifyDiary",
-		name = "Achievement Diaries",
-		description = "Track achievement diary completions",
-		section = eventsSection,
-		position = 7,
-		warning = "Disabling this will stop diary tracking."
-	)
-	default boolean notifyDiary() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "notifyCombatAchievement",
-		name = "Combat Achievements",
-		description = "Track combat achievement completions",
-		section = eventsSection,
-		position = 8,
-		warning = "Disabling this will stop combat achievement tracking. CA points will not update."
-	)
-	default boolean notifyCombatAchievement() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "notifyCollection",
-		name = "Collection Log",
-		description = "Track collection log additions",
-		section = eventsSection,
-		position = 9,
-		warning = "Disabling this will stop collection log tracking. Collection log points will not update."
-	)
-	default boolean notifyCollection() {
+	default boolean showAnnouncements() {
 		return true;
 	}
 
 	@ConfigItem(
 		keyName = "notifyDeath",
-		name = "Player Deaths",
-		description = "Track player deaths",
+		name = "Send player deaths to Discord",
+		description = "Post your deaths (and who killed you) to the clan Discord",
 		section = eventsSection,
-		position = 10,
-		warning = "Disabling this will stop death tracking."
+		position = 1
 	)
 	default boolean notifyDeath() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "notifyDetailedKill",
-		name = "Detailed Kills",
-		description = "Track detailed kill data (damage, weapons, specs)",
-		section = eventsSection,
-		position = 12,
-		warning = "Disabling this will stop detailed kill tracking."
-	)
-	default boolean notifyDetailedKill() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "notifyEmote",
-		name = "Emotes",
-		description = "Track emote usage",
-		section = eventsSection,
-		position = 14
-	)
-	default boolean notifyEmote() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "notifyChat",
-		name = "System Chat Messages",
-		description = "Track system chat messages (game events, broadcasts, etc.)",
-		section = eventsSection,
-		position = 15
-	)
-	default boolean notifyChat() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "notifyMusic",
-		name = "Music Played",
-		description = "Track music tracks played",
-		section = eventsSection,
-		position = 17
-	)
-	default boolean notifyMusic() {
 		return true;
 	}
 
@@ -290,20 +151,9 @@ public interface RevalClanConfig extends Config {
 		name = "Leagues Events",
 		description = "Track Leagues events (tasks, relics, areas, combat masteries)",
 		section = eventsSection,
-		position = 18
+		position = 2
 	)
 	default boolean notifyLeagues() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "showAnnouncements",
-		name = "In-Game Announcements",
-		description = "Show NightLegion announcements and notifications in chat",
-		section = eventsSection,
-		position = 19
-	)
-	default boolean showAnnouncements() {
 		return true;
 	}
 }

@@ -30,7 +30,7 @@ public class DiariesResponse extends ApiResponse {
     }
 
     /**
-     * Represents the custom clan diary structure
+     * Represents a Reval custom diary structure
      */
     @Data
     public static class Diary {

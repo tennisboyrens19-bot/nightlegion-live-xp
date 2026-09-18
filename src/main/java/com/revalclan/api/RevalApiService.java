@@ -1,8 +1,7 @@
 package com.revalclan.api;
 
+import com.revalclan.nightlegion.NightLegionAuthentication;
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.revalclan.api.account.AccountResponse;
 import com.revalclan.api.achievements.AchievementsResponse;
 import com.revalclan.api.leaderboard.LeaderboardResponse;
@@ -25,6 +24,11 @@ import com.revalclan.api.events.EventsResponse;
 import com.revalclan.api.events.RegistrationResponse;
 import com.revalclan.api.events.RegistrationStatusResponse;
 import com.revalclan.api.points.PointsResponse;
+import com.revalclan.api.common.ApiEnvelope;
+import com.revalclan.api.common.PublicApiResponse;
+import com.revalclan.api.leaguesbingo.LeaguesBingoMeResponse;
+import com.revalclan.api.leaguesbingo.LeaguesBingoPickResponse;
+import com.revalclan.api.leaguesbingo.LeaguesBingoResponse;
 import com.revalclan.util.PluginVersion;
 import okhttp3.*;
 
@@ -37,6 +41,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Service for fetching data from the Reval Plugin API.
@@ -46,12 +51,11 @@ public class RevalApiService {
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
     private final Gson gson;
-    private final NightLegionTransport transport;
+    private final OkHttpClient httpClient;
 
     // Cache durations
     private static final long CACHE_DURATION_MS = 5 * 60 * 1000;
     private static final long ACCOUNT_CACHE_DURATION_MS = 2 * 60 * 1000;
-    private static final long EVENTS_CACHE_DURATION_MS = 60 * 1000;
 
     // Cached responses
     private PointsResponse cachedPoints;
@@ -59,8 +63,6 @@ public class RevalApiService {
     private AccountResponse cachedAccount;
     private String cachedAccountIdentifier;
     private long lastAccountFetch = 0;
-    private EventsResponse cachedEvents;
-    private long lastEventsFetch = 0;
     private ActiveTeamsResponse cachedActiveTeams;
     private long lastActiveTeamsFetch = 0;
     private AchievementsResponse cachedAchievements;
@@ -74,8 +76,12 @@ public class RevalApiService {
     private LeaguesConfigResponse.LeaguesConfig cachedLeaguesConfig;
 
     @Inject
-    public RevalApiService(NightLegionTransport transport, Gson gson) {
-        this.transport = transport;
+    public RevalApiService(OkHttpClient httpClient, Gson gson, NightLegionAuthentication authentication) {
+        this(authentication.decorate(httpClient), gson);
+    }
+
+    public RevalApiService(OkHttpClient httpClient, Gson gson) {
+        this.httpClient = httpClient;
         this.gson = gson;
     }
 
@@ -127,22 +133,34 @@ public class RevalApiService {
 
     // ==================== EVENTS API ====================
 
-    public void fetchEvents(Consumer<EventsResponse> onSuccess, Consumer<Exception> onError) {
-        if (cachedEvents != null && System.currentTimeMillis() - lastEventsFetch < EVENTS_CACHE_DURATION_MS) {
-            onSuccess.accept(cachedEvents);
-            return;
-        }
-        get(ApiEndpoints.EVENTS, EventsResponse.class, response -> {
-            cachedEvents = response;
-            lastEventsFetch = System.currentTimeMillis();
-            onSuccess.accept(response);
-        }, onError);
+    private final CopyOnWriteArrayList<Consumer<EventsResponse>> eventsListeners = new CopyOnWriteArrayList<>();
+    private long eventsGeneration;
+
+    /** Successful event responses, or an empty response on session reset. Never mutate Swing directly here. */
+    public void addEventsListener(Consumer<EventsResponse> listener) {
+        eventsListeners.add(listener);
     }
 
-    public void refreshEvents(Consumer<EventsResponse> onSuccess, Consumer<Exception> onError) {
-        cachedEvents = null;
-        lastEventsFetch = 0;
-        fetchEvents(onSuccess, onError);
+    /** End the session without allowing an old in-flight response to restore its marks. */
+    public synchronized void resetEventsSession() {
+        eventsGeneration++;
+        eventsListeners.forEach(listener -> listener.accept(new EventsResponse()));
+    }
+
+    public void fetchEvents(Consumer<EventsResponse> onSuccess, Consumer<Exception> onError) {
+        final long generation;
+        synchronized (this) { generation = ++eventsGeneration; }
+        get(ApiEndpoints.EVENTS, EventsResponse.class, response -> {
+            synchronized (this) {
+                if (generation != eventsGeneration) return;
+                eventsListeners.forEach(listener -> listener.accept(response));
+                onSuccess.accept(response);
+            }
+        }, error -> {
+            synchronized (this) {
+                if (generation == eventsGeneration) onError.accept(error);
+            }
+        });
     }
 
     public void fetchActiveTeams(Consumer<ActiveTeamsResponse> onSuccess, Consumer<Exception> onError) {
@@ -157,6 +175,34 @@ public class RevalApiService {
         }, onError);
     }
 
+    /**
+     * Full Leagues Bingo payload for an event: every region board with tiles,
+     * every team with unlocks, completions and per-tile progress. Not cached:
+     * the caller decides when a refresh is worth a round-trip.
+     */
+    public void fetchLeaguesBingoEvent(String eventId, Consumer<LeaguesBingoResponse> onSuccess, Consumer<Exception> onError) {
+        getPublic(ApiEndpoints.leaguesBingoEventUrl(eventId), LeaguesBingoResponse.class, onSuccess, onError);
+    }
+
+    /** What this account may do in a Leagues Bingo event (team, role, may pick). */
+    public void fetchLeaguesBingoMe(String eventId, long accountHash,
+                                    Consumer<LeaguesBingoMeResponse> onSuccess, Consumer<Exception> onError) {
+        get(ApiEndpoints.leaguesBingoMe(eventId, accountHash), LeaguesBingoMeResponse.class, onSuccess, onError);
+    }
+
+    /**
+     * Spend one pick token on a region. teamId is only honoured for
+     * superadmins; pickers always act for their own team.
+     */
+    public void pickLeaguesBingoRegion(String eventId, long accountHash, String region, String teamId,
+                                       Consumer<LeaguesBingoPickResponse> onSuccess, Consumer<Exception> onError) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("accountHash", String.valueOf(accountHash));
+        body.put("region", region);
+        if (teamId != null) body.put("teamId", teamId);
+        post(ApiEndpoints.leaguesBingoPick(eventId), gson.toJson(body), LeaguesBingoPickResponse.class, onSuccess, onError);
+    }
+
     public void fetchProfileCard(String nickname, Consumer<ProfileCardResponse> onSuccess, Consumer<Exception> onError) {
         String encoded = URLEncoder.encode(nickname, StandardCharsets.UTF_8);
         get(ApiEndpoints.PLAYER_PROFILE_CARD + "?nickname=" + encoded, ProfileCardResponse.class, onSuccess, onError);
@@ -165,40 +211,19 @@ public class RevalApiService {
     public void registerForEvent(String eventId, long accountHash,
                                  Consumer<RegistrationResponse> onSuccess, Consumer<Exception> onError) {
         post(ApiEndpoints.eventRegister(eventId), "{\"accountHash\":\"" + accountHash + "\"}", 
-            RegistrationResponse.class, response -> {
-                cachedEvents = null;
-                onSuccess.accept(response);
-            }, onError);
+            RegistrationResponse.class, onSuccess, onError);
     }
 
     public void cancelEventRegistration(String eventId, long accountHash,
                                         Consumer<RegistrationResponse> onSuccess, Consumer<Exception> onError) {
         delete(ApiEndpoints.eventRegister(eventId), "{\"accountHash\":\"" + accountHash + "\"}",
-            RegistrationResponse.class, response -> {
-                cachedEvents = null;
-                onSuccess.accept(response);
-            }, onError);
+            RegistrationResponse.class, onSuccess, onError);
     }
 
     public void checkRegistrationStatus(String eventId, long accountHash,
                                         Consumer<RegistrationStatusResponse> onSuccess, Consumer<Exception> onError) {
         get(ApiEndpoints.eventRegistrationStatus(eventId) + "?accountHash=" + accountHash,
             RegistrationStatusResponse.class, onSuccess, onError);
-    }
-
-    public void checkActiveEvents(Consumer<Boolean> onResult) {
-        fetchEvents(
-            response -> {
-                if (response.getData() != null && response.getData().getEvents() != null) {
-                    boolean hasActive = response.getData().getEvents().stream()
-                        .anyMatch(e -> e.isCurrentlyActive() || e.isUpcoming());
-                    onResult.accept(hasActive);
-                } else {
-                    onResult.accept(false);
-                }
-            },
-            error -> onResult.accept(false)
-        );
     }
 
     // ==================== ACHIEVEMENTS API ====================
@@ -425,8 +450,6 @@ public class RevalApiService {
         cachedAccount = null;
         cachedAccountIdentifier = null;
         lastAccountFetch = 0;
-        cachedEvents = null;
-        lastEventsFetch = 0;
         cachedActiveTeams = null;
         lastActiveTeamsFetch = 0;
         cachedAchievements = null;
@@ -450,62 +473,110 @@ public class RevalApiService {
 
     private <T extends ApiResponse> void get(String endpoint, Class<T> responseClass,
                                              Consumer<T> onSuccess, Consumer<Exception> onError) {
-        request(endpoint, "GET", null, null, responseClass, onSuccess, onError);
+        request(ApiEndpoints.url(endpoint), "GET", null, null, responseClass, onSuccess, onError);
+    }
+
+    /** GET against the public API (full URL, {success, data} envelope). */
+    private <T extends PublicApiResponse> void getPublic(String url, Class<T> responseClass,
+                                                         Consumer<T> onSuccess, Consumer<Exception> onError) {
+        request(url, "GET", null, null, responseClass, onSuccess, onError);
     }
 
     private <T extends ApiResponse> void getAdmin(String endpoint, String memberCode, Class<T> responseClass,
                                                   Consumer<T> onSuccess, Consumer<Exception> onError) {
-        request(endpoint, "GET", null, memberCode, responseClass, onSuccess, onError);
+        request(ApiEndpoints.url(endpoint), "GET", null, memberCode, responseClass, onSuccess, onError);
     }
 
     private <T extends ApiResponse> void post(String endpoint, String body, Class<T> responseClass,
                                               Consumer<T> onSuccess, Consumer<Exception> onError) {
-        request(endpoint, "POST", body, null, responseClass, onSuccess, onError);
+        request(ApiEndpoints.url(endpoint), "POST", body, null, responseClass, onSuccess, onError);
     }
 
     private <T extends ApiResponse> void postAdmin(String endpoint, String body, String memberCode,
                                                    Class<T> responseClass, Consumer<T> onSuccess, Consumer<Exception> onError) {
-        request(endpoint, "POST", body, memberCode, responseClass, onSuccess, onError);
+        request(ApiEndpoints.url(endpoint), "POST", body, memberCode, responseClass, onSuccess, onError);
     }
 
     private <T extends ApiResponse> void delete(String endpoint, String body, Class<T> responseClass,
                                                 Consumer<T> onSuccess, Consumer<Exception> onError) {
-        request(endpoint, "DELETE", body, null, responseClass, onSuccess, onError);
+        request(ApiEndpoints.url(endpoint), "DELETE", body, null, responseClass, onSuccess, onError);
     }
 
-    private <T extends ApiResponse> void request(String endpoint, String method, String body,
+    /** One HTTP round-trip; callers pass a full URL and the envelope type they expect. */
+    private <T extends ApiEnvelope> void request(String url, String method, String body,
                                                  String memberCode, Class<T> responseClass,
                                                  Consumer<T> onSuccess, Consumer<Exception> onError) {
-        JsonObject data = new JsonObject();
-        data.addProperty("endpoint", endpoint);
-        data.addProperty("method", method);
+        Request.Builder requestBuilder = new Request.Builder()
+            .url(url)
+            .addHeader("Accept", "application/json")
+            .addHeader("User-Agent", PluginVersion.userAgent())
+            .addHeader("Content-Type", "application/json");
+
         if (memberCode != null && !memberCode.isEmpty()) {
-            // Compatibility field only. NightLegionBot authorizes the linked
-            // Discord member server-side and never trusts this client value.
-            data.addProperty("memberCode", memberCode);
+            requestBuilder.addHeader("X-Member-Code", memberCode);
         }
+
         if (body != null && !body.isEmpty()) {
-            try {
-                JsonElement parsed = gson.fromJson(body, JsonElement.class);
-                data.add("body", parsed);
-            } catch (RuntimeException error) {
-                data.addProperty("bodyText", body);
+            RequestBody requestBody = RequestBody.create(JSON, body.getBytes(StandardCharsets.UTF_8));
+            if ("POST".equals(method)) {
+                requestBuilder.post(requestBody);
+            } else if ("DELETE".equals(method)) {
+                requestBuilder.delete(requestBody);
+            }
+        } else {
+            if ("POST".equals(method)) {
+                requestBuilder.post(RequestBody.create(JSON, new byte[0]));
+            } else if ("DELETE".equals(method)) {
+                requestBuilder.delete();
+            } else {
+                requestBuilder.get();
             }
         }
-        transport.request("community_reval_api", data, response -> {
-            try {
-                T parsedResponse = gson.fromJson(response, responseClass);
-                if (parsedResponse == null) {
-                    onError.accept(new Exception("NightLegion returned an empty response"));
-                } else if (!parsedResponse.isSuccess()) {
-                    onError.accept(new Exception(parsedResponse.getMessage() != null
-                        ? parsedResponse.getMessage() : "NightLegion request failed"));
-                } else {
-                    onSuccess.accept(parsedResponse);
-                }
-            } catch (RuntimeException error) {
-                onError.accept(error);
+
+        httpClient.newCall(requestBuilder.build()).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                onError.accept(e);
             }
-        }, onError);
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        String errorBody = response.body() != null ? response.body().string() : null;
+                        T errorResponse = null;
+                        if (errorBody != null && !errorBody.isEmpty()) {
+                            try {
+                                errorResponse = gson.fromJson(errorBody, responseClass);
+                            } catch (Exception ignored) {}
+                        }
+                        onError.accept(new Exception(errorResponse != null && errorResponse.getErrorMessage() != null
+                            ? errorResponse.getErrorMessage() : "HTTP " + response.code()));
+                        return;
+                    }
+
+                    if (response.body() == null) {
+                        onError.accept(new Exception("Empty response body"));
+                        return;
+                    }
+
+                    String jsonResponse = response.body().string();
+                    T parsedResponse = gson.fromJson(jsonResponse, responseClass);
+                    
+                    if (parsedResponse == null) {
+                        onError.accept(new Exception("Failed to parse response"));
+                    } else if (!parsedResponse.isSuccess()) {
+                        onError.accept(new Exception(parsedResponse.getErrorMessage() != null
+                            ? parsedResponse.getErrorMessage() : "Request failed"));
+                    } else {
+                        onSuccess.accept(parsedResponse);
+                    }
+                } catch (Exception e) {
+                    onError.accept(e);
+                } finally {
+                    response.close();
+                }
+            }
+        });
     }
 }

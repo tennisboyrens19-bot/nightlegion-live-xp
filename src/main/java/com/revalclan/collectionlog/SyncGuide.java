@@ -7,7 +7,7 @@ import javax.inject.Singleton;
 /**
  * State for the guided "sync your collection log" flow: armed from the side
  * panel, the {@link SyncGuideOverlay} then highlights the collection log
- * burger menu and the injected "Sync NightLegion" entry until the sync runs,
+ * burger menu and the injected "Sync Reval" entry until the sync runs,
  * the guide times out, or it is disarmed.
  */
 @Singleton
