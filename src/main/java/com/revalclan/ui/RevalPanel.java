@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class RevalPanel extends PluginPanel {
-	private static final String DISCORD_URL = "https://discord.com/channels/1404482606241943582/";
+	private static final String DISCORD_URL = "https://discord.gg/AP2aK742SZ";
 	private static final String WEBSITE_URL = "https://nightlegion-web.vercel.app/";
 
 	private final CardLayout cardLayout;
