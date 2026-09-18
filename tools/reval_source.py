@@ -17,7 +17,7 @@ EXACT = {
     'https://api.revalosrs.ee':'https://nightlegion-livexp.onrender.com',
     'https://api.revalosrs.ee/reval-webhook':'https://nightlegion-livexp.onrender.com/reval-webhook',
     'https://api.revalosrs.ee/event-filters':'https://nightlegion-livexp.onrender.com/event-filters',
-    'https://discord.gg/reval':'https://discord.com/channels/1404482606241943582/',
+    'https://discord.gg/reval':'https://discord.gg/AP2aK742SZ',
     'https://revalosrs.ee':'https://nightlegion-web.vercel.app/',
     'revalclan':'nightlegion', 'revalclanclogpb':'nightlegionclogpb',
     'reval-clan/sessions':'nightlegion/sessions',
