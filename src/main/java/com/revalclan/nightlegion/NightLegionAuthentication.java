@@ -37,7 +37,7 @@ public final class NightLegionAuthentication {
     OkHttpClient decorate(OkHttpClient client, HttpUrl origin) {
         return client.newBuilder()
             .addInterceptor(chain -> {
-                if (sameOrigin(chain.request().url(), origin) && token().isEmpty()) {
+                if (sameOrigin(chain.request().url(), origin) && !isPublicApi(chain.request().url()) && token().isEmpty()) {
                     throw new IOException("Paste your NightLegion Personal Link Token from /runelite_link into the plugin settings.");
                 }
                 return chain.proceed(chain.request());
@@ -48,7 +48,7 @@ public final class NightLegionAuthentication {
                     .removeHeader("X-NightLegion-Account-Hash")
                     .removeHeader("X-NightLegion-RSN");
                 // Re-check on redirects: credentials must never follow a different origin.
-                if (sameOrigin(chain.request().url(), origin)) {
+                if (sameOrigin(chain.request().url(), origin) && !isPublicApi(chain.request().url())) {
                     String token = token();
                     if (token.isEmpty()) throw new IOException("NightLegion token was removed.");
                     Identity current = identity;
@@ -58,6 +58,10 @@ public final class NightLegionAuthentication {
                 }
                 return chain.proceed(request.build());
             }).build();
+    }
+
+    private static boolean isPublicApi(HttpUrl url) {
+        return url != null && url.encodedPath().startsWith("/leagues-bingo/events/");
     }
 
     private String token() {
