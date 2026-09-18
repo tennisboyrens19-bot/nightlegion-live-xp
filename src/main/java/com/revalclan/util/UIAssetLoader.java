@@ -25,7 +25,7 @@ public class UIAssetLoader {
      * Load a BufferedImage from assets directory.
      * Results are cached for efficiency.
      * 
-     * @param filename The filename (e.g., "nightlegion.png")
+     * @param filename The filename (e.g., "reval.png")
      * @return The BufferedImage, or null if not found
      */
     public BufferedImage getImage(String filename) {
