@@ -238,18 +238,15 @@ s = s.replace(
     "FILEPATH_SHA256 = '0d0bd8d6feddf13f788dde3e02a84dd305551db8ab86e487144ef15dd2601f07'\n",
     1,
 )
-anchor = """        source=one(source,'if (!\\"nightlegion\\".equals(event.getGroup())) return;', 'if (!\\"nightlegion\\".equals(event.getGroup())) return;\\n'+TOKEN_CHANGED)
-    return source.encode('utf-8')
-"""
-replacement = """        source=one(source,'if (!\\"nightlegion\\".equals(event.getGroup())) return;', 'if (!\\"nightlegion\\".equals(event.getGroup())) return;\\n'+TOKEN_CHANGED)
-        source=one(source,'import com.revalclan.session.SessionTracker;', 'import com.revalclan.session.SessionStore;\\nimport com.revalclan.session.SessionTracker;')
-        source=one(source,'@PluginDescriptor(\\n\\tname = \\"NightLegion\\"\\n)', '@PluginDescriptor(\\n\\tname = \\"NightLegion\\",\\n\\tinternalName = \\"nightlegion\\",\\n\\tlegacyDataDirectory = \\"nightlegion\\"\\n)')
+needle = '''        source=one(source,'if (!"nightlegion".equals(event.getGroup())) return;', 'if (!"nightlegion".equals(event.getGroup())) return;\\n'+TOKEN_CHANGED)
+'''
+extra = '''        source=one(source,'import com.revalclan.session.SessionTracker;', 'import com.revalclan.session.SessionStore;\\nimport com.revalclan.session.SessionTracker;')
+        source=one(source,'@PluginDescriptor(\\n\\tname = "NightLegion"\\n)', '@PluginDescriptor(\\n\\tname = "NightLegion",\\n\\tinternalName = "nightlegion",\\n\\tlegacyDataDirectory = "nightlegion"\\n)')
         source=one(source,'\\t@Inject private SessionTracker sessionTracker;', '\\t@Inject private SessionStore sessionStore;\\n\\t@Inject private SessionTracker sessionTracker;')
         source=one(source,'\\t\\tclanMembership.reset();\\n\\t\\tsessionTracker.setOnHeartbeatResponse(this::onChanges);', '\\t\\tclanMembership.reset();\\n\\t\\tsessionStore.initialize(getPluginDirectory());\\n\\t\\tsessionTracker.setOnHeartbeatResponse(this::onChanges);')
-    return source.encode('utf-8')
-"""
-assert anchor in s
-s = s.replace(anchor, replacement, 1)
+'''
+assert needle in s
+s = s.replace(needle, needle + extra, 1)
 s = s.replace(
     "        auth=(ROOT/AUTH_PATH).read_bytes()\n        icon_path = ROOT/ICON\n",
     "        auth=(ROOT/AUTH_PATH).read_bytes()\n"
