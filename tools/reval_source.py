@@ -7,6 +7,8 @@ ARCHIVE_SHA256 = '65972faa05010ecf641772ea3f25490235d35f13da8c2da6648decd7638c6f
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 JAVA = 'src/main/java/com/revalclan/'
 AUTH_PATH = JAVA + 'nightlegion/NightLegionAuthentication.java'
+FILEPATH_PATH = JAVA + 'session/SessionStore.java'
+FILEPATH_SHA256 = '0d0bd8d6feddf13f788dde3e02a84dd305551db8ab86e487144ef15dd2601f07'
 ICON = 'src/main/resources/com/revalclan/ui/assets/reval.png'
 AUTH_IMPORT = 'import com.revalclan.nightlegion.NightLegionAuthentication;\n'
 # Literal-only substitutions. Wire keys, class/package names and protocol headers stay unchanged.
@@ -88,6 +90,10 @@ def adapted(path, content):
         source=one(source,'\t\t\tcollectionLogManager.parseCacheForCollectionLog();', '\t\t\tnightLegionAuthentication.capture(client);\n\t\t\tcollectionLogManager.parseCacheForCollectionLog();')
         source=one(source,'public void onGameTick(GameTick gameTick) {','public void onGameTick(GameTick gameTick) {\n\t\tnightLegionAuthentication.capture(client);')
         source=one(source,'if (!"nightlegion".equals(event.getGroup())) return;', 'if (!"nightlegion".equals(event.getGroup())) return;\n'+TOKEN_CHANGED)
+        source=one(source,'import com.revalclan.session.SessionTracker;', 'import com.revalclan.session.SessionStore;\nimport com.revalclan.session.SessionTracker;')
+        source=one(source,'@PluginDescriptor(\n\tname = "NightLegion"\n)', '@PluginDescriptor(\n\tname = "NightLegion",\n\tinternalName = "nightlegion",\n\tlegacyDataDirectory = "nightlegion"\n)')
+        source=one(source,'\t@Inject\tprivate SessionTracker sessionTracker;', '\t@Inject\tprivate SessionStore sessionStore;\n\t@Inject\tprivate SessionTracker sessionTracker;')
+        source=one(source,'\t\tclanMembership.reset();\n\t\tsessionTracker.setOnHeartbeatResponse(this::onChanges);', '\t\tclanMembership.reset();\n\t\tsessionStore.initialize(getPluginDirectory());\n\t\tsessionTracker.setOnHeartbeatResponse(this::onChanges);')
     return source.encode('utf-8')
 
 def upstream(archive=None):
@@ -112,6 +118,8 @@ def main():
     if args.apply:
         # Delete only the old client runtime source/assets. Never touches a DB/user file.
         auth=(ROOT/AUTH_PATH).read_bytes()
+        filepath_store=(ROOT/FILEPATH_PATH).read_bytes()
+        if hashlib.sha256(filepath_store).hexdigest()!=FILEPATH_SHA256: raise ValueError('Unexpected Filepath SessionStore')
         icon_path = ROOT/ICON
         if not icon_path.exists(): icon_path=ROOT/'src/main/resources/com/revalclan/ui/assets/nightlegion.png'
         icon=icon_path.read_bytes()
@@ -119,7 +127,7 @@ def main():
         shutil.rmtree(ROOT/'src/main')
         for p,b in scope.items():
             target=ROOT/p;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(adapted(p,b))
-        for p,b in ((AUTH_PATH,auth),(ICON,icon)):
+        for p,b in ((AUTH_PATH,auth),(FILEPATH_PATH,filepath_store),(ICON,icon)):
             target=ROOT/p;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(b)
         # Old adaptation tests assert removed code; replace with the upstream launcher
         # and explicit authentication/protocol/parity tests, kept separately.
@@ -136,22 +144,26 @@ def main():
         build=files['build.gradle'].decode().replace("testImplementation 'junit:junit:4.12'", "testImplementation 'junit:junit:4.13.2'\n\ttestImplementation 'org.mockito:mockito-core:4.11.0'\n\ttestImplementation 'com.squareup.okhttp3:mockwebserver:3.14.9'")
         (ROOT/'build.gradle').write_text(build)
         (ROOT/'settings.gradle').write_text("rootProject.name = 'nightlegion'\n")
-        (ROOT/'runelite-plugin.properties').write_text('displayName=NightLegion\nbuild=standard\nauthor=NightLegion (upstream: Lightroom)\ndescription=NightLegion clan plugin\ntags=clan,cc,nightlegion\nplugins=com.revalclan.RevalClanPlugin\nversion=2.20.1-nightlegion.1\n')
+        (ROOT/'runelite-plugin.properties').write_text('displayName=NightLegion\nbuild=standard\nauthor=NightLegion (upstream: Lightroom)\ndescription=NightLegion clan plugin\ntags=clan,cc,nightlegion\nplugins=com.revalclan.RevalClanPlugin\nversion=2.20.1-nightlegion.2\n')
     actual={str(p.relative_to(ROOT)) for p in (ROOT/'src/main').rglob('*') if p.is_file()}
     expected={p for p in scope if p.startswith('src/main/')}|{AUTH_PATH}
     if actual!=expected:raise AssertionError({'missing':sorted(expected-actual),'extra':sorted(actual-expected)})
-    mismatches=[];identical=[];branding_only=[];auth_seams=[]
+    mismatches=[];identical=[];branding_only=[];auth_seams=[];filepath_seams=[]
     for p,b in scope.items():
         if p==ICON:continue
         got=(ROOT/p).read_bytes()
-        if got!=adapted(p,b):mismatches.append(p)
+        if p==FILEPATH_PATH:
+            if hashlib.sha256(got).hexdigest()!=FILEPATH_SHA256:mismatches.append(p)
+        elif got!=adapted(p,b):mismatches.append(p)
         if p.endswith('.java'):
-            if got==b:identical.append(p)
+            if p==FILEPATH_PATH:filepath_seams.append(p)
+            elif got==b:identical.append(p)
             elif got==branding(b.decode()).encode():branding_only.append(p)
             else:auth_seams.append(p)
     if mismatches:raise AssertionError('Unapproved upstream deviations: '+str(mismatches))
-    report={'upstreamCommit':COMMIT,'upstreamJavaFiles':len(identical)+len(branding_only)+len(auth_seams),
+    report={'upstreamCommit':COMMIT,'upstreamJavaFiles':len(identical)+len(branding_only)+len(auth_seams)+len(filepath_seams),
         'byteIdentical':len(identical),'brandingOrDestinationOnly':len(branding_only),'authenticationSeams':auth_seams,
+        'reviewerFilepathSeams':filepath_seams,
         'addedAuthenticationOnly':[AUTH_PATH],'missing':[],'unexpectedRuntimeFiles':[],
         'modifiedAsset':ICON,'assetSha256':hashlib.sha256((ROOT/ICON).read_bytes()).hexdigest(),
         'clientCollectorsSessionsNotifiersPreserved':True,'backendParityNotProvedByThisCheck':True}
