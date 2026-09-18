@@ -212,8 +212,8 @@ s = s.replace(
     1,
 )
 s = s.replace(
-    "\t@Inject private SessionTracker sessionTracker;",
-    "\t@Inject private SessionStore sessionStore;\n\t@Inject private SessionTracker sessionTracker;",
+    "\t@Inject\tprivate SessionTracker sessionTracker;",
+    "\t@Inject\tprivate SessionStore sessionStore;\n\t@Inject\tprivate SessionTracker sessionTracker;",
     1,
 )
 s = s.replace(
@@ -242,7 +242,7 @@ needle = '''        source=one(source,'if (!"nightlegion".equals(event.getGroup(
 '''
 extra = '''        source=one(source,'import com.revalclan.session.SessionTracker;', 'import com.revalclan.session.SessionStore;\\nimport com.revalclan.session.SessionTracker;')
         source=one(source,'@PluginDescriptor(\\n\\tname = "NightLegion"\\n)', '@PluginDescriptor(\\n\\tname = "NightLegion",\\n\\tinternalName = "nightlegion",\\n\\tlegacyDataDirectory = "nightlegion"\\n)')
-        source=one(source,'\\t@Inject private SessionTracker sessionTracker;', '\\t@Inject private SessionStore sessionStore;\\n\\t@Inject private SessionTracker sessionTracker;')
+        source=one(source,'\\t@Inject\\tprivate SessionTracker sessionTracker;', '\\t@Inject\\tprivate SessionStore sessionStore;\\n\\t@Inject\\tprivate SessionTracker sessionTracker;')
         source=one(source,'\\t\\tclanMembership.reset();\\n\\t\\tsessionTracker.setOnHeartbeatResponse(this::onChanges);', '\\t\\tclanMembership.reset();\\n\\t\\tsessionStore.initialize(getPluginDirectory());\\n\\t\\tsessionTracker.setOnHeartbeatResponse(this::onChanges);')
 '''
 assert needle in s
