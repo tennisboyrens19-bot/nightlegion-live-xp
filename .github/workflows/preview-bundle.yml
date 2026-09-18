@@ -1,0 +1,47 @@
+name: Prepare screenshot runtime
+on:
+  push:
+    branches: [preview/pr-16722-screenshots]
+    paths: [.github/workflows/preview-bundle.yml]
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 9f65e42b6116c06d9b0ddbca09ada84dd97f796e
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Bundle unmodified submitted UI and its runtime dependencies
+        run: |
+          cat > /tmp/preview.gradle <<'EOF'
+          allprojects {
+            afterEvaluate {
+              tasks.register('copyPreviewRuntime', Copy) {
+                dependsOn tasks.named('classes')
+                from configurations.testRuntimeClasspath
+                into layout.buildDirectory.dir('preview/lib')
+              }
+            }
+          }
+          EOF
+          gradle --no-daemon -I /tmp/preview.gradle classes copyPreviewRuntime
+          mkdir -p build/preview/runtime build/preview/source
+          cp -R build/classes/java/main/. build/preview/runtime/
+          cp -R build/resources/main/. build/preview/runtime/
+          cp -R src/main/. build/preview/source/
+          git rev-parse HEAD > build/preview/SOURCE_COMMIT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-runtime
+          path: build/preview
+          retention-days: 1
