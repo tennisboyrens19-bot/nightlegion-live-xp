@@ -1,9 +1,10 @@
 package com.revalclan.util;
 
+import com.revalclan.nightlegion.NightLegionAuthentication;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.revalclan.api.NightLegionTransport;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 
@@ -19,9 +20,25 @@ import java.util.List;
 @Slf4j
 @Singleton
 public class EventFilterManager{
-	@Inject private NightLegionTransport transport;
+	private static final String FILTERS_URL = "https://nightlegion-livexp.onrender.com/event-filters";
 	
-	@Getter private EventFilters filters;
+	private OkHttpClient httpClient;
+	@Inject void connectNightLegion(OkHttpClient client, NightLegionAuthentication authentication) {
+		this.httpClient = authentication.decorate(client);
+	}
+	
+	@Inject private Gson gson;
+	
+	@Getter private volatile EventFilters filters;
+	private String appliedVersion;
+	private boolean fetchInProgress;
+	private int generation;
+	private int ticksRemaining;
+	private static final int DAILY_TICKS = 144_000;
+	private static final int RETRY_TICKS = 100; // One minute after a failed fetch.
+
+	/** Runs after every successful fetch, once the new filters are in place. */
+	@Setter private Runnable onFiltersApplied;
 	
 	/**
 	 * Holds all filter configurations
@@ -41,6 +58,18 @@ public class EventFilterManager{
 		
 		// Chat filter settings
 		@Getter private List<String> chatPatterns = new ArrayList<>(); // Empty by default = no patterns, all messages pass
+
+		/**
+		 * Item names (lowercase) whose silent consumption is reported. Derived by
+		 * the backend from live tile requirements; nothing is built into the
+		 * plugin, and empty means watch nothing.
+		 */
+		@Getter private Set<String> inventoryWatchItems = new HashSet<>();
+		/** Watched item names as the backend spelled them, keyed lowercased. */
+		@Getter private Map<String, String> inventoryWatchItemNames = new HashMap<>();
+
+		/** Varbit ids whose value the plugin reports (varbits.watch). Empty by default. */
+		@Getter private Set<Integer> varbitWatch = new HashSet<>();
 		
 		// Event toggles
 		@Getter private boolean lootEnabled = true;
@@ -65,29 +94,66 @@ public class EventFilterManager{
 		filters = new EventFilters();
 	}
 	
-	/**
-	 * Fetch filters from the API
-	 * @return true if successful, false otherwise
-	 */
-	public boolean fetchFilters() {
-		fetchFiltersAsync();
-		return true;
+	public synchronized void resetSession() {
+		generation++;
+		fetchInProgress = false;
+		appliedVersion = null;
+		ticksRemaining = 0;
 	}
-	
-	/**
-	 * Fetch filters asynchronously
-	 */
-	public void fetchFiltersAsync() {
-		transport.request("community_reval_filters", new JsonObject(), response -> {
-			parseFilters(response);
-			log.info("Successfully fetched NightLegion event filters");
-		}, error -> log.warn("Failed to fetch NightLegion event filters: {}", error.getMessage()));
+
+	public synchronized void onGameTick() {
+		if (!fetchInProgress && --ticksRemaining <= 0) fetchFiltersAsync();
 	}
-	
+
+	/** A missing hint falls back to heartbeat-paced fetching during rollout/outages. */
+	public synchronized void onServerVersion(String version) {
+		if (version == null || !version.equals(appliedVersion)) fetchFiltersAsync();
+	}
+
+	public synchronized void fetchFiltersAsync() {
+		if (fetchInProgress) return;
+		fetchInProgress = true;
+		final int requestGeneration = generation;
+		Request request = new Request.Builder().url(FILTERS_URL).get()
+			.addHeader("User-Agent", PluginVersion.userAgent()).build();
+		httpClient.newCall(request).enqueue(new Callback() {
+			@Override public void onFailure(Call call, IOException error) {
+				synchronized (EventFilterManager.this) {
+					if (requestGeneration != generation) return;
+					fetchInProgress = false;
+					ticksRemaining = RETRY_TICKS;
+				}
+				log.warn("Failed to fetch filters", error);
+			}
+
+			@Override public void onResponse(Call call, Response response) {
+				try (Response closeable = response) {
+					JsonObject json = response.isSuccessful() && response.body() != null
+						? gson.fromJson(response.body().string(), JsonObject.class) : null;
+					EventFilters parsed = json == null ? null : parseFilters(json);
+					Runnable listener;
+					synchronized (EventFilterManager.this) {
+						if (requestGeneration != generation) return;
+						fetchInProgress = false;
+						ticksRemaining = RETRY_TICKS;
+						if (parsed == null) return;
+						filters = parsed;
+						appliedVersion = response.header("X-Reval-Filters-Version");
+						ticksRemaining = DAILY_TICKS;
+						listener = onFiltersApplied;
+					}
+					if (listener != null) listener.run();
+				} catch (Exception error) {
+					onFailure(call, new IOException("Invalid filter response", error));
+				}
+			}
+		});
+	}
+
 	/**
 	 * Parse the filters JSON response
 	 */
-	private void parseFilters(JsonObject json) {
+	private EventFilters parseFilters(JsonObject json) {
 		EventFilters newFilters = new EventFilters();
 		
 		try {
@@ -142,6 +208,37 @@ public class EventFilterManager{
 				}
 			}
 			
+			// Parse inventory watches
+			if (json.has("inventory")) {
+				JsonObject inventory = json.getAsJsonObject("inventory");
+
+				newFilters.inventoryWatchItems.clear();
+				newFilters.inventoryWatchItemNames.clear();
+				if (inventory.has("watchItems") && inventory.get("watchItems").isJsonArray()) {
+					inventory.getAsJsonArray("watchItems").forEach(item -> {
+						String name = item.getAsString().trim().toLowerCase();
+						if (!name.isEmpty()) {
+							newFilters.inventoryWatchItems.add(name);
+							newFilters.inventoryWatchItemNames.put(name, item.getAsString().trim());
+						}
+					});
+				}
+			}
+
+			if (json.has("varbits")) {
+				JsonObject varbits = json.getAsJsonObject("varbits");
+
+				newFilters.varbitWatch.clear();
+				if (varbits.has("watch") && varbits.get("watch").isJsonArray()) {
+					varbits.getAsJsonArray("watch").forEach(id -> {
+						if (id.isJsonPrimitive() && id.getAsJsonPrimitive().isNumber()) {
+							newFilters.varbitWatch.add(id.getAsInt());
+						}
+					});
+				}
+				log.info("[NightLegion] watching varbits {}", newFilters.varbitWatch);
+			}
+
 			// Parse chat filters
 			if (json.has("chat")) {
 				JsonObject chat = json.getAsJsonObject("chat");
@@ -175,10 +272,10 @@ public class EventFilterManager{
 				if (enabled.has("leagues")) newFilters.leaguesEnabled = enabled.get("leagues").getAsBoolean();
 			}
 			
-			// Atomically replace filters
-			this.filters = newFilters;
+			return newFilters;
 		} catch (Exception e) {
 			log.error("Error parsing filters JSON", e);
+			return null;
 		}
 	}
 }

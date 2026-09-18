@@ -103,7 +103,6 @@ public class ProfilePanel extends JPanel {
 		this.config = config;
 		this.itemManager = itemManager;
 		this.rankIconResolver = rankIconResolver;
-		fetchRanks();
 	}
 
 	/** Where the rank-up bar navigates (the Ranking side-panel view) */
@@ -139,7 +138,7 @@ public class ProfilePanel extends JPanel {
 	}
 
 	public void onLoggedOut() {
-		SwingUtilities.invokeLater(this::showNotLoggedIn);
+		showNotLoggedIn();
 	}
 
 	public void loadCurrentAccount() {
@@ -171,6 +170,7 @@ public class ProfilePanel extends JPanel {
 		if (isLoading) return;
 		isLoading = true;
 		showLoading();
+		if (pointsData == null) fetchRanks();
 
 		apiService.fetchAccount(accountHash,
 			response -> {
@@ -182,7 +182,6 @@ public class ProfilePanel extends JPanel {
 						if (onAccountLoaded != null) onAccountLoaded.accept(currentAccount);
 					}
 					if (pointsData != null) buildProfile();
-					if (ranks == null || ranks.isEmpty() || pointsData == null) fetchRanks();
 				});
 			},
 			error -> {
@@ -196,6 +195,7 @@ public class ProfilePanel extends JPanel {
 		if (isLoading) return;
 		isLoading = true;
 		showLoading();
+		if (pointsData == null) fetchRanks();
 
 		apiService.fetchAccountById(osrsAccountId,
 			response -> {
@@ -204,7 +204,6 @@ public class ProfilePanel extends JPanel {
 					currentAccount = response.getData();
 					if (currentAccount != null) pointsLog = currentAccount.getPointsLog();
 					if (pointsData != null) buildProfile();
-					if (ranks == null || ranks.isEmpty() || pointsData == null) fetchRanks();
 				});
 			},
 			error -> {
@@ -791,11 +790,15 @@ public class ProfilePanel extends JPanel {
 			list.add(empty);
 		} else {
 			int itemCount = 0;
+			int previousPoints = 0;
 			for (PointsResponse.PointSource tier : tiers) {
 				boolean completed = tier.getThreshold() != null && progress >= tier.getThreshold();
+				// Tier points are running totals; reaching a tier only adds the gap to the tier below
+				int addedPoints = Math.max(0, tier.getPointsValue() - previousPoints);
+				previousPoints = Math.max(previousPoints, tier.getPointsValue());
 				if (hideCompleted && completed) continue;
 				String desc = tier.getDescription() != null ? tier.getDescription() : tier.getName();
-				list.add(new ChecklistItem(desc, completed, tier.getPointsValue(), assetLoader));
+				list.add(new ChecklistItem(desc, completed, addedPoints, assetLoader));
 				list.add(Box.createRigidArea(new Dimension(0, 4)));
 				itemCount++;
 			}

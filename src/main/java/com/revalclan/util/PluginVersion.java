@@ -7,7 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * The plugin's own version, read once from the {@code runelite-plugin.properties}
- * that Gradle copies into the jar. Every NightLegion companion call identifies
+ * that Gradle copies into the jar. Every HTTP call to the Reval backend identifies
  * itself with {@link #userAgent()} so the server can tell which builds are running.
  */
 @Slf4j

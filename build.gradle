@@ -14,22 +14,30 @@ repositories {
 }
 
 def runeLiteVersion = 'latest.release'
-def pluginMainClass = 'com.revalclan.RevalClanPluginTest'
 
 dependencies {
-	compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
+	compileOnly group: 'net.runelite', name:'client', version: runeLiteVersion
+
 	compileOnly 'org.projectlombok:lombok:1.18.30'
 	annotationProcessor 'org.projectlombok:lombok:1.18.30'
 
 	testImplementation 'junit:junit:4.13.2'
-	testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion
-	testImplementation group: 'net.runelite', name: 'jshell', version: runeLiteVersion
+	testImplementation 'org.mockito:mockito-core:4.11.0'
+	testImplementation 'com.squareup.okhttp3:mockwebserver:3.14.9'
+	testImplementation group: 'net.runelite', name:'client', version: runeLiteVersion
+	testImplementation group: 'net.runelite', name:'jshell', version: runeLiteVersion
 }
 
-group = 'com.nightlegion'
-version = '1.0.0'
+group = 'com.revalclan'
+// runelite-plugin.properties is the single source of truth for the plugin version:
+// the jar is named after it and PluginVersion reads it at runtime (User-Agent).
+def pluginProperties = new Properties()
+file('runelite-plugin.properties').withInputStream { pluginProperties.load(it) }
+version = pluginProperties.getProperty('version')
 
 processResources {
+	// Ship the properties file so PluginVersion can read the version at runtime.
+	// A real task input, so bumping the version re-stamps the jar without a clean.
 	from('runelite-plugin.properties') { into 'com/revalclan' }
 }
 
@@ -38,9 +46,38 @@ tasks.withType(JavaCompile).configureEach {
 	options.release.set(11)
 }
 
-tasks.register('run', JavaExec) {
+tasks.register('shadowJar', Jar) {
+	dependsOn configurations.testRuntimeClasspath
+	manifest {
+		attributes('Main-Class': 'com.revalclan.RevalClanPluginTest', 'Multi-Release': true)
+	}
+
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	from sourceSets.main.output
+	from sourceSets.test.output
+	from {
+		configurations.testRuntimeClasspath.collect { file ->
+			file.isDirectory() ? file : zipTree(file)
+		}
+	}
+
+	exclude 'META-INF/INDEX.LIST'
+	exclude 'META-INF/*.SF'
+	exclude 'META-INF/*.DSA'
+	exclude 'META-INF/*.RSA'
+	exclude '**/module-info.class'
+
+	group = BasePlugin.BUILD_GROUP
+	archiveClassifier.set('shadow')
+	archiveFileName.set("${rootProject.name}-${project.version}-all.jar")
+}
+
+// Dev client: JAVA_HOME=$(/usr/libexec/java_home -v 21) ./gradlew runClient
+tasks.register('runClient', JavaExec) {
+	group = 'application'
+	description = 'Launch RuneLite with the plugin loaded (developer mode)'
 	classpath = sourceSets.test.runtimeClasspath
-	mainClass = pluginMainClass
-	jvmArgs '-ea'
-	args '--developer-mode', '--debug'
+	mainClass = 'com.revalclan.RevalClanPluginTest'
+	jvmArgs = ['-ea', '-Xmx1g', '--add-exports=java.desktop/com.apple.eawt=ALL-UNNAMED', '--add-opens=java.desktop/com.apple.eawt=ALL-UNNAMED']
+	args = ['--developer-mode']
 }

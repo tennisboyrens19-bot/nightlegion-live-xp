@@ -1,0 +1,56 @@
+name: Exact Reval release tests
+on:
+  push:
+    branches: [fix/reval-exact-179faa, fix/filepath-review-2026-09-18]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: exact-reval-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Archive tracked source only
+        run: git archive --format=zip --output=exact-source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exact-source
+          path: exact-source.zip
+          retention-days: 3
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Build original client and run all tests
+        env:
+          JAVA_TOOL_OPTIONS: -Djava.awt.headless=true
+        run: gradle --no-daemon clean test jar
+      - name: Verify upstream source preservation
+        run: python3 tools/reval_source.py
+      - name: Verify runtime filesystem access uses RuneLite Filepath
+        run: |
+          if grep -RInE 'import java\.io\.File;|import java\.nio\.file\.(Files|Path);|new File\(|Files\.|\.toPath\(' src/main/java; then
+            echo 'Direct filesystem access found; use net.runelite.client.util.Filepath.' >&2
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exact-test-results
+          path: |
+            build/test-results
+            build/reports/tests
+            build/source-parity.json
+            build/libs/*.jar
+          if-no-files-found: ignore
+          retention-days: 7

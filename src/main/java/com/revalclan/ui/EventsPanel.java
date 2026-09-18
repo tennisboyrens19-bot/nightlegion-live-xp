@@ -6,7 +6,9 @@ import com.revalclan.ui.components.EventCard;
 import com.revalclan.ui.components.LoginPrompt;
 import com.revalclan.ui.components.PanelTitle;
 import com.revalclan.ui.components.RefreshButton;
+import com.revalclan.ui.components.ScrollWrap;
 import com.revalclan.ui.constants.UIConstants;
+import com.revalclan.ui.leaguesbingo.LeaguesBingoPanel;
 import net.runelite.api.Client;
 import net.runelite.client.ui.FontManager;
 
@@ -17,16 +19,18 @@ import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class EventsPanel extends JPanel {
 	private RevalApiService apiService;
 	private Client client;
 
+	private final CardLayout cardLayout;
+	private final JPanel cardContainer;
 	private JPanel contentPanel;
 	private JPanel eventsListPanel;
 	private RefreshButton refreshButton;
+	private LeaguesBingoPanel leaguesBingoPanel;
 
 	private String currentTab = "active";
 	private boolean userSelectedTab = false;
@@ -37,8 +41,6 @@ public class EventsPanel extends JPanel {
 	private JButton upcomingTab;
 	private JButton activeTab;
 
-	private Consumer<Boolean> onIndicatorUpdate;
-
 	public EventsPanel() {
 		setLayout(new BorderLayout());
 		setBackground(UIConstants.BACKGROUND);
@@ -48,26 +50,15 @@ public class EventsPanel extends JPanel {
 		contentPanel.setBackground(UIConstants.BACKGROUND);
 		contentPanel.setBorder(new EmptyBorder(12, 10, 10, 10));
 
-		JPanel wrapper = new JPanel(new BorderLayout()) {
-			@Override
-			public Dimension getPreferredSize() {
-				Dimension size = super.getPreferredSize();
-				if (getParent() != null) size.width = getParent().getWidth();
-				return size;
-			}
-		};
-		wrapper.setBackground(UIConstants.BACKGROUND);
-		wrapper.add(contentPanel, BorderLayout.NORTH);
-
-		JScrollPane scrollPane = new JScrollPane(wrapper);
-		scrollPane.setBackground(UIConstants.BACKGROUND);
-		scrollPane.setBorder(null);
-		scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-		scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-		scrollPane.getViewport().setBackground(UIConstants.BACKGROUND);
+		JScrollPane scrollPane = ScrollWrap.of(contentPanel);
 
 		showNotLoggedIn();
-		add(scrollPane, BorderLayout.CENTER);
+
+		cardLayout = new CardLayout();
+		cardContainer = new JPanel(cardLayout);
+		cardContainer.setBackground(UIConstants.BACKGROUND);
+		cardContainer.add(scrollPane, "LIST");
+		add(cardContainer, BorderLayout.CENTER);
 	}
 
 	public void init(RevalApiService apiService, Client client) {
@@ -75,34 +66,57 @@ public class EventsPanel extends JPanel {
 		this.client = client;
 	}
 
-	public void setOnIndicatorUpdate(Consumer<Boolean> callback) {
-		this.onIndicatorUpdate = callback;
+	/** The injector-built board browser; shown when a Leagues Bingo card is opened. */
+	public void setLeaguesBingoPanel(LeaguesBingoPanel panel) {
+		leaguesBingoPanel = panel;
+		panel.setOnClose(this::showList);
+		cardContainer.add(panel, "LEAGUES_BINGO");
 	}
 
-	public void onLoggedIn() {
-		if (allEvents.isEmpty() || isShowingLoginPrompt()) {
-			loadAuthorized();
-		}
+	private void showList() {
+		cardLayout.show(cardContainer, "LIST");
+	}
+
+	private void openLeaguesBingo(EventsResponse.EventSummary event) {
+		if (leaguesBingoPanel == null) return;
+		leaguesBingoPanel.open(event);
+		cardLayout.show(cardContainer, "LEAGUES_BINGO");
+	}
+
+	private boolean memberSession;
+	private int loadGeneration;
+
+	/** Validation updates the prompt but never requests the event list. */
+	public void onLoginReady() {
+		memberSession = true;
+		loadGeneration++;
+		allEvents = new ArrayList<>();
+		buildFullUI();
+		eventsListPanel.removeAll();
+		eventsListPanel.add(new JLabel("Click Events or Refresh to load events."));
+		eventsListPanel.revalidate();
+		eventsListPanel.repaint();
+	}
+
+	public void load() {
+		loadAuthorized();
 	}
 
 	public void onLoggedOut() {
-		SwingUtilities.invokeLater(this::showNotLoggedIn);
+		memberSession = false;
+		loadGeneration++;
+		allEvents = new ArrayList<>();
+		if (leaguesBingoPanel != null) leaguesBingoPanel.reset();
+		showList();
+		showNotLoggedIn();
 	}
 
 	public void refresh() {
-		if (apiService != null) {
-			refreshButton.setLoading(true);
-			apiService.refreshEvents(this::onEventsLoaded, this::onError);
-		}
-	}
-
-	private boolean isShowingLoginPrompt() {
-		return contentPanel.getComponentCount() == 0 ||
-			contentPanel.getComponent(0) instanceof LoginPrompt;
+		loadAuthorized();
 	}
 
 	private void loadAuthorized() {
-		if (client == null || client.getAccountHash() == -1) {
+		if (!memberSession || client == null || client.getAccountHash() == -1) {
 			showNotLoggedIn();
 			return;
 		}
@@ -214,11 +228,13 @@ public class EventsPanel extends JPanel {
 			return;
 		}
 		showLoading();
-		apiService.fetchEvents(this::onEventsLoaded, this::onError);
+		final int generation = ++loadGeneration;
+		apiService.fetchEvents(response -> onEventsLoaded(response, generation), error -> onError(error, generation));
 	}
 
-	private void onEventsLoaded(EventsResponse response) {
+	private void onEventsLoaded(EventsResponse response, int generation) {
 		SwingUtilities.invokeLater(() -> {
+			if (generation != loadGeneration || !memberSession) return;
 			if (refreshButton != null) refreshButton.setLoading(false);
 			allEvents = response != null && response.getData() != null && response.getData().getEvents() != null
 				? response.getData().getEvents() : new ArrayList<>();
@@ -234,16 +250,12 @@ public class EventsPanel extends JPanel {
 
 			displayEvents();
 
-			if (onIndicatorUpdate != null) {
-				boolean hasActiveOrUpcoming = allEvents.stream()
-					.anyMatch(e -> e.isCurrentlyActive() || e.isUpcoming());
-				onIndicatorUpdate.accept(hasActiveOrUpcoming);
-			}
 		});
 	}
 
-	private void onError(Exception e) {
+	private void onError(Exception e, int generation) {
 		SwingUtilities.invokeLater(() -> {
+			if (generation != loadGeneration || !memberSession) return;
 			if (refreshButton != null) refreshButton.setLoading(false);
 			showError("Failed to load events: " + e.getMessage());
 		});
@@ -267,7 +279,8 @@ public class EventsPanel extends JPanel {
 			showEmptyState();
 		} else {
 			for (EventsResponse.EventSummary event : filtered) {
-				EventCard card = new EventCard(event, event.isCurrentlyActive(), currentPlayerName, this::handleRegistration);
+				Runnable onOpen = event.hasOpenableBoards() ? () -> openLeaguesBingo(event) : null;
+				EventCard card = new EventCard(event, event.isCurrentlyActive(), currentPlayerName, this::handleRegistration, onOpen);
 				card.setAlignmentX(Component.LEFT_ALIGNMENT);
 				card.setMaximumSize(new Dimension(Integer.MAX_VALUE, card.getPreferredSize().height));
 				eventsListPanel.add(card);

@@ -2,7 +2,7 @@ package com.revalclan.notifiers;
 
 import com.google.gson.JsonObject;
 import com.revalclan.RevalClanConfig;
-import com.revalclan.util.ClanValidator;
+import com.revalclan.util.ClanMembership;
 import com.revalclan.util.EventFilterManager;
 import com.revalclan.util.ScreenshotService;
 import com.revalclan.util.WebhookService;
@@ -34,6 +34,8 @@ public abstract class BaseNotifier {
 	@Inject protected RevalClanConfig config;
 
 	@Inject protected EventFilterManager filterManager;
+
+	@Inject protected ClanMembership clanMembership;
 	
 	@Inject protected ItemManager itemManager;
 
@@ -52,16 +54,17 @@ public abstract class BaseNotifier {
 	protected abstract String getEventType();
 
 	/**
-	 * Live clan-membership gate applied before every send. Notifiers whose
-	 * event fires after the clan channel is torn down (LOGOUT) override this;
-	 * their callers must have validated membership beforehand.
+	 * Clan-membership gate applied before every send — the cached per-login
+	 * answer, so a hop's channel drop or a closed clan channel never swallows
+	 * an event. Notifiers whose event fires after the login screen resets the
+	 * cache (LOGOUT) override this; their callers gate on the previous answer.
 	 */
 	protected boolean passesClanCheck() {
-		return ClanValidator.validateClan(client);
+		return clanMembership.isMember();
 	}
 
 	protected void sendNotification(Map<String, Object> data) {
-		sendNotification(data, null);
+		sendNotification(getEventType(), data, null);
 	}
 
 	/**
@@ -69,35 +72,48 @@ public abstract class BaseNotifier {
 	 * Consumer runs on the HTTP thread — must not touch the client.
 	 */
 	protected void sendNotification(Map<String, Object> data, Consumer<JsonObject> onResponse) {
+		sendNotification(getEventType(), data, onResponse);
+	}
+
+	/** The one send primitive behind the two overloads above. */
+	private void sendNotification(String eventType, Map<String, Object> data, Consumer<JsonObject> onResponse) {
 		if (!passesClanCheck()) return;
-		addEventMetadata(data);
+		addEventMetadata(eventType, data, true);
 		webhookService.sendDataAsync(data, onResponse);
 	}
 
 	/**
-	 * Captures a screenshot of the current game frame, attaches it to the data,
-	 * then sends the notification asynchronously.
+	 * Send without the inventory and equipment snapshots. For events that are a
+	 * number or a name rather than a thing the player is holding (a varbit
+	 * value, an item that was used up), the containers are dead weight — and a
+	 * varbit can tick every 30 seconds for the length of a game.
+	 */
+	protected void sendCompactNotification(String eventType, Map<String, Object> data) {
+		if (!passesClanCheck()) return;
+		addEventMetadata(eventType, data, false);
+		webhookService.sendDataAsync(data, null);
+	}
+
+	/**
+	 * Captures a screenshot of the current game frame, then sends the
+	 * notification with the image as its own request part (plain JSON when the
+	 * capture failed).
 	 * @param data The notification data
 	 */
 	protected void sendNotificationWithScreenshot(Map<String, Object> data) {
 		if (!passesClanCheck()) return;
-		addEventMetadata(data);
+		addEventMetadata(getEventType(), data, true);
 
 		screenshotService.captureScreenshot()
-			.thenAccept(base64Screenshot -> {
-				if (base64Screenshot != null) {
-					data.put("screenshot", base64Screenshot);
-				}
-				webhookService.sendDataAsync(data, null);
-			});
+			.thenAccept(screenshot -> webhookService.sendDataAsync(data, screenshot, null));
 	}
 
 	/**
 	 * Adds standard event metadata (type, timestamp, location, inventory, etc.) to the data map.
 	 * Must be called on the game thread where client access is safe.
 	 */
-	private void addEventMetadata(Map<String, Object> data) {
-		data.put("eventType", getEventType());
+	private void addEventMetadata(String eventType, Map<String, Object> data, boolean includeContainers) {
+		data.put("eventType", eventType);
 		data.put("eventTimestamp", System.currentTimeMillis());
 		data.put("accountHash", client.getAccountHash());
 		data.put("username", getPlayerName());
@@ -112,8 +128,10 @@ public abstract class BaseNotifier {
 			data.put("regionId", wp.getRegionID());
 		}
 		
-		data.put("inventory", getInventoryData());
-		data.put("equipment", getEquippedItems());
+		if (includeContainers) {
+			data.put("inventory", getInventoryData());
+			data.put("equipment", getEquippedItems());
+		}
 	}
 
 	/**

@@ -15,24 +15,28 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 @Singleton
 public class AnnouncementService {
-	private static final int POLL_INTERVAL_TICKS = 500;  // ~5 minutes
+	private static final int NOTIFICATION_INTERVAL_TICKS = 6000; // ~60 minutes; login and heartbeat hints fetch sooner.
+	private int notificationTicksRemaining = NOTIFICATION_INTERVAL_TICKS;
 	private static final int INITIAL_DELAY_TICKS = 5;
+	private static final int RETRY_TICKS = 100; // ~1 minute.
 
 	@Inject private ChatMessageManager chatMessageManager;
 	@Inject private RevalApiService revalApiService;
 	@Inject private Client client;
 	@Inject private com.revalclan.RevalClanConfig config;
 
+	private int sessionGeneration;
+	private String appliedNotificationVersion;
 	private int tickCounter = 0;
 	private boolean initialFetchDone = false;
-	private volatile boolean announcementFetchInProgress = false;
-	private volatile boolean notificationFetchInProgress = false;
+	private boolean announcementFetchInProgress = false;
+	private boolean notificationFetchInProgress = false;
 
 	private final Set<Integer> shownBroadcastIds = new HashSet<>();
 	private final Map<Integer, Long> lastChatShownTime = new HashMap<>();
 	private final List<Announcement> cachedAnnouncements = new CopyOnWriteArrayList<>();
 
-	public void onGameTick() {
+	public synchronized void onGameTick() {
 		if (!config.showAnnouncements()) {
 			return;
 		}
@@ -50,11 +54,17 @@ public class AnnouncementService {
 			return;
 		}
 
-		if (tickCounter % POLL_INTERVAL_TICKS == 0) {
+		if (!notificationFetchInProgress && --notificationTicksRemaining <= 0) {
 			fetchNotifications();
 		}
 
 		processChatAnnouncements();
+	}
+
+	/** Called on the client thread after a current login/heartbeat response. */
+	public synchronized void onServerVersion(String version) {
+		if (config.showAnnouncements() && initialFetchDone
+			&& (version == null || !version.equals(appliedNotificationVersion))) fetchNotifications();
 	}
 
 	private void fetchAnnouncements() {
@@ -62,17 +72,26 @@ public class AnnouncementService {
 			return;
 		}
 		announcementFetchInProgress = true;
+		final int generation = sessionGeneration;
 
 		revalApiService.fetchAnnouncements(
 			response -> {
-				announcementFetchInProgress = false;
-				if (response.getData() != null && response.getData().getAnnouncements() != null) {
-					cachedAnnouncements.clear();
-					cachedAnnouncements.addAll(response.getData().getAnnouncements());
-					processBroadcasts();
+				synchronized (AnnouncementService.this) {
+					if (generation != sessionGeneration) return;
+					announcementFetchInProgress = false;
+					if (response.getData() != null && response.getData().getAnnouncements() != null) {
+						cachedAnnouncements.clear();
+						cachedAnnouncements.addAll(response.getData().getAnnouncements());
+						processBroadcasts();
+					}
 				}
 			},
-			error -> announcementFetchInProgress = false
+			error -> {
+				synchronized (AnnouncementService.this) {
+					if (generation != sessionGeneration) return;
+					announcementFetchInProgress = false;
+				}
+			}
 		);
 	}
 
@@ -87,15 +106,31 @@ public class AnnouncementService {
 		}
 
 		notificationFetchInProgress = true;
+		notificationTicksRemaining = NOTIFICATION_INTERVAL_TICKS;
+		final int generation = sessionGeneration;
 		revalApiService.fetchNotifications(accountHash,
 			response -> {
-				notificationFetchInProgress = false;
-				if (response.getData() != null && response.getData().getNotifications() != null
-					&& !response.getData().getNotifications().isEmpty()) {
-					displayAndAcknowledgeNotifications(response.getData().getNotifications());
+				synchronized (AnnouncementService.this) {
+					if (generation != sessionGeneration) return;
+					notificationFetchInProgress = false;
+					if (response.getData() != null && response.getData().getNotifications() != null) {
+						appliedNotificationVersion = response.getData().getVersion();
+					} else {
+						notificationTicksRemaining = RETRY_TICKS;
+					}
+					if (response.getData() != null && response.getData().getNotifications() != null
+						&& !response.getData().getNotifications().isEmpty()) {
+						displayAndAcknowledgeNotifications(accountHash, response.getData().getNotifications());
+					}
 				}
 			},
-			error -> notificationFetchInProgress = false
+			error -> {
+				synchronized (AnnouncementService.this) {
+					if (generation != sessionGeneration) return;
+					notificationFetchInProgress = false;
+					notificationTicksRemaining = RETRY_TICKS;
+				}
+			}
 		);
 	}
 
@@ -137,7 +172,7 @@ public class AnnouncementService {
 		}
 	}
 
-	private void displayAndAcknowledgeNotifications(List<Notification> notifications) {
+	private void displayAndAcknowledgeNotifications(long accountHash, List<Notification> notifications) {
 		List<Integer> idsToAck = new ArrayList<>();
 
 		for (Notification notification : notifications) {
@@ -149,7 +184,7 @@ public class AnnouncementService {
 		}
 
 		if (!idsToAck.isEmpty()) {
-			revalApiService.acknowledgeNotifications(client.getAccountHash(), idsToAck,
+			revalApiService.acknowledgeNotifications(accountHash, idsToAck,
 				ackResponse -> {},
 				error -> {}
 			);
@@ -170,7 +205,10 @@ public class AnnouncementService {
 		return "<col=FFD700>[NightLegion]</col> " + notification.getMessage();
 	}
 
-	public void reset() {
+	public synchronized void reset() {
+		sessionGeneration++;
+		appliedNotificationVersion = null;
+		notificationTicksRemaining = NOTIFICATION_INTERVAL_TICKS;
 		tickCounter = 0;
 		initialFetchDone = false;
 		announcementFetchInProgress = false;
