@@ -14,6 +14,7 @@ import com.revalclan.teams.ClanTeamColors;
 import com.revalclan.ui.leaguesbingo.LeaguesBingoPanel;
 import com.revalclan.notifiers.*;
 import com.revalclan.pbs.ClogPersonalBestCapture;
+import com.revalclan.session.SessionStore;
 import com.revalclan.session.SessionTracker;
 import com.revalclan.util.ClanMembership;
 import com.revalclan.ui.RevalPanel;
@@ -64,7 +65,9 @@ import net.runelite.client.ui.overlay.OverlayManager;
 
 @Slf4j
 @PluginDescriptor(
-	name = "NightLegion"
+	name = "NightLegion",
+	internalName = "nightlegion",
+	legacyDataDirectory = "nightlegion"
 )
 public class RevalClanPlugin extends Plugin {
 	@Inject private Client client;
@@ -125,6 +128,7 @@ public class RevalClanPlugin extends Plugin {
 
 	@Inject	private SyncNotifier syncNotifier;
 
+	@Inject	private SessionStore sessionStore;
 	@Inject	private SessionTracker sessionTracker;
 	@Inject	private ClanMembership clanMembership;
 
@@ -166,6 +170,7 @@ public class RevalClanPlugin extends Plugin {
 		wasLoggedIn = false;
 		pendingLoginNotification = false;
 		clanMembership.reset();
+		sessionStore.initialize(getPluginDirectory());
 		sessionTracker.setOnHeartbeatResponse(this::onChanges);
 
 		clientThread.invoke(() -> {
