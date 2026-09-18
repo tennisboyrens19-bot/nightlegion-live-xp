@@ -1,29 +1,32 @@
 package com.revalclan;
 
+import com.revalclan.nightlegion.NightLegionAuthentication;
 import com.revalclan.api.RevalApiService;
-import com.revalclan.api.NightLegionTransport;
 import com.revalclan.combat.KillTracker;
 import com.revalclan.collectionlog.CollectionLogManager;
 import com.revalclan.collectionlog.CollectionLogSyncButton;
 import com.revalclan.collectionlog.SyncGuide;
 import com.revalclan.collectionlog.SyncGuideOverlay;
-import com.revalclan.events.RegistrationMarks;
 import com.revalclan.events.RegistrationMarksOverlay;
 import com.revalclan.playercards.PlayerCardManager;
 import com.revalclan.playercards.PlayerCardOverlay;
 import com.revalclan.teams.ClanTeamColors;
+import com.revalclan.ui.leaguesbingo.LeaguesBingoPanel;
 import com.revalclan.notifiers.*;
 import com.revalclan.pbs.ClogPersonalBestCapture;
+import com.revalclan.session.SessionStore;
 import com.revalclan.session.SessionTracker;
+import com.revalclan.util.ClanMembership;
 import com.revalclan.ui.RevalPanel;
 import com.revalclan.util.AnnouncementService;
 import com.revalclan.util.ClanRankIconResolver;
-import com.revalclan.util.ClanValidator;
 import com.revalclan.util.EventFilterManager;
+import com.revalclan.util.RaidPartyTracker;
 import com.revalclan.util.SyncStateManager;
 import com.revalclan.util.UIAssetLoader;
 import com.revalclan.util.Worlds;
 import com.google.inject.Provides;
+import com.google.gson.JsonObject;
 
 import java.awt.image.BufferedImage;
 import java.util.regex.Pattern;
@@ -34,6 +37,8 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.VarClientIntChanged;
+import net.runelite.api.gameval.VarClientID;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.HitsplatApplied;
 import net.runelite.api.events.InteractingChanged;
@@ -60,10 +65,13 @@ import net.runelite.client.ui.overlay.OverlayManager;
 
 @Slf4j
 @PluginDescriptor(
-	name = "NightLegion"
+	name = "NightLegion",
+	internalName = "nightlegion",
+	legacyDataDirectory = "nightlegion"
 )
 public class RevalClanPlugin extends Plugin {
 	@Inject private Client client;
+	@Inject private NightLegionAuthentication nightLegionAuthentication;
 
 	@Inject	private CollectionLogManager collectionLogManager;
 
@@ -71,7 +79,6 @@ public class RevalClanPlugin extends Plugin {
 	@Inject	private SyncGuide syncGuide;
 	@Inject	private SyncGuideOverlay syncGuideOverlay;
 	@Inject	private ClanTeamColors clanTeamColors;
-	@Inject	private RegistrationMarks registrationMarks;
 	@Inject	private RegistrationMarksOverlay registrationMarksOverlay;
 	@Inject	private PlayerCardManager playerCardManager;
 	@Inject	private PlayerCardOverlay playerCardOverlay;
@@ -79,6 +86,7 @@ public class RevalClanPlugin extends Plugin {
 	@Inject	private ClanRankIconResolver rankIconResolver;
 
 	@Inject	private LootNotifier lootNotifier;
+	@Inject	private VarbitNotifier varbitNotifier;
 
 	@Inject	private ClogPersonalBestCapture clogPersonalBestCapture;
 
@@ -102,6 +110,7 @@ public class RevalClanPlugin extends Plugin {
 
 	@Inject	private DetailedKillNotifier detailedKillNotifier;
 	@Inject	private KillTracker killTracker;
+	@Inject	private RaidPartyTracker raidPartyTracker;
 
 	@Inject	private EmoteNotifier emoteNotifier;
 
@@ -119,7 +128,9 @@ public class RevalClanPlugin extends Plugin {
 
 	@Inject	private SyncNotifier syncNotifier;
 
+	@Inject	private SessionStore sessionStore;
 	@Inject	private SessionTracker sessionTracker;
+	@Inject	private ClanMembership clanMembership;
 
 	@Inject	private SyncStateManager syncStateManager;
 
@@ -138,7 +149,6 @@ public class RevalClanPlugin extends Plugin {
 	@Inject	private ClientToolbar clientToolbar;
 
 	@Inject	private RevalApiService revalApiService;
-	@Inject	private NightLegionTransport nightLegionTransport;
 
 
 	@Inject	private UIAssetLoader uiAssetLoader;
@@ -151,17 +161,6 @@ public class RevalClanPlugin extends Plugin {
 	private boolean wasLoggedIn = false;
 	private boolean pendingLoginNotification = false;
 
-	private volatile boolean inRequiredClan = false;
-	private int clanValidationAttempt = -1;
-
-	private static final int FAST_VALIDATION_TICKS = 25;
-	private static final int SLOW_VALIDATION_INTERVAL = 5;
-	private static final int MAX_CLAN_VALIDATION_TICKS = 1000;
-
-	/** Refetch event filters every ~10 minutes so activated events propagate without a relog */
-	private static final int FILTER_REFETCH_INTERVAL_TICKS = 1000;
-	private int filterRefetchTicks = 0;
-
 	private static final Pattern COL_OPEN = Pattern.compile("<col=[0-9a-fA-F]+>");
 	private static final Pattern COL_CLOSE = Pattern.compile("</col>");
 
@@ -170,19 +169,23 @@ public class RevalClanPlugin extends Plugin {
 		log.info("NightLegion plugin started!");
 		wasLoggedIn = false;
 		pendingLoginNotification = false;
-		inRequiredClan = false;
-		clanValidationAttempt = -1;
+		clanMembership.reset();
+		sessionStore.initialize(getPluginDirectory());
+		sessionTracker.setOnHeartbeatResponse(this::onChanges);
 
 		clientThread.invoke(() -> {
 			if (client.getIndexConfig() == null || client.getGameState().ordinal() < GameState.LOGIN_SCREEN.ordinal()) {
 				return false;
 			}
 
+			nightLegionAuthentication.capture(client);
 			collectionLogManager.parseCacheForCollectionLog();
 
+			// Plugin enabled mid-game: treat it as a login so the session starts now
+			// and LOGIN goes out once membership is proven (used to wait for a relog)
 			if (client.getGameState() == GameState.LOGGED_IN) {
-				wasLoggedIn = true;
-				clanValidationAttempt = 0;
+				onLoggedIn();
+				sessionTracker.startSession();
 			}
 
 			return true;
@@ -191,15 +194,13 @@ public class RevalClanPlugin extends Plugin {
 		syncButton.startUp();
 		overlayManager.add(syncGuideOverlay);
 
-		// Replay any session left behind by a crash / X-out as a recovered summary
-		sessionTracker.recoverPersistedSession();
+		// Replay sessions the server never acknowledged (crash / X-out / lost response)
+		sessionTracker.recoverPersistedSessions(0);
 
 		eventBus.register(lootNotifier);
 		eventBus.register(clogPersonalBestCapture);
 		eventBus.register(clanTeamColors);
 		clanTeamColors.startUp();
-		eventBus.register(registrationMarks);
-		registrationMarks.startUp();
 		overlayManager.add(registrationMarksOverlay);
 		eventBus.register(playerCardManager);
 		overlayManager.add(playerCardOverlay);
@@ -209,6 +210,7 @@ public class RevalClanPlugin extends Plugin {
 			revalPanel = new RevalPanel();
 			revalPanel.init(revalApiService, client, uiAssetLoader, itemManager, spriteManager, config,
 				rankIconResolver);
+			revalPanel.getEventsPanel().setLeaguesBingoPanel(injector.getInstance(LeaguesBingoPanel.class));
 			revalPanel.setOnSyncGuide(() -> {
 				syncGuide.arm();
 				clientThread.invoke(() -> {
@@ -219,7 +221,7 @@ public class RevalClanPlugin extends Plugin {
 				});
 			});
 			
-			BufferedImage icon = uiAssetLoader.getImage("nightlegion.png");
+			BufferedImage icon = uiAssetLoader.getImage("reval.png");
 			
 			navButton = NavigationButton.builder()
 				.tooltip("NightLegion")
@@ -236,9 +238,9 @@ public class RevalClanPlugin extends Plugin {
 
 	@Override
 	protected void shutDown() throws Exception {
+		eventFilterManager.resetSession();
 		log.info("NightLegion plugin stopped!");
-		inRequiredClan = false;
-		clanValidationAttempt = -1;
+		clanMembership.reset();
 		wasLoggedIn = false;
 
 		collectionLogManager.clearObtainedItems();
@@ -252,13 +254,13 @@ public class RevalClanPlugin extends Plugin {
 		eventBus.unregister(clogPersonalBestCapture);
 		eventBus.unregister(clanTeamColors);
 		clanTeamColors.shutDown();
-		eventBus.unregister(registrationMarks);
+		revalApiService.resetEventsSession();
 		overlayManager.remove(registrationMarksOverlay);
 		eventBus.unregister(playerCardManager);
 		playerCardManager.shutDown();
 		overlayManager.remove(playerCardOverlay);
 
-		// In-memory only — a persisted session replays as 'recovered' next startUp
+		// In-memory only — the persisted copy replays at the next startUp/login
 		sessionTracker.reset();
 
 		announcementService.reset();
@@ -266,6 +268,7 @@ public class RevalClanPlugin extends Plugin {
 		clueNotifier.reset();
 		killCountNotifier.reset();
 		killTracker.reset();
+		raidPartyTracker.reset();
 		leaguesNotifier.reset();
 		leaguesSyncNotifier.reset();
 
@@ -279,43 +282,73 @@ public class RevalClanPlugin extends Plugin {
 	public void onGameStateChanged(GameStateChanged gameStateChanged) {
 		diaryNotifier.onGameStateChanged(gameStateChanged);
 
-		if (gameStateChanged.getGameState() == GameState.LOGGED_IN) {
-			nightLegionTransport.captureCurrentRsn();
-			// Only trigger login events on actual login, not world hops
-			// wasLoggedIn is false only when coming from LOGIN_SCREEN
-			if (!wasLoggedIn) {
-				wasLoggedIn = true;
-				collectionLogManager.clearObtainedItems();
+		switch (gameStateChanged.getGameState()) {
+			case LOGGED_IN:
+				// LOGGED_IN also follows every region load and reconnect: only a fresh
+				// login runs the login hooks, and startSession is a no-op while a
+				// session is active — so this opens exactly the post-login and
+				// post-hop segments.
+				if (!wasLoggedIn) onLoggedIn();
+				sessionTracker.startSession();
+				break;
 
-				pendingLoginNotification = true;
+			case HOPPING:
+				// Each session is one world: close this segment now, the next LOGGED_IN opens the next
+				if (wasLoggedIn) sessionTracker.cutForHop();
+				break;
 
-				clanValidationAttempt = 0;
-			}
-		} else if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN) {
-			boolean wasInClan = inRequiredClan;
-			inRequiredClan = false;
-			clanValidationAttempt = -1;
-			pendingLoginNotification = false;
-			announcementService.reset();
-			leaguesNotifier.reset();
-			leaguesSyncNotifier.reset();
+			case LOGIN_SCREEN: {
+				eventFilterManager.resetSession();
+				revalApiService.resetEventsSession();
+				boolean wasInClan = clanMembership.isMember();
+				clanMembership.reset();
+				pendingLoginNotification = false;
+				announcementService.reset();
+				leaguesNotifier.reset();
+				leaguesSyncNotifier.reset();
+				lootNotifier.reset();
+				varbitNotifier.reset();
+				raidPartyTracker.reset();
 
-			if (wasLoggedIn) {
-				if (wasInClan) {
-					logoutNotifier.onLogout(sessionTracker.finalizeSession());
+				if (wasLoggedIn) {
+					if (wasInClan) {
+						logoutNotifier.onLogout(sessionTracker.finalizeSession());
+					} else {
+						// Not proven a member this login: the file waits for a login on this account that proves it
+						sessionTracker.finalizeSession();
+					}
+					wasLoggedIn = false;
+
+					if (revalPanel != null) {
+						revalPanel.onLoggedOut();
+					}
 				}
-				wasLoggedIn = false;
-
-				if (revalPanel != null) {
-					revalPanel.onLoggedOut();
-				}
-				nightLegionTransport.clearCurrentRsn();
+				break;
 			}
+
+			default:
+				break;
 		}
 	}
 
+	/** Fresh login (or plugin enabled while logged in): LOGIN goes out once membership is proven on a tick. */
+	private void onLoggedIn() {
+		eventFilterManager.resetSession();
+		wasLoggedIn = true;
+		collectionLogManager.clearObtainedItems();
+		pendingLoginNotification = true;
+	}
+
+	@Subscribe
+	public void onVarClientIntChanged(VarClientIntChanged event) {
+		if (event.getIndex() == VarClientID.ACCOUNT_SUMMARY_PLAYTIME) {
+			sessionTracker.onPlaytimeVarcChanged();
+		}
+	}
+
+	/** Runs once per login, the tick membership is proven. */
 	private void onClanValidated() {
-		eventFilterManager.fetchFiltersAsync();
+		eventFilterManager.setOnFiltersApplied(varbitNotifier::syncBaselines);
 
 		// Fetch leagues config if on a seasonal world
 		if (Worlds.isSeasonal(client)) {
@@ -325,52 +358,56 @@ public class RevalClanPlugin extends Plugin {
 
 		if (pendingLoginNotification) {
 			pendingLoginNotification = false;
-			sessionTracker.startSession();
-			loginNotifier.onLogin();
+			loginNotifier.onLogin(this::onChanges);
 		}
+
+		// This account is a member: its sessions recorded before we knew can go out now
+		sessionTracker.recoverPersistedSessions(client.getAccountHash());
 
 		if (revalPanel != null) {
 			revalPanel.onLoggedIn();
 		}
 	}
 
+	private void onChanges(JsonObject response) {
+		clientThread.invokeLater(() -> {
+			if (!wasLoggedIn || !clanMembership.isMember()) return;
+			JsonObject changes = response != null && response.has("changes") && response.get("changes").isJsonObject()
+				? response.getAsJsonObject("changes") : null;
+			eventFilterManager.onServerVersion(changeVersion(changes, "filters"));
+			announcementService.onServerVersion(changeVersion(changes, "notifications"));
+		});
+	}
+
+	private static String changeVersion(JsonObject changes, String key) {
+		if (changes == null || !changes.has(key) || !changes.get(key).isJsonPrimitive()
+			|| !changes.get(key).getAsJsonPrimitive().isString()) return null;
+		String value = changes.get(key).getAsString();
+		return value.isEmpty() ? null : value;
+	}
+
 	@Subscribe
 	public void onGameTick(GameTick gameTick) {
-		nightLegionTransport.captureCurrentRsn();
-		if (clanValidationAttempt >= 0) {
-			if (clanValidationAttempt > MAX_CLAN_VALIDATION_TICKS) {
-				clanValidationAttempt = -1;
-			} else {
-				boolean shouldCheck = clanValidationAttempt < FAST_VALIDATION_TICKS
-					|| clanValidationAttempt % SLOW_VALIDATION_INTERVAL == 0;
+		nightLegionAuthentication.capture(client);
+		// The session and its kill attribution record regardless of clan state — only sending is gated
+		sessionTracker.onGameTick();
+		killTracker.onGameTick(gameTick);
 
-				if (shouldCheck && ClanValidator.validateClan(client)) {
-					inRequiredClan = true;
-					clanValidationAttempt = -1;
-					onClanValidated();
-				} else {
-					clanValidationAttempt++;
-				}
-			}
-		}
+		// Re-read the clan sources; flips to member exactly once per login
+		if (clanMembership.refresh()) onClanValidated();
 
-		if (!inRequiredClan) return;
+		if (!clanMembership.isMember()) return;
 
 		announcementService.onGameTick();
 		lootNotifier.onGameTick();
-		killTracker.onGameTick(gameTick);
+		varbitNotifier.onGameTick();
 		killCountNotifier.onTick();
 		diaryNotifier.onGameTick();
 		petNotifier.onGameTick();
 		leaguesNotifier.onGameTick();
 		leaguesSyncNotifier.onGameTick();
-		sessionTracker.onGameTick();
 
-		// Activated events change the server-derived whitelists; refetch so a relog isn't needed
-		if (++filterRefetchTicks >= FILTER_REFETCH_INTERVAL_TICKS) {
-			filterRefetchTicks = 0;
-			eventFilterManager.fetchFiltersAsync();
-		}
+		eventFilterManager.onGameTick();
 
 		// Server flagged our fingerprint stale — repair with a full sync. Polled
 		// here (not invokeLater from the ack) because a stale ack can arrive on a
@@ -387,7 +424,7 @@ public class RevalClanPlugin extends Plugin {
 	 */
 	@Subscribe
 	public void onScriptPreFired(ScriptPreFired preFired) {
-		if (!inRequiredClan) return;
+		if (!clanMembership.isMember()) return;
 
 		if (preFired.getScriptId() == 4100) {
 			try {
@@ -406,7 +443,7 @@ public class RevalClanPlugin extends Plugin {
 
 	@Subscribe
 	public void onChatMessage(ChatMessage event) {
-		if (!inRequiredClan) return;
+		if (!clanMembership.isMember()) return;
 
 		String message = event.getMessage();
 		String cleanMessage = COL_CLOSE.matcher(COL_OPEN.matcher(message).replaceAll("")).replaceAll("");
@@ -434,13 +471,13 @@ public class RevalClanPlugin extends Plugin {
 
 	@Subscribe
 	public void onStatChanged(StatChanged event) {
-		if (!inRequiredClan) return;
+		if (!clanMembership.isMember()) return;
 		levelNotifier.onStatChanged(event);
 	}
 
 	@Subscribe
 	public void onWidgetLoaded(WidgetLoaded event) {
-		if (!inRequiredClan) return;
+		if (!clanMembership.isMember()) return;
 		questNotifier.onWidgetLoaded(event);
 		clueNotifier.onWidgetLoaded(event);
 		leaguesSyncNotifier.onWidgetLoaded(event);
@@ -448,50 +485,68 @@ public class RevalClanPlugin extends Plugin {
 
 	@Subscribe
 	public void onActorDeath(ActorDeath event) {
-		if (!inRequiredClan) return;
-		deathNotifier.onActorDeath(event);
+		lootNotifier.onActorDeath(event);
+		// A raid's final boss saves the party for an outside-chest claim
+		raidPartyTracker.onActorDeath(event);
+		// Kills feed the session accumulator regardless of clan state
 		KillTracker.KillData kill = killTracker.onActorDeath(event);
-		if (kill != null) {
-			sessionTracker.addKill(kill.npcName);
-			detailedKillNotifier.onKill(kill);
-		}
+		if (kill != null) sessionTracker.addKill(kill.npcName);
+		if (!clanMembership.isMember()) return;
+		deathNotifier.onActorDeath(event);
+		if (kill != null) detailedKillNotifier.onKill(kill);
 	}
 
 	@Subscribe
 	public void onHitsplatApplied(HitsplatApplied event) {
-		if (!inRequiredClan) return;
 		killTracker.onHitsplatApplied(event);
 	}
 
 	@Subscribe
 	public void onNpcDespawned(NpcDespawned event) {
-		// Not gated on inRequiredClan: must always evict the accumulator entry
+		// Not gated on membership: must always evict the accumulator entry
 		// so damaged-but-never-died NPCs don't pin memory
 		killTracker.onNpcDespawned(event);
 	}
 
 	@Subscribe
 	public void onMenuOptionClicked(MenuOptionClicked event) {
-		if (!inRequiredClan) return;
+		if (!clanMembership.isMember()) return;
 		emoteNotifier.onMenuOptionClicked(event);
 		musicNotifier.onMenuOptionClicked(event);
 	}
 
 	@Subscribe
 	public void onInteractingChanged(InteractingChanged event) {
-		if (!inRequiredClan) return;
+		if (!clanMembership.isMember()) return;
 		deathNotifier.onInteractingChanged(event);
 	}
 
 	@Subscribe
 	public void onVarbitChanged(VarbitChanged event) {
-		if (!inRequiredClan) return;
+		if (!clanMembership.isMember()) return;
 		diaryNotifier.onVarbitChanged(event);
+		varbitNotifier.onVarbitChanged(event);
 	}
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event) {
 		if (!"nightlegion".equals(event.getGroup())) return;
+
+        if ("personalLinkToken".equals(event.getKey())) {
+            // Authentication boundary only: replay upstream's existing login path.
+            // No new snapshot scheduler, resync event type or refresh loop.
+            clientThread.invokeLater(() -> {
+                revalApiService.clearCache();
+                clanMembership.reset();
+                if (revalPanel != null) revalPanel.onLoggedOut();
+                if (client.getGameState() == GameState.LOGGED_IN) {
+                    nightLegionAuthentication.capture(client);
+                    onLoggedIn();
+                }
+            });
+            return;
+        }
+
 
 		if ("hideCompletedItems".equals(event.getKey()) && revalPanel != null) {
 			revalPanel.getProfilePanel().rebuild();

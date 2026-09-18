@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Adds a "View NightLegion Profile" right-click option on clan members and shows
+ * Adds a "View Reval Profile" right-click option on clan members and shows
  * their {@link PlayerCardOverlay} in-game, fed by the profile-card endpoint.
  * While the card is open, mouse input is consumed so the game doesn't react;
  * a click or Escape closes it.

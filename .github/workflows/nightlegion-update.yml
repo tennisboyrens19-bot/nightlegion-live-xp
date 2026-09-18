@@ -1,0 +1,98 @@
+name: NightLegion update audit and tests
+
+on:
+  push:
+    branches: [nightlegion-update-2026-09-18]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightlegion-update-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compare the complete public source trees
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import difflib, hashlib, io, json, pathlib, re, shutil, tarfile, urllib.request
+          root = pathlib.Path('.').resolve()
+          out = root / 'audit-output'
+          out.mkdir()
+          repo = 'revalOSRS/reval-cc-plugin'
+          ref = '179faa521b14e4541151effd0f5d28f12ec89597'
+          req = urllib.request.Request(f'https://codeload.github.com/{repo}/tar.gz/{ref}', headers={'User-Agent': 'NightLegion-source-audit'})
+          with urllib.request.urlopen(req, timeout=60) as response:
+              data = response.read()
+          if hashlib.sha256(data).hexdigest() != '65972faa05010ecf641772ea3f25490235d35f13da8c2da6648decd7638c6f8a':
+              raise ValueError('Upstream archive checksum mismatch')
+          (out/'reval-reference.tar.gz').write_bytes(data)
+          refroot = out / 'reval-reference'
+          refroot.mkdir()
+          with tarfile.open(fileobj=io.BytesIO(data), mode='r:gz') as archive:
+              for member in archive.getmembers():
+                  if not member.isfile() or '/' not in member.name:
+                      continue
+                  rel = pathlib.PurePosixPath(member.name.split('/', 1)[1])
+                  if rel.is_absolute() or '..' in rel.parts:
+                      raise ValueError('Unsafe archive path')
+                  dest = refroot.joinpath(*rel.parts)
+                  dest.parent.mkdir(parents=True, exist_ok=True)
+                  dest.write_bytes(archive.extractfile(member).read())
+          def files(base):
+              return {str(p.relative_to(base)): p.read_bytes() for p in (base/'src').rglob('*') if p.is_file()}
+          ours, theirs = files(root), files(refroot)
+          shared = set(ours) & set(theirs)
+          same = sorted(p for p in shared if ours[p] == theirs[p])
+          changed = sorted(p for p in shared if ours[p] != theirs[p])
+          report = {'reference_repository': repo, 'reference_commit': ref, 'identical': same, 'changed': changed, 'added': sorted(set(ours)-set(theirs)), 'missing': sorted(set(theirs)-set(ours)), 'mvp': {}, 'tests': {}}
+          for label, tree in [('nightlegion', ours), ('reval', theirs)]:
+              report['mvp'][label] = [{'file':p,'line':n,'text':line.strip()} for p,raw in tree.items() if p.startswith('src/main/') and p.endswith('.java') for n,line in enumerate(raw.decode('utf-8').splitlines(),1) if re.search(r'mvp',line,re.I)]
+              report['tests'][label] = [p for p in tree if p.startswith('src/test/')]
+          (out/'source-audit.json').write_text(json.dumps(report, indent=2)+'\n')
+          diffs = []
+          for p in changed:
+              if p.endswith(('.java','.json','.properties')):
+                  diffs.extend(difflib.unified_diff(theirs[p].decode('utf-8').splitlines(True), ours[p].decode('utf-8').splitlines(True), fromfile='reval/'+p, tofile='nightlegion/'+p))
+          (out/'source-differences.patch').write_text(''.join(diffs))
+          shutil.copytree(root/'src', out/'nightlegion-source'/'src')
+          shutil.copytree(root/'tools', out/'nightlegion-source'/'tools')
+          for name in ['build.gradle','settings.gradle','runelite-plugin.properties','LICENSE','THIRD_PARTY_NOTICES.md','README.md','PROFILE_FIXES.md']:
+              p=root/name
+              if p.exists(): shutil.copy2(p,out/'nightlegion-source'/name)
+          print(json.dumps({'identical':len(same),'changed':len(changed),'added':len(report['added']),'missing':len(report['missing']),'mvp':report['mvp'],'tests':report['tests']},indent=2))
+          PY
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+      - name: Compile and run tests
+        run: gradle clean test jar --no-daemon --stacktrace
+      - name: Verify exact Reval source with documented exceptions
+        run: python3 tools/reval_source.py --archive audit-output/reval-reference.tar.gz
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: NightLegion-update-audit-${{ github.sha }}
+          path: |
+            audit-output/
+            build/source-parity.json
+            build/reports/tests/
+            build/test-results/
+            build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 14
