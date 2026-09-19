@@ -1,0 +1,205 @@
+{
+  "data": {
+    "pointSources": {
+      "COMBAT_ACHIEVEMENTS": [
+        {
+          "id": "combat_achievement_easy",
+          "name": "Combat Achievements: Easy",
+          "pointsDescription": "33 points",
+          "description": "Easy tier",
+          "repeatable": false,
+          "icon": "Combat_Achievements_-_easy_tier_icon",
+          "points": 33,
+          "threshold": 41,
+          "metadata": {
+            "itemId": 25956
+          }
+        },
+        {
+          "id": "combat_achievement_medium",
+          "name": "Combat Achievements: Medium",
+          "pointsDescription": "100 points",
+          "description": "Medium tier",
+          "repeatable": false,
+          "icon": "Combat_Achievements_-_medium_tier_icon",
+          "points": 100,
+          "threshold": 169,
+          "metadata": {
+            "itemId": 25956
+          }
+        },
+        {
+          "id": "combat_achievement_hard",
+          "name": "Combat Achievements: Hard",
+          "pointsDescription": "250 points",
+          "description": "Hard tier",
+          "repeatable": false,
+          "icon": "Combat_Achievements_-_hard_tier_icon",
+          "points": 250,
+          "threshold": 436,
+          "metadata": {
+            "itemId": 25956
+          }
+        },
+        {
+          "id": "combat_achievement_elite",
+          "name": "Combat Achievements: Elite",
+          "pointsDescription": "600 points",
+          "description": "Elite tier",
+          "repeatable": false,
+          "icon": "Combat_Achievements_-_elite_tier_icon",
+          "points": 600,
+          "threshold": 1100,
+          "metadata": {
+            "itemId": 25956
+          }
+        },
+        {
+          "id": "combat_achievement_master",
+          "name": "Combat Achievements: Master",
+          "pointsDescription": "1200 points",
+          "description": "Master tier",
+          "repeatable": false,
+          "icon": "Combat_Achievements_-_master_tier_icon",
+          "points": 1200,
+          "threshold": 1965,
+          "metadata": {
+            "itemId": 25956
+          }
+        },
+        {
+          "id": "combat_achievement_grandmaster",
+          "name": "Combat Achievements: Grandmaster",
+          "pointsDescription": "3000 points",
+          "description": "Grandmaster tier",
+          "repeatable": false,
+          "icon": "Combat_Achievements_-_grandmaster_tier_icon",
+          "points": 3000,
+          "threshold": 2697,
+          "metadata": {
+            "itemId": 25956
+          }
+        }
+      ],
+      "COLLECTION_LOG": [
+        {
+          "id": "collection_log_bronze",
+          "name": "Collection Log: Bronze",
+          "pointsDescription": "200 points",
+          "description": "100+ items logged",
+          "repeatable": false,
+          "icon": "Collection_log_(bronze)_detail",
+          "points": 200,
+          "threshold": 100,
+          "metadata": {
+            "itemId": 30579
+          }
+        },
+        {
+          "id": "collection_log_iron",
+          "name": "Collection Log: Iron",
+          "pointsDescription": "600 points",
+          "description": "300+ items logged",
+          "repeatable": false,
+          "icon": "Collection_log_(iron)_detail",
+          "points": 600,
+          "threshold": 300,
+          "metadata": {
+            "itemId": 30581
+          }
+        },
+        {
+          "id": "collection_log_steel",
+          "name": "Collection Log: Steel",
+          "pointsDescription": "1000 points",
+          "description": "500+ items logged",
+          "repeatable": false,
+          "icon": "Collection_log_(steel)_detail",
+          "points": 1000,
+          "threshold": 500,
+          "metadata": {
+            "itemId": 30583
+          }
+        },
+        {
+          "id": "collection_log_black",
+          "name": "Collection Log: Black",
+          "pointsDescription": "1400 points",
+          "description": "700+ items logged",
+          "repeatable": false,
+          "icon": "Collection_log_(black)_detail",
+          "points": 1400,
+          "threshold": 700,
+          "metadata": {
+            "itemId": 30585
+          }
+        },
+        {
+          "id": "collection_log_mithril",
+          "name": "Collection Log: Mithril",
+          "pointsDescription": "1800 points",
+          "description": "900+ items logged",
+          "repeatable": false,
+          "icon": "Collection_log_(mithril)_detail",
+          "points": 1800,
+          "threshold": 900,
+          "metadata": {
+            "itemId": 30587
+          }
+        },
+        {
+          "id": "collection_log_adamant",
+          "name": "Collection Log: Adamant",
+          "pointsDescription": "2000 points",
+          "description": "1000+ items logged",
+          "repeatable": false,
+          "icon": "Collection_log_(adamant)_detail",
+          "points": 2000,
+          "threshold": 1000,
+          "metadata": {
+            "itemId": 30589
+          }
+        },
+        {
+          "id": "collection_log_rune",
+          "name": "Collection Log: Rune",
+          "pointsDescription": "2200 points",
+          "description": "1100+ items logged",
+          "repeatable": false,
+          "icon": "Collection_log_(rune)_detail",
+          "points": 2200,
+          "threshold": 1100,
+          "metadata": {
+            "itemId": 30591
+          }
+        },
+        {
+          "id": "collection_log_dragon",
+          "name": "Collection Log: Dragon",
+          "pointsDescription": "2400 points",
+          "description": "1200+ items logged",
+          "repeatable": false,
+          "icon": "Collection_log_(dragon)_detail",
+          "points": 2400,
+          "threshold": 1200,
+          "metadata": {
+            "itemId": 30593
+          }
+        },
+        {
+          "id": "collection_log_gilded",
+          "name": "Collection Log: Gilded",
+          "pointsDescription": "3000 points",
+          "description": "1525+ items logged",
+          "repeatable": false,
+          "icon": "Collection_log_(gilded)_detail",
+          "points": 3000,
+          "threshold": 1525,
+          "metadata": {
+            "itemId": 30595
+          }
+        }
+      ]
+    }
+  }
+}

@@ -69,6 +69,15 @@ settings, profile cards, ranks, point sources, events, competitions, diaries,
 notifiers, sync systems, icons and related public behavior are adapted from commit
 `6033d3188b18d34f4bd4c28e6cf7986c8b95f0f9`.
 
+The scoped Collection Log, canonical/replacement item IDs, collection-log sync,
+pet notifications, account/points models, profile categories, Points Log and
+item/pet sprite paths use Reval commit
+`179faa521b14e4541151effd0f5d28f12ec89597` as their canonical implementation.
+NightLegion retains its branding, transport/authentication, backend and point
+values, with narrowly documented data-mapping adaptations. This provenance
+supplements the historical port above; it does not attribute unrelated
+NightLegion functionality to the newer commit.
+
 Source: https://github.com/revalOSRS/reval-cc-plugin
 
 BSD 2-Clause License
@@ -101,3 +110,13 @@ Reval's collection-log and state-sync paths also retain upstream BSD-2-Clause
 work from TempleOSRS (Copyright 2022, SMaloney2017) and Dink (Copyright 2022,
 Jake Barter and pajlads). Their complete license terms are the same BSD
 2-Clause terms printed above.
+
+Exact upstream license texts are preserved in `LICENSES/reval-LICENSE.txt`,
+`LICENSES/templeOSRS-LICENSE.txt` and `LICENSES/dink-LICENSE.txt`. These files and
+this notice are also included under `META-INF` in the plugin JAR.
+
+`CollectionLogSyncButton.java` also retains Reval's source attribution:
+"Portions of this file are derived from or inspired by the RuneProfile plugin",
+"Copyright (c) RuneProfile", "Licensed under the BSD 2-Clause License".
+The BSD 2-Clause conditions and disclaimer printed above apply to that
+attribution as identified by the upstream source.
