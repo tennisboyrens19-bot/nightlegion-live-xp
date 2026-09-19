@@ -14,6 +14,8 @@ import java.util.regex.Pattern;
 @Slf4j
 @Singleton
 public class PetNotifier extends BaseNotifier {
+	@javax.inject.Inject
+	private com.revalclan.collectionlog.CollectionLogManager collectionLogManager;
 	/**
 	 * Pattern matching the initial pet drop message
 	 */
@@ -221,6 +223,8 @@ public class PetNotifier extends BaseNotifier {
 		// Add pet name if we have it
 		if (this.petName != null && !this.petName.isEmpty()) {
 			petData.put("petName", this.petName);
+			Integer itemId = collectionLogManager.getPetItemId(this.petName);
+			if (itemId != null) petData.put("itemId", itemId);
 		}
 
 		// Add kill count if available

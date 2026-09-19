@@ -378,7 +378,30 @@ public class CollectionLogManager {
 	 * Called when collection log opens - tracks which items the player has obtained
 	 */
 	public void onCollectionLogItemObtained(int itemId, int itemCount, String itemName) {
-		obtainedItems.put(itemId, new ObtainedCollectionItem(itemId, itemName, itemCount));
+		if (!Collections.disjoint(com.revalclan.util.Worlds.flagNames(client),
+			Arrays.asList("SEASONAL", "DEADMAN", "TOURNAMENT", "BETA_WORLD"))) return;
+		// Use the same cache mapping as the category lists. Zero counts and POH
+		// guest logs must never become ownership evidence for this account.
+		if (itemId <= 0 || itemCount <= 0
+			|| client.getVarbitValue(net.runelite.api.gameval.VarbitID.COLLECTION_POH_HOST_BOOK_OPEN) == 1) return;
+		int replacement = client.getEnum(3721).getIntValue(itemId);
+		int canonicalId = replacement > 0 ? replacement : itemId;
+		if (canonicalId != itemId) itemName = client.getItemDefinition(canonicalId).getName();
+		obtainedItems.put(canonicalId, new ObtainedCollectionItem(canonicalId, itemName, itemCount));
+	}
+
+	/** Resolve an exact pet name only within the cache's All Pets category. */
+	public Integer getPetItemId(String name) {
+		Integer category = categoryStructIdMap.get("all_pets");
+		if (name == null || category == null) return null;
+		Integer found = null;
+		for (Integer id : categoryItemMap.getOrDefault(category, Collections.emptySet())) {
+			if (name.equalsIgnoreCase(client.getItemDefinition(id).getName())) {
+				if (found != null && !found.equals(id)) return null;
+				found = id;
+			}
+		}
+		return found;
 	}
 
 	/**

@@ -77,6 +77,7 @@ public class RevalClanPlugin extends Plugin {
 
 	@Inject	private CollectionLogSyncButton syncButton;
 	@Inject	private SyncGuide syncGuide;
+	@Inject private PlayerDataCollector playerDataCollector;
 	@Inject	private SyncGuideOverlay syncGuideOverlay;
 	@Inject	private ClanTeamColors clanTeamColors;
 	@Inject	private RegistrationMarksOverlay registrationMarksOverlay;
@@ -399,6 +400,7 @@ public class RevalClanPlugin extends Plugin {
 		if (!clanMembership.isMember()) return;
 
 		announcementService.onGameTick();
+		playerDataCollector.captureBankItems();
 		lootNotifier.onGameTick();
 		varbitNotifier.onGameTick();
 		killCountNotifier.onTick();
