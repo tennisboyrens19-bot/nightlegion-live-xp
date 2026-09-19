@@ -245,6 +245,7 @@ public class RevalClanPlugin extends Plugin {
 		wasLoggedIn = false;
 
 		collectionLogManager.clearObtainedItems();
+		playerDataCollector.clearBankItems();
 		syncButton.shutDown();
 		overlayManager.remove(syncGuideOverlay);
 		if (revalPanel != null) {
@@ -299,6 +300,7 @@ public class RevalClanPlugin extends Plugin {
 				break;
 
 			case LOGIN_SCREEN: {
+				playerDataCollector.clearBankItems();
 				eventFilterManager.resetSession();
 				revalApiService.resetEventsSession();
 				boolean wasInClan = clanMembership.isMember();

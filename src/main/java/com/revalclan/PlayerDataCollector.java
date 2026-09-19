@@ -102,6 +102,11 @@ public class PlayerDataCollector {
 		}
 	}
 
+	public void clearBankItems() {
+		bankOwnedItems.clear();
+		bankAccountHash = -1;
+	}
+
 	/**
 	 * LOGIN/LOGOUT payload: slim (player + fingerprint) when unchanged since
 	 * the last acked fingerprint, full otherwise. Never carries the collection

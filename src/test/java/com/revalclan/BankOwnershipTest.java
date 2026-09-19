@@ -88,6 +88,15 @@ public class BankOwnershipTest {
         account = 2;
         collector.captureBankItems();
         assertTrue(owned(collector).isEmpty());
+        seasonal = false;
+        open = true;
+        collector.captureBankItems();
+        assertTrue(owned(collector).contains(30793));
+        collector.clearBankItems();
+        assertTrue(owned(collector).isEmpty());
+        open = false;
+        collector.captureBankItems();
+        assertTrue(owned(collector).isEmpty());
         open = true;
         seasonal = true;
         collector.captureBankItems();
