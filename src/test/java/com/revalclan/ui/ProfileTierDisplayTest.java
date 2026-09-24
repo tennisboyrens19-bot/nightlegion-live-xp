@@ -2,6 +2,7 @@ package com.revalclan.ui;
 
 import com.google.gson.Gson;
 import com.revalclan.RevalClanConfig;
+import com.revalclan.api.account.AccountResponse;
 import com.revalclan.api.points.PointsResponse;
 import org.junit.Test;
 
@@ -17,10 +18,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** Exercises displayed labels using unchanged NightLegionBot 7a22c35 catalogue rows. */
 public class ProfileTierDisplayTest {
@@ -44,7 +48,31 @@ public class ProfileTierDisplayTest {
         assertFalse(allLabels(section).contains("Hard tier"));
     }
 
+    @Test
+    public void accountThresholdOverridesCatalogueForCombatCompletion() throws Exception {
+        assertTrue(allLabels(render("COMBAT_ACHIEVEMENTS", 2691, true)).contains("Grandmaster tier"));
+        assertFalse(allLabels(render("COMBAT_ACHIEVEMENTS", 2691, true,
+            Collections.singletonMap("grandmaster", 2691))).contains("Grandmaster tier"));
+        assertTrue(allLabels(render("COMBAT_ACHIEVEMENTS", 2697, true,
+            Collections.singletonMap("grandmaster", 2800))).contains("Grandmaster tier"));
+    }
+
+    @Test
+    public void invalidOrUnrelatedThresholdsKeepCatalogueCompletion() throws Exception {
+        for (Integer invalid : Arrays.asList(null, 0, -1)) {
+            assertTrue(allLabels(render("COMBAT_ACHIEVEMENTS", 2691, true,
+                Collections.singletonMap("grandmaster", invalid))).contains("Grandmaster tier"));
+        }
+        assertEquals(rewardLabels(render("COLLECTION_LOG", 0, true)),
+            rewardLabels(render("COLLECTION_LOG", 0, true, Collections.singletonMap("bronze", 1))));
+    }
+
     private static JPanel render(String category, int progress, boolean hideCompleted) throws Exception {
+        return render(category, progress, hideCompleted, null);
+    }
+
+    private static JPanel render(String category, int progress, boolean hideCompleted,
+                                Map<String, Integer> thresholds) throws Exception {
         PointsResponse response;
         try (InputStreamReader reader = new InputStreamReader(
                 ProfileTierDisplayTest.class.getResourceAsStream("/fixtures/nightlegion-tier-catalog.json"),
@@ -55,6 +83,12 @@ public class ProfileTierDisplayTest {
         SwingUtilities.invokeAndWait(() -> {
             try {
                 ProfilePanel panel = new ProfilePanel();
+                AccountResponse.AccountData account = new Gson().fromJson(
+                    "{\"combatAchievementThresholds\":" + new Gson().toJson(thresholds) + "}",
+                    AccountResponse.AccountData.class);
+                Field currentAccount = ProfilePanel.class.getDeclaredField("currentAccount");
+                currentAccount.setAccessible(true);
+                currentAccount.set(panel, account);
                 Field pointsData = ProfilePanel.class.getDeclaredField("pointsData");
                 pointsData.setAccessible(true);
                 pointsData.set(panel, response.getData());

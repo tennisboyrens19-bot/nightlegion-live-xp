@@ -25,6 +25,7 @@ import java.text.DecimalFormat;
 import java.util.*;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ProfilePanel extends JPanel {
 	private final JPanel contentPanel;
@@ -47,6 +48,7 @@ public class ProfilePanel extends JPanel {
 	private PointsResponse.PointsData pointsData;
 	private List<AccountResponse.PointsLogEntry> pointsLog;
 	private boolean isLoading = false;
+	private final AtomicLong accountRequestGeneration = new AtomicLong();
 
 	public ProfilePanel() {
 		setLayout(new BorderLayout());
@@ -128,9 +130,9 @@ public class ProfilePanel extends JPanel {
 					if (response.getData().getRanks() != null) {
 						ranks = response.getData().getRanks();
 					}
-					if (currentAccount != null) {
-						SwingUtilities.invokeLater(this::buildProfile);
-					}
+					SwingUtilities.invokeLater(() -> {
+						if (currentAccount != null) buildProfile();
+					});
 				}
 			},
 			error -> {}
@@ -138,6 +140,11 @@ public class ProfilePanel extends JPanel {
 	}
 
 	public void onLoggedOut() {
+		accountRequestGeneration.incrementAndGet();
+		isLoading = false;
+		currentAccount = null;
+		pointsLog = null;
+		disposeAlbum();
 		showNotLoggedIn();
 	}
 
@@ -169,24 +176,29 @@ public class ProfilePanel extends JPanel {
 	public void loadAccount(long accountHash) {
 		if (isLoading) return;
 		isLoading = true;
+		long generation = accountRequestGeneration.incrementAndGet();
 		showLoading();
 		if (pointsData == null) fetchRanks();
 
 		apiService.fetchAccount(accountHash,
 			response -> {
-				isLoading = false;
 				SwingUtilities.invokeLater(() -> {
+					if (generation != accountRequestGeneration.get()) return;
+					isLoading = false;
 					currentAccount = response.getData();
+					pointsLog = currentAccount != null ? currentAccount.getPointsLog() : null;
 					if (currentAccount != null) {
-						pointsLog = currentAccount.getPointsLog();
 						if (onAccountLoaded != null) onAccountLoaded.accept(currentAccount);
 					}
 					if (pointsData != null) buildProfile();
 				});
 			},
 			error -> {
-				isLoading = false;
-				SwingUtilities.invokeLater(() -> showError(error.getMessage() != null ? error.getMessage() : "Failed to fetch account data"));
+				SwingUtilities.invokeLater(() -> {
+					if (generation != accountRequestGeneration.get()) return;
+					isLoading = false;
+					showError(error.getMessage() != null ? error.getMessage() : "Failed to fetch account data");
+				});
 			}
 		);
 	}
@@ -194,21 +206,26 @@ public class ProfilePanel extends JPanel {
 	public void loadAccountById(int osrsAccountId) {
 		if (isLoading) return;
 		isLoading = true;
+		long generation = accountRequestGeneration.incrementAndGet();
 		showLoading();
 		if (pointsData == null) fetchRanks();
 
 		apiService.fetchAccountById(osrsAccountId,
 			response -> {
-				isLoading = false;
 				SwingUtilities.invokeLater(() -> {
+					if (generation != accountRequestGeneration.get()) return;
+					isLoading = false;
 					currentAccount = response.getData();
-					if (currentAccount != null) pointsLog = currentAccount.getPointsLog();
+					pointsLog = currentAccount != null ? currentAccount.getPointsLog() : null;
 					if (pointsData != null) buildProfile();
 				});
 			},
 			error -> {
-				isLoading = false;
-				SwingUtilities.invokeLater(() -> showError(error.getMessage() != null ? error.getMessage() : "Player not found"));
+				SwingUtilities.invokeLater(() -> {
+					if (generation != accountRequestGeneration.get()) return;
+					isLoading = false;
+					showError(error.getMessage() != null ? error.getMessage() : "Player not found");
+				});
 			}
 		);
 	}
@@ -792,7 +809,8 @@ public class ProfilePanel extends JPanel {
 			int itemCount = 0;
 			int previousPoints = 0;
 			for (PointsResponse.PointSource tier : tiers) {
-				boolean completed = tier.getThreshold() != null && progress >= tier.getThreshold();
+				Integer threshold = tierThreshold(sourceKey, tier);
+				boolean completed = threshold != null && progress >= threshold;
 				// Tier points are running totals; reaching a tier only adds the gap to the tier below
 				int addedPoints = Math.max(0, tier.getPointsValue() - previousPoints);
 				previousPoints = Math.max(previousPoints, tier.getPointsValue());
@@ -814,6 +832,17 @@ public class ProfilePanel extends JPanel {
 		wrapper.add(title, BorderLayout.NORTH);
 		wrapper.add(list, BorderLayout.CENTER);
 		return wrapInRoundedPanel(wrapper);
+	}
+
+	private Integer tierThreshold(String sourceKey, PointsResponse.PointSource tier) {
+		if ("COMBAT_ACHIEVEMENTS".equals(sourceKey) && currentAccount != null
+			&& currentAccount.getCombatAchievementThresholds() != null
+			&& tier.getId() != null && tier.getId().startsWith("combat_achievement_")) {
+			String key = tier.getId().substring("combat_achievement_".length());
+			Integer threshold = currentAccount.getCombatAchievementThresholds().get(key);
+			if (threshold != null && threshold > 0) return threshold;
+		}
+		return tier.getThreshold();
 	}
 
 	private JPanel createStatCard(String value, String label, Color accentColor, String sourceType) {

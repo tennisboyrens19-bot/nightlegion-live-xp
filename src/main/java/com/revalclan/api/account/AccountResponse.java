@@ -4,6 +4,7 @@ import com.revalclan.api.common.ApiResponse;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Response wrapper for GET /plugin/account endpoint
@@ -20,6 +21,7 @@ public class AccountResponse extends ApiResponse {
         private Integer questPoints;
         private Integer diariesTotalCompleted;
         private Integer combatAchievementPoints;
+        private Map<String, Integer> combatAchievementThresholds;
         private Integer collectionLogUniqueObtained;
         private Integer totalKills;
         private List<Milestone> milestones;

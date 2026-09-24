@@ -44,6 +44,38 @@ public class ProfileBootstrapTest {
 		SwingUtilities.invokeAndWait(() -> panel[0].loadAccount(43));
 		assertEquals(1, api.pointsRequests);
 	}
+	@Test public void logoutDiscardsLateAccountResponseAndAllowsNextAccountToLoad() throws Exception {
+		FakeApi api = new FakeApi();
+		ProfilePanel[] panel = new ProfilePanel[1];
+		AtomicReference<Consumer<AccountResponse>> oldResponse = new AtomicReference<>();
+		AtomicReference<Consumer<Exception>> oldError = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			panel[0] = new ProfilePanel();
+			panel[0].init(api, null, null, null, null, null);
+			panel[0].loadAccount(42);
+			oldResponse.set(api.account);
+			oldError.set(api.error);
+			panel[0].onLoggedOut();
+			panel[0].loadAccount(43);
+			api.account.accept(account("Current", "New rank"));
+		});
+		SwingUtilities.invokeAndWait(() -> {});
+		assertEquals("New rank", panel[0].getClanRank());
+		oldResponse.get().accept(account("Previous", "Old rank"));
+		oldError.get().accept(new RuntimeException("Late previous-account failure"));
+		SwingUtilities.invokeAndWait(() -> {});
+		assertEquals("New rank", panel[0].getClanRank());
+		SwingUtilities.invokeAndWait(panel[0]::onLoggedOut);
+		assertFalse(panel[0].isAccountLoaded());
+		oldResponse.get().accept(account("Previous", "Old rank"));
+		SwingUtilities.invokeAndWait(() -> {});
+		assertFalse(panel[0].isAccountLoaded());
+	}
+
+	private static AccountResponse account(String name, String rank) {
+		return new Gson().fromJson("{\"status\":\"success\",\"data\":{\"osrsAccount\":{\"osrsNickname\":\""
+			+ name + "\",\"clanRank\":\"" + rank + "\"},\"pointsLog\":[]}}", AccountResponse.class);
+	}
 	private void checkLoad(java.util.function.ObjLongConsumer<ProfilePanel> load) throws Exception {
 		FakeApi api = new FakeApi();
 		SwingUtilities.invokeAndWait(() -> {
@@ -60,9 +92,10 @@ public class ProfileBootstrapTest {
 		int pointsRequests;
 		Consumer<AccountResponse> account;
 		Consumer<PointsResponse> points;
+		Consumer<Exception> error;
 		FakeApi() { super(null, new Gson()); }
-		@Override public void fetchAccount(long hash, Consumer<AccountResponse> ok, Consumer<Exception> err) { account = ok; }
-		@Override public void fetchAccountById(int id, Consumer<AccountResponse> ok, Consumer<Exception> err) { account = ok; }
+		@Override public void fetchAccount(long hash, Consumer<AccountResponse> ok, Consumer<Exception> err) { account = ok; error = err; }
+		@Override public void fetchAccountById(int id, Consumer<AccountResponse> ok, Consumer<Exception> err) { account = ok; error = err; }
 		@Override public void fetchPoints(Consumer<PointsResponse> ok, Consumer<Exception> err) { pointsRequests++; points = ok; }
 	}
 }
