@@ -18,13 +18,17 @@ import static org.junit.Assert.*;
 
 public class CollectionLogOwnershipTest {
     private CollectionLogManager manager(boolean guest) throws Exception {
+        return manager(guest, java.util.EnumSet.noneOf(net.runelite.api.WorldType.class));
+    }
+
+    private CollectionLogManager manager(boolean guest, java.util.EnumSet<net.runelite.api.WorldType> worlds) throws Exception {
         EnumComposition replacements = (EnumComposition) Proxy.newProxyInstance(
             EnumComposition.class.getClassLoader(), new Class<?>[]{EnumComposition.class},
             (p, m, args) -> m.getName().equals("getIntValue") && (int) args[0] == 100 ? 200 : -1);
         Client client = (Client) Proxy.newProxyInstance(Client.class.getClassLoader(), new Class<?>[]{Client.class},
             (p, m, args) -> {
                 switch (m.getName()) {
-                    case "getWorldType": return java.util.EnumSet.noneOf(net.runelite.api.WorldType.class);
+                    case "getWorldType": return worlds;
                     case "getEnum": return replacements;
                     case "getVarbitValue": return guest ? 1 : 0;
                     case "getVarpValue": return 1;
@@ -80,6 +84,39 @@ public class CollectionLogOwnershipTest {
         assertNull(manager.getPetItemId("Skoto"));
         manager.getCategoryItemMap().get(1).add(201);
         assertNull(manager.getPetItemId("Skotos"));
+    }
+
+    @Test
+    public void temporaryWorldsCannotContributeOwnershipEvidence() throws Exception {
+        for (String name : Arrays.asList("SEASONAL", "DEADMAN", "TOURNAMENT_WORLD", "BETA_WORLD",
+            "NOSAVE_MODE", "QUEST_SPEEDRUNNING", "PVP_ARENA", "LAST_MAN_STANDING")) {
+            CollectionLogManager manager = manager(false,
+                java.util.EnumSet.of(net.runelite.api.WorldType.valueOf(name)));
+            manager.onCollectionLogItemObtained(100, 1, "Skotos");
+            assertTrue(name, manager.getObtainedItems().isEmpty());
+        }
+    }
+
+    @Test
+    public void ordinaryPvpAndFreshStartProgressRemainsValid() throws Exception {
+        for (net.runelite.api.WorldType world : Arrays.asList(net.runelite.api.WorldType.PVP,
+            net.runelite.api.WorldType.HIGH_RISK, net.runelite.api.WorldType.FRESH_START_WORLD)) {
+            CollectionLogManager manager = manager(false, java.util.EnumSet.of(world));
+            manager.onCollectionLogItemObtained(100, 1, "Skotos");
+            assertEquals(world.name(), 1, manager.getObtainedItems().size());
+        }
+    }
+
+    @Test
+    public void partialPageDoesNotErasePreviouslyConfirmedOwnership() throws Exception {
+        CollectionLogManager manager = manager(false);
+        manager.onCollectionLogItemObtained(100, 1, "Skotos");
+        manager.onCollectionLogItemObtained(200, 0, "Skotos");
+        manager.onCollectionLogItemObtained(-1, 1, "Unknown");
+        assertEquals(1, manager.getObtainedItems().size());
+        assertEquals(1, manager.getObtainedItems().get(200).getCount());
+        manager.clearObtainedItems();
+        assertTrue(manager.getObtainedItems().isEmpty());
     }
 
     @Test

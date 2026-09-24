@@ -379,7 +379,8 @@ public class CollectionLogManager {
 	 */
 	public void onCollectionLogItemObtained(int itemId, int itemCount, String itemName) {
 		if (!Collections.disjoint(com.revalclan.util.Worlds.flagNames(client),
-			Arrays.asList("SEASONAL", "DEADMAN", "TOURNAMENT", "BETA_WORLD"))) return;
+			Arrays.asList("SEASONAL", "DEADMAN", "TOURNAMENT_WORLD", "BETA_WORLD",
+				"NOSAVE_MODE", "QUEST_SPEEDRUNNING", "PVP_ARENA", "LAST_MAN_STANDING"))) return;
 		// Use the same cache mapping as the category lists. Zero counts and POH
 		// guest logs must never become ownership evidence for this account.
 		if (itemId <= 0 || itemCount <= 0
