@@ -5,6 +5,12 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.HashMap;
+import java.lang.reflect.Field;
+import java.util.concurrent.atomic.AtomicReference;
+import net.runelite.client.config.ConfigManager;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
 
 import static com.revalclan.util.RaidPartyTracker.THEATRE_OF_BLOOD;
 import static com.revalclan.util.RaidPartyTracker.TOMBS_OF_AMASCUT;
@@ -14,6 +20,43 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class RaidRewardLedgerTest {
+	@Test
+	public void rewardIdentitySurvivesRestartAndSeparatesAccountsAndNewCompletions() throws Exception {
+		ConfigManager config = mock(ConfigManager.class);
+		Map<String, String> stored = new HashMap<>();
+		AtomicReference<String> account = new AtomicReference<>("first");
+		when(config.getRSProfileConfiguration(anyString(), anyString())).thenAnswer(invocation ->
+			stored.get(account.get() + ":" + invocation.getArgument(1)));
+		doAnswer(invocation -> {
+			stored.put(account.get() + ":" + invocation.getArgument(1), String.valueOf((Object) invocation.getArgument(2)));
+			return null;
+		}).when(config).setRSProfileConfiguration(anyString(), anyString(), any());
+		doAnswer(invocation -> {
+			stored.remove(account.get() + ":" + invocation.getArgument(1));
+			return null;
+		}).when(config).unsetRSProfileConfiguration(anyString(), anyString());
+		RaidRewardLedger ledger = ledger(config);
+		java.util.List<ItemStack> reward = Arrays.asList(new ItemStack(FANG, 1), new ItemStack(DEATH_RUNE, 300));
+		assertTrue(ledger.record(TOMBS_OF_AMASCUT, reward));
+		assertFalse(ledger.record(TOMBS_OF_AMASCUT, reward));
+		assertFalse(ledger(config).record(TOMBS_OF_AMASCUT, Arrays.asList(new ItemStack(DEATH_RUNE, 120))));
+		account.set("second");
+		assertTrue(ledger.record(TOMBS_OF_AMASCUT, reward));
+		account.set("first");
+		assertFalse(ledger.record(TOMBS_OF_AMASCUT, reward));
+		ledger.onGameMessage("Your completed Tombs of Amascut: Expert Mode count is: 12.");
+		assertTrue(ledger.record(TOMBS_OF_AMASCUT, reward));
+		assertFalse(ledger.record(TOMBS_OF_AMASCUT, reward));
+	}
+
+	private static RaidRewardLedger ledger(ConfigManager config) throws Exception {
+		RaidRewardLedger ledger = new RaidRewardLedger();
+		Field field = RaidRewardLedger.class.getDeclaredField("configManager");
+		field.setAccessible(true);
+		field.set(ledger, config);
+		return ledger;
+	}
+
 	private static final int FANG = 26219;
 	private static final int LIGHTBEARER = 25975;
 	private static final int DEATH_RUNE = 560;
