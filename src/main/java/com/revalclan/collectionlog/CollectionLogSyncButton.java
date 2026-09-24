@@ -10,7 +10,9 @@ import com.revalclan.util.ClanMembership;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
 import net.runelite.api.MenuAction;
+import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.gameval.VarbitID;
@@ -19,6 +21,7 @@ import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.callback.ClientThread;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -41,6 +44,9 @@ public class CollectionLogSyncButton {
 	private Client client;
 
 	@Inject
+	private ClientThread clientThread;
+
+	@Inject
 	private EventBus eventBus;
 
 	@Inject
@@ -58,13 +64,29 @@ public class CollectionLogSyncButton {
 	private int baseMenuHeight = -1;
 	private int lastAttemptedSync = -1;
 	private int pendingSyncTick = -1;
+	private long pendingSyncAccountHash;
+	private int syncGeneration;
 
 	public void startUp() {
+		resetPendingSync();
 		eventBus.register(this);
 	}
 
 	public void shutDown() {
+		resetPendingSync();
 		eventBus.unregister(this);
+	}
+
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged event) {
+		if (event.getGameState() == GameState.LOGIN_SCREEN) resetPendingSync();
+	}
+
+	private void resetPendingSync() {
+		pendingSyncTick = -1;
+		lastAttemptedSync = -1;
+		baseMenuHeight = -1;
+		syncGeneration++;
 	}
 
 	@Subscribe
@@ -116,10 +138,16 @@ public class CollectionLogSyncButton {
 
 	private void scheduleSync() {
 		pendingSyncTick = client.getTickCount() + SYNC_DELAY_TICKS;
+		pendingSyncAccountHash = client.getAccountHash();
 	}
 
 	@Subscribe
 	public void onGameTick(GameTick event) {
+		if (pendingSyncTick != -1 && (client.getGameState() != GameState.LOGGED_IN
+			|| pendingSyncAccountHash != client.getAccountHash())) {
+			resetPendingSync();
+			return;
+		}
 		if (pendingSyncTick != -1 && client.getTickCount() >= pendingSyncTick) {
 			pendingSyncTick = -1;
 			performSync();
@@ -127,10 +155,22 @@ public class CollectionLogSyncButton {
 	}
 
 	private void performSync() {
+		final int generation = ++syncGeneration;
+		final long accountHash = client.getAccountHash();
 		try {
-			syncNotifier.triggerSync();
 			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", 
-				"NightLegion: Synced account data successfully!", "");
+				"NightLegion: Sending account data...", "");
+			syncNotifier.triggerSync(result -> clientThread.invokeLater((Runnable) () -> {
+				if (generation != syncGeneration || client.getGameState() != GameState.LOGGED_IN
+					|| accountHash != client.getAccountHash()) return;
+				String message;
+				switch (result) {
+					case SUCCESS: message = "NightLegion: Synced account data successfully!"; break;
+					case INCOMPLETE: message = "NightLegion: Sync received, but some data or scoring is incomplete. Please refresh your profile and try again."; break;
+					default: message = "NightLegion: Failed to sync. Please try again.";
+				}
+				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", message, "");
+			}));
 		} catch (Exception e) {
 			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "NightLegion: Failed to sync. Please try again.", "");
 		}

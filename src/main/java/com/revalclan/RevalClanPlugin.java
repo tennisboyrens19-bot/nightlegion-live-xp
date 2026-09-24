@@ -77,7 +77,6 @@ public class RevalClanPlugin extends Plugin {
 
 	@Inject	private CollectionLogSyncButton syncButton;
 	@Inject	private SyncGuide syncGuide;
-	@Inject private PlayerDataCollector playerDataCollector;
 	@Inject	private SyncGuideOverlay syncGuideOverlay;
 	@Inject	private ClanTeamColors clanTeamColors;
 	@Inject	private RegistrationMarksOverlay registrationMarksOverlay;
@@ -414,7 +413,7 @@ public class RevalClanPlugin extends Plugin {
 		// here (not invokeLater from the ack) because a stale ack can arrive on a
 		// LOGOUT response: GameTick only fires while logged in, so the repair
 		// naturally waits for the next login.
-		if (syncStateManager.consumeFullSyncRequest()) {
+		if (syncStateManager.consumeFullSyncRequest(client.getAccountHash())) {
 			syncNotifier.triggerSync();
 		}
 	}

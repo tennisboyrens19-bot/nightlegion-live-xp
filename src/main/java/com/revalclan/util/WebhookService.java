@@ -51,6 +51,11 @@ public class WebhookService {
 	 * @param onResponse Optional consumer for the parsed JSON response body
 	 */
 	public void sendDataAsync(Map<String, Object> data, byte[] screenshotJpeg, Consumer<JsonObject> onResponse) {
+		sendDataAsync(data, screenshotJpeg, onResponse, null);
+	}
+
+	public void sendDataAsync(Map<String, Object> data, byte[] screenshotJpeg,
+		Consumer<JsonObject> onResponse, Consumer<Exception> onFailure) {
 		try {
 			byte[] payload = gzip(gson.toJson(data).getBytes(StandardCharsets.UTF_8));
 
@@ -74,6 +79,7 @@ public class WebhookService {
 				@Override
 				public void onFailure(Call call, IOException e) {
 					log.error("Failed to send data to webhook: {}", e.getMessage());
+					reportFailure(onFailure, e);
 				}
 
 				@Override
@@ -81,11 +87,19 @@ public class WebhookService {
 					try {
 						if (!response.isSuccessful()) {
 							log.warn("Webhook returned non-successful status: {}", response.code());
+							reportFailure(onFailure, new IOException("Webhook HTTP " + response.code()));
 							return;
 						}
-						if (onResponse == null || response.body() == null) return;
+						if (onResponse == null) return;
+						if (response.body() == null) {
+							reportFailure(onFailure, new IOException("Empty webhook acknowledgement"));
+							return;
+						}
 						JsonObject parsed = parseJsonOrNull(response);
-						if (parsed == null) return;
+						if (parsed == null) {
+							reportFailure(onFailure, new IOException("Invalid webhook acknowledgement"));
+							return;
+						}
 						try {
 							onResponse.accept(parsed);
 						} catch (Exception e) {
@@ -98,8 +112,19 @@ public class WebhookService {
 			});
 		} catch (IOException e) {
 			log.error("Failed to prepare webhook data: {}", e.getMessage());
+			reportFailure(onFailure, e);
 		} catch (Exception e) {
 			log.error("Unexpected error preparing webhook", e);
+			reportFailure(onFailure, e);
+		}
+	}
+
+	private static void reportFailure(Consumer<Exception> onFailure, Exception error) {
+		if (onFailure == null) return;
+		try {
+			onFailure.accept(error);
+		} catch (Exception e) {
+			log.warn("Webhook failure handler failed: {}", e.getMessage());
 		}
 	}
 
