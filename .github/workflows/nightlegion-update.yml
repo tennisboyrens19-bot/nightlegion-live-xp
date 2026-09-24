@@ -84,6 +84,8 @@ jobs:
         run: gradle clean test jar --no-daemon --stacktrace
       - name: Verify exact Reval source with documented exceptions
         run: python3 tools/reval_source.py --archive audit-output/reval-reference.tar.gz
+      - name: Reject unrelated runtime source mutations
+        run: python3 tools/test_reval_source.py --archive audit-output/reval-reference.tar.gz
       - uses: actions/upload-artifact@v4
         if: always()
         with:
