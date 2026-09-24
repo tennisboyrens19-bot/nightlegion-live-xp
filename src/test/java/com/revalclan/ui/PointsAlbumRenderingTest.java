@@ -34,7 +34,10 @@ public class PointsAlbumRenderingTest {
 
     @Test
     public void itemIdsSurvivePetFilteringAndAsyncCardsRebuildWithLoadedPixels() throws Exception {
-        int[] ids = {21273, 20693, 28947, 27281, 27381, 27380, 27378, 27377};
+        // All distinct resolved item IDs observed in the read-only acceptance baseline.
+        // Only public item metadata is reproduced here; no account or ledger identity.
+        int[] ids = {21273, 20693, 31130, 28947, 27372, 27381, 27380, 27378, 27377,
+            6570, 9813, 12954, 21295, 22494, 27248, 27255, 27257, 30793};
         List<AccountResponse.PointsLogEntry> entries = new ArrayList<>();
         ItemManager itemManager = mock(ItemManager.class);
         PendingImage[] images = new PendingImage[ids.length];
@@ -42,7 +45,7 @@ public class PointsAlbumRenderingTest {
             images[i] = new PendingImage();
             when(itemManager.getImage(ids[i])).thenReturn(images[i]);
             entries.add(new Gson().fromJson("{\"itemId\":" + ids[i]
-                + ",\"pointsChange\":100,\"sourceType\":\"" + (i < 2 ? "pet" : "drop")
+                + ",\"pointsChange\":100,\"sourceType\":\"" + (i < 3 ? "pet" : (i >= 5 && i <= 8 ? "drop" : "milestone"))
                 + "\",\"sourceDescription\":\"Fixture " + ids[i] + "\"}", AccountResponse.PointsLogEntry.class));
         }
         // Avoid a native JFrame in headless CI; exercise its actual rebuild/card code.
@@ -65,7 +68,7 @@ public class PointsAlbumRenderingTest {
             } catch (Exception error) { throw new AssertionError(error); }
         });
         SwingUtilities.invokeAndWait(() -> {});
-        assertEquals(8, grid.getComponentCount());
+        assertEquals(ids.length, grid.getComponentCount());
         for (int id : ids) verify(itemManager).getImage(id);
         for (int i = 0; i < images.length; i++) images[i].complete(0xff000000 | ids[i]);
         SwingUtilities.invokeAndWait(() -> {});
@@ -77,12 +80,13 @@ public class PointsAlbumRenderingTest {
                 rebuild(window);
             });
             SwingUtilities.invokeAndWait(() -> {});
-            assertEquals(2, grid.getComponentCount());
+            assertEquals(3, grid.getComponentCount());
             assertEquals(0xff000000 | ids[0], pixel(iconLabel((Container) grid.getComponent(0))));
             assertEquals(0xff000000 | ids[1], pixel(iconLabel((Container) grid.getComponent(1))));
+            assertEquals(0xff000000 | ids[2], pixel(iconLabel((Container) grid.getComponent(2))));
             SwingUtilities.invokeAndWait(() -> { window.selectSource(null); rebuild(window); });
             SwingUtilities.invokeAndWait(() -> {});
-            assertEquals(8, grid.getComponentCount());
+            assertEquals(ids.length, grid.getComponentCount());
         }
     }
 

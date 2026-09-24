@@ -26,6 +26,7 @@ import org.junit.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.InetAddress;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -55,10 +56,15 @@ public class SyncAcknowledgementTest {
 
     @Before public void setup() throws Exception {
         server = new MockWebServer();
-        server.start();
+        // A timed-out route makes OkHttp try the next localhost DNS address.
+        // Bind and target one address so IPv4/IPv6 ordering cannot turn the
+        // explicit retry into a connection refusal instead of the queued reply.
+        InetAddress loopback = InetAddress.getByName("127.0.0.1");
+        server.start(loopback, 0);
         http = new OkHttpClient.Builder().readTimeout(500, TimeUnit.MILLISECONDS)
             .retryOnConnectionFailure(false).addInterceptor(chain -> chain.proceed(
-                chain.request().newBuilder().url(server.url(chain.request().url().encodedPath())).build())).build();
+                chain.request().newBuilder().url(server.url(chain.request().url().encodedPath())
+                    .newBuilder().host(loopback.getHostAddress()).build()).build())).build();
         client = mock(Client.class);
         when(client.getAccountHash()).thenReturn(11L);
         when(client.getGameState()).thenReturn(GameState.LOGGED_IN);
