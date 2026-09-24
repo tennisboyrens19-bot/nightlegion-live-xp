@@ -166,60 +166,60 @@ public class DiaryNotifier extends BaseNotifier {
 	private static Map<Integer, String> createDiaryMap() {
 		Map<Integer, String> map = new HashMap<>();
 		
-		map.put(3577, "Ardougne_Easy");
-		map.put(3598, "Ardougne_Medium");
-		map.put(3608, "Ardougne_Hard");
-		map.put(3630, "Ardougne_Elite");
+		map.put(4458, "Ardougne_Easy");
+		map.put(4459, "Ardougne_Medium");
+		map.put(4460, "Ardougne_Hard");
+		map.put(4461, "Ardougne_Elite");
 		
-		map.put(3579, "Desert_Easy");
-		map.put(3597, "Desert_Medium");
-		map.put(3610, "Desert_Hard");
-		map.put(3628, "Desert_Elite");
+		map.put(4483, "Desert_Easy");
+		map.put(4484, "Desert_Medium");
+		map.put(4485, "Desert_Hard");
+		map.put(4486, "Desert_Elite");
 		
-		map.put(3580, "Falador_Easy");
-		map.put(3596, "Falador_Medium");
-		map.put(3612, "Falador_Hard");
-		map.put(3632, "Falador_Elite");
+		map.put(4462, "Falador_Easy");
+		map.put(4463, "Falador_Medium");
+		map.put(4464, "Falador_Hard");
+		map.put(4465, "Falador_Elite");
 		
-		map.put(3582, "Fremennik_Easy");
-		map.put(3594, "Fremennik_Medium");
-		map.put(3615, "Fremennik_Hard");
-		map.put(3636, "Fremennik_Elite");
+		map.put(4491, "Fremennik_Easy");
+		map.put(4492, "Fremennik_Medium");
+		map.put(4493, "Fremennik_Hard");
+		map.put(4494, "Fremennik_Elite");
 		
-		map.put(3583, "Kandarin_Easy");
-		map.put(3593, "Kandarin_Medium");
-		map.put(3617, "Kandarin_Hard");
-		map.put(3638, "Kandarin_Elite");
+		map.put(4475, "Kandarin_Easy");
+		map.put(4476, "Kandarin_Medium");
+		map.put(4477, "Kandarin_Hard");
+		map.put(4478, "Kandarin_Elite");
 		
 		map.put(3578, "Karamja_Easy");
 		map.put(3599, "Karamja_Medium");
 		map.put(3611, "Karamja_Hard");
-		map.put(3631, "Karamja_Elite");
+		map.put(4566, "Karamja_Elite");
 		
-		map.put(3581, "Lumbridge_Easy");
-		map.put(3595, "Lumbridge_Medium");
-		map.put(3614, "Lumbridge_Hard");
-		map.put(3635, "Lumbridge_Elite");
+		map.put(4495, "Lumbridge_Easy");
+		map.put(4496, "Lumbridge_Medium");
+		map.put(4497, "Lumbridge_Hard");
+		map.put(4498, "Lumbridge_Elite");
 		
-		map.put(3584, "Morytania_Easy");
-		map.put(3592, "Morytania_Medium");
-		map.put(3618, "Morytania_Hard");
-		map.put(3639, "Morytania_Elite");
+		map.put(4487, "Morytania_Easy");
+		map.put(4488, "Morytania_Medium");
+		map.put(4489, "Morytania_Hard");
+		map.put(4490, "Morytania_Elite");
 		
-		map.put(3576, "Varrock_Easy");
-		map.put(3601, "Varrock_Medium");
-		map.put(3606, "Varrock_Hard");
-		map.put(3627, "Varrock_Elite");
+		map.put(4479, "Varrock_Easy");
+		map.put(4480, "Varrock_Medium");
+		map.put(4481, "Varrock_Hard");
+		map.put(4482, "Varrock_Elite");
 		
-		map.put(3585, "Western_Easy");
-		map.put(3591, "Western_Medium");
-		map.put(3620, "Western_Hard");
-		map.put(3641, "Western_Elite");
+		map.put(4471, "Western_Easy");
+		map.put(4472, "Western_Medium");
+		map.put(4473, "Western_Hard");
+		map.put(4474, "Western_Elite");
 		
-		map.put(3586, "Wilderness_Easy");
-		map.put(3600, "Wilderness_Medium");
-		map.put(3621, "Wilderness_Hard");
-		map.put(3642, "Wilderness_Elite");
+		map.put(4466, "Wilderness_Easy");
+		map.put(4467, "Wilderness_Medium");
+		map.put(4468, "Wilderness_Hard");
+		map.put(4469, "Wilderness_Elite");
 		
 		map.put(7925, "Kourend_Easy");
 		map.put(7926, "Kourend_Medium");
