@@ -123,18 +123,18 @@ public class ProfilePanel extends JPanel {
 
 	private void fetchRanks() {
 		if (apiService == null) return;
+		long generation = accountRequestGeneration.get();
 		apiService.fetchPoints(
-			response -> {
+			response -> SwingUtilities.invokeLater(() -> {
+				if (generation != accountRequestGeneration.get()) return;
 				if (response.getData() != null) {
 					pointsData = response.getData();
 					if (response.getData().getRanks() != null) {
 						ranks = response.getData().getRanks();
 					}
-					SwingUtilities.invokeLater(() -> {
-						if (currentAccount != null) buildProfile();
-					});
+					if (currentAccount != null) buildProfile();
 				}
-			},
+			}),
 			error -> {}
 		);
 	}
@@ -144,6 +144,8 @@ public class ProfilePanel extends JPanel {
 		isLoading = false;
 		currentAccount = null;
 		pointsLog = null;
+		pointsData = null;
+		ranks = new java.util.ArrayList<>();
 		disposeAlbum();
 		showNotLoggedIn();
 	}
@@ -232,6 +234,7 @@ public class ProfilePanel extends JPanel {
 
 	public void refresh() {
 		if (apiService != null && client != null) {
+			isLoading = false;
 			apiService.clearAccountCache();
 			loadCurrentAccount();
 		}
@@ -387,7 +390,7 @@ public class ProfilePanel extends JPanel {
 		pointsDisplay.setLayout(new BoxLayout(pointsDisplay, BoxLayout.Y_AXIS));
 		pointsDisplay.setOpaque(false);
 
-		int points = account.getActivityPoints() != null ? account.getActivityPoints() : 0;
+		double points = account.getActivityPoints() != null ? account.getActivityPoints() : 0;
 		JLabel pointsValue = new JLabel(NumberFmt.group(points));
 		pointsValue.setFont(FontManager.getRunescapeBoldFont());
 		pointsValue.setForeground(UIConstants.ACCENT_GOLD);
@@ -458,7 +461,7 @@ public class ProfilePanel extends JPanel {
 	private JPanel buildRankProgressBar(AccountResponse.OsrsAccount account) {
 		if (ranks == null || ranks.isEmpty()) return null;
 
-		int currentPoints = account.getActivityPoints() != null ? account.getActivityPoints() : 0;
+		double currentPoints = account.getActivityPoints() != null ? account.getActivityPoints() : 0;
 		String currentRank = account.getClanRank();
 
 		PointsResponse.Rank nextRank = null;
@@ -498,9 +501,9 @@ public class ProfilePanel extends JPanel {
 		}
 
 		int pointsNeeded = nextRank.getPointsRequired() - previousRankPoints;
-		int pointsProgress = currentPoints - previousRankPoints;
+		double pointsProgress = currentPoints - previousRankPoints;
 		double progress = Math.min(1.0, Math.max(0.0, pointsNeeded > 0 ? (double) pointsProgress / pointsNeeded : 0));
-		int pointsRemaining = nextRank.getPointsRequired() - currentPoints;
+		double pointsRemaining = nextRank.getPointsRequired() - currentPoints;
 		boolean needsRankUp = pointsRemaining < 0;
 
 		// Clickable sub-panel: hover highlight, opens the ranks page on the website
@@ -614,7 +617,7 @@ public class ProfilePanel extends JPanel {
 		bottomRow.add(createStatCard(formatNumber(breakdown.getRevalChallenges()), "Challenges", UIConstants.ACCENT_GREEN, "reval_challenge"));
 		bottomRow.add(createStatCard(formatNumber(breakdown.getEvents()), "Events", UIConstants.ACCENT_BLUE, "event"));
 
-		long miscPoints = breakdown.getTotal()
+		double miscPoints = breakdown.getTotal()
 			- breakdown.getDrops() - breakdown.getPets() - breakdown.getMilestones()
 			- breakdown.getEvents() - breakdown.getRevalDiaries() - breakdown.getRevalChallenges();
 
@@ -911,10 +914,8 @@ public class ProfilePanel extends JPanel {
 		contentPanel.repaint();
 	}
 
-	private String formatNumber(long num) {
-		if (num >= 1_000_000) return new DecimalFormat("#.#M").format(num / 1_000_000.0);
-		if (num >= 1_000) return new DecimalFormat("#.#K").format(num / 1_000.0);
-		return String.valueOf(num);
+	private String formatNumber(double num) {
+		return NumberFmt.group(num);
 	}
 
 	private String formatDecimal(double num) {

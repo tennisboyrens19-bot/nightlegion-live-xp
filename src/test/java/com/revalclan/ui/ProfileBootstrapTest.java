@@ -71,10 +71,46 @@ public class ProfileBootstrapTest {
 		SwingUtilities.invokeAndWait(() -> {});
 		assertFalse(panel[0].isAccountLoaded());
 	}
+	@Test public void refreshWhileLoadingStartsNewRequestAndDiscardsLateCatalog() throws Exception {
+		FakeApi api = new FakeApi();
+		ProfilePanel[] panel = new ProfilePanel[1];
+		AtomicReference<Consumer<PointsResponse>> oldPoints = new AtomicReference<>();
+		AtomicReference<Consumer<AccountResponse>> oldAccount = new AtomicReference<>();
+		net.runelite.api.Client client = org.mockito.Mockito.mock(net.runelite.api.Client.class);
+		org.mockito.Mockito.when(client.getAccountHash()).thenReturn(42L);
+		SwingUtilities.invokeAndWait(() -> {
+			panel[0] = new ProfilePanel();
+			panel[0].init(api, client, null, null, null, null);
+			panel[0].loadAccount(42);
+			oldPoints.set(api.points); oldAccount.set(api.account);
+			panel[0].refresh();
+			assertEquals("Refresh must replace an invalidated pending request", 2, api.accountRequests);
+			api.points.accept(catalog("Current catalog"));
+			api.account.accept(account("Current", "New rank"));
+		});
+		SwingUtilities.invokeAndWait(() -> {});
+		oldPoints.get().accept(catalog("Stale catalog"));
+		oldAccount.get().accept(account("Previous", "Old rank"));
+		SwingUtilities.invokeAndWait(() -> {});
+		assertEquals("New rank", panel[0].getClanRank());
+		java.lang.reflect.Field field = ProfilePanel.class.getDeclaredField("pointsData");
+		field.setAccessible(true);
+		assertEquals("Current catalog", ((PointsResponse.PointsData) field.get(panel[0])).getRanks().get(0).getDisplayName());
+		SwingUtilities.invokeAndWait(panel[0]::onLoggedOut);
+		assertNull(field.get(panel[0]));
+		oldPoints.get().accept(catalog("Stale catalog"));
+		SwingUtilities.invokeAndWait(() -> {});
+		assertNull(field.get(panel[0]));
+	}
+
+	private static PointsResponse catalog(String name) {
+		return new Gson().fromJson("{\"status\":\"success\",\"data\":{\"ranks\":[{\"name\":\"bronze\",\"displayName\":\""
+			+ name + "\",\"pointsRequired\":0}]}}", PointsResponse.class);
+	}
 
 	private static AccountResponse account(String name, String rank) {
 		return new Gson().fromJson("{\"status\":\"success\",\"data\":{\"osrsAccount\":{\"osrsNickname\":\""
-			+ name + "\",\"clanRank\":\"" + rank + "\"},\"pointsLog\":[]}}", AccountResponse.class);
+			+ name + "\",\"clanRank\":\"" + rank + "\"},\"pointsLog\":[],\"combatAchievementPoints\":0,\"collectionLogUniqueObtained\":0}}", AccountResponse.class);
 	}
 	private void checkLoad(java.util.function.ObjLongConsumer<ProfilePanel> load) throws Exception {
 		FakeApi api = new FakeApi();
@@ -90,11 +126,12 @@ public class ProfileBootstrapTest {
 	}
 	private static class FakeApi extends RevalApiService {
 		int pointsRequests;
+		int accountRequests;
 		Consumer<AccountResponse> account;
 		Consumer<PointsResponse> points;
 		Consumer<Exception> error;
 		FakeApi() { super(null, new Gson()); }
-		@Override public void fetchAccount(long hash, Consumer<AccountResponse> ok, Consumer<Exception> err) { account = ok; error = err; }
+		@Override public void fetchAccount(long hash, Consumer<AccountResponse> ok, Consumer<Exception> err) { accountRequests++; account = ok; error = err; }
 		@Override public void fetchAccountById(int id, Consumer<AccountResponse> ok, Consumer<Exception> err) { account = ok; error = err; }
 		@Override public void fetchPoints(Consumer<PointsResponse> ok, Consumer<Exception> err) { pointsRequests++; points = ok; }
 	}

@@ -298,6 +298,8 @@ public class RevalClanPlugin extends Plugin {
 				break;
 
 			case LOGIN_SCREEN: {
+				collectionLogManager.clearObtainedItems();
+				revalApiService.clearCache();
 				eventFilterManager.resetSession();
 				revalApiService.resetEventsSession();
 				boolean wasInClan = clanMembership.isMember();

@@ -39,8 +39,8 @@ public class AccountResponse extends ApiResponse {
         private String womRank;
         private Double ehp;
         private Double ehb;
-        private Integer activityPoints;
-        private Integer maintenancePoints;
+        private Double activityPoints;
+        private Double maintenancePoints;
         private String clanRank;
         private String lastSyncedAt;
         private String rankUpdatedAt;
@@ -51,13 +51,13 @@ public class AccountResponse extends ApiResponse {
      */
     @Data
     public static class PointsBreakdown {
-        private int drops;
-        private int pets;
-        private int milestones;
-        private int events;
-        private int revalDiaries;
-        private int revalChallenges;
-        private int total;
+        private double drops;
+        private double pets;
+        private double milestones;
+        private double events;
+        private double revalDiaries;
+        private double revalChallenges;
+        private double total;
     }
 
     /**
@@ -79,8 +79,8 @@ public class AccountResponse extends ApiResponse {
         private Integer id;
         private Integer osrsAccountId;
         private String pointType; // 'activity' | 'maintenance'
-        private Integer pointsChange;
-        private Integer pointsAfter;
+        private Double pointsChange;
+        private Double pointsAfter;
         private String sourceType; // 'drop' | 'pet' | 'milestone' | 'manual' | 'event' | 'decay' | 'misc'
         private Integer sourceId;
         private Integer itemId;
