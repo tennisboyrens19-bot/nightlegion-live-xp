@@ -298,6 +298,8 @@ public class RevalClanPlugin extends Plugin {
 				break;
 
 			case LOGIN_SCREEN: {
+				collectionLogManager.clearObtainedItems();
+				revalApiService.clearCache();
 				eventFilterManager.resetSession();
 				revalApiService.resetEventsSession();
 				boolean wasInClan = clanMembership.isMember();
@@ -413,7 +415,7 @@ public class RevalClanPlugin extends Plugin {
 		// here (not invokeLater from the ack) because a stale ack can arrive on a
 		// LOGOUT response: GameTick only fires while logged in, so the repair
 		// naturally waits for the next login.
-		if (syncStateManager.consumeFullSyncRequest()) {
+		if (syncStateManager.consumeFullSyncRequest(client.getAccountHash())) {
 			syncNotifier.triggerSync();
 		}
 	}

@@ -37,6 +37,8 @@ jobs:
         run: gradle --no-daemon clean test jar
       - name: Verify upstream source preservation
         run: python3 tools/reval_source.py
+      - name: Reject unrelated runtime source mutations
+        run: python3 tools/test_reval_source.py
       - name: Verify runtime filesystem access uses RuneLite Filepath
         run: |
           if grep -RInE 'import java\.io\.File;|import java\.nio\.file\.(Files|Path);|new File\(|Files\.|\.toPath\(' src/main/java; then

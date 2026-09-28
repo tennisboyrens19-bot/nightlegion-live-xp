@@ -278,7 +278,8 @@ public class SessionTracker {
 		inFlight.add(id);
 		Map<String, Object> payload = envelope("SESSION_SUMMARY", persisted.username, persisted.accountHash, persisted.world, persisted.worldFlags);
 		payload.put("sessionSummary", persisted.summary);
-		webhookService.sendDataAsync(payload, response -> confirmDelivered(id, response));
+		webhookService.sendDataAsync(payload, null, response -> confirmDelivered(id, response),
+			error -> confirmDelivered(id, null));
 		log.info("Sending session {} ({})", id, persisted.summary.get("endReason"));
 	}
 

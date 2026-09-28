@@ -1,0 +1,8 @@
+{
+  "fixtureNote": "Focused subset of production loot policy verified 2026-09-24 on backend 063982f: 1M unit-value threshold, 526/995 blacklist, and these three qualifying low-value point-rule IDs. Not a complete production response.",
+  "loot": {
+    "minValue": 1000000,
+    "blacklist": [526, 995],
+    "whitelist": [22386, 26822, 27279]
+  }
+}

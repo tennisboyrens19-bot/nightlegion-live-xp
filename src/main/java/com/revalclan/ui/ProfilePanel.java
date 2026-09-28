@@ -25,6 +25,7 @@ import java.text.DecimalFormat;
 import java.util.*;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ProfilePanel extends JPanel {
 	private final JPanel contentPanel;
@@ -47,6 +48,7 @@ public class ProfilePanel extends JPanel {
 	private PointsResponse.PointsData pointsData;
 	private List<AccountResponse.PointsLogEntry> pointsLog;
 	private boolean isLoading = false;
+	private final AtomicLong accountRequestGeneration = new AtomicLong();
 
 	public ProfilePanel() {
 		setLayout(new BorderLayout());
@@ -121,23 +123,30 @@ public class ProfilePanel extends JPanel {
 
 	private void fetchRanks() {
 		if (apiService == null) return;
+		long generation = accountRequestGeneration.get();
 		apiService.fetchPoints(
-			response -> {
+			response -> SwingUtilities.invokeLater(() -> {
+				if (generation != accountRequestGeneration.get()) return;
 				if (response.getData() != null) {
 					pointsData = response.getData();
 					if (response.getData().getRanks() != null) {
 						ranks = response.getData().getRanks();
 					}
-					if (currentAccount != null) {
-						SwingUtilities.invokeLater(this::buildProfile);
-					}
+					if (currentAccount != null) buildProfile();
 				}
-			},
+			}),
 			error -> {}
 		);
 	}
 
 	public void onLoggedOut() {
+		accountRequestGeneration.incrementAndGet();
+		isLoading = false;
+		currentAccount = null;
+		pointsLog = null;
+		pointsData = null;
+		ranks = new java.util.ArrayList<>();
+		disposeAlbum();
 		showNotLoggedIn();
 	}
 
@@ -169,24 +178,29 @@ public class ProfilePanel extends JPanel {
 	public void loadAccount(long accountHash) {
 		if (isLoading) return;
 		isLoading = true;
+		long generation = accountRequestGeneration.incrementAndGet();
 		showLoading();
 		if (pointsData == null) fetchRanks();
 
 		apiService.fetchAccount(accountHash,
 			response -> {
-				isLoading = false;
 				SwingUtilities.invokeLater(() -> {
+					if (generation != accountRequestGeneration.get()) return;
+					isLoading = false;
 					currentAccount = response.getData();
+					pointsLog = currentAccount != null ? currentAccount.getPointsLog() : null;
 					if (currentAccount != null) {
-						pointsLog = currentAccount.getPointsLog();
 						if (onAccountLoaded != null) onAccountLoaded.accept(currentAccount);
 					}
 					if (pointsData != null) buildProfile();
 				});
 			},
 			error -> {
-				isLoading = false;
-				SwingUtilities.invokeLater(() -> showError(error.getMessage() != null ? error.getMessage() : "Failed to fetch account data"));
+				SwingUtilities.invokeLater(() -> {
+					if (generation != accountRequestGeneration.get()) return;
+					isLoading = false;
+					showError(error.getMessage() != null ? error.getMessage() : "Failed to fetch account data");
+				});
 			}
 		);
 	}
@@ -194,27 +208,33 @@ public class ProfilePanel extends JPanel {
 	public void loadAccountById(int osrsAccountId) {
 		if (isLoading) return;
 		isLoading = true;
+		long generation = accountRequestGeneration.incrementAndGet();
 		showLoading();
 		if (pointsData == null) fetchRanks();
 
 		apiService.fetchAccountById(osrsAccountId,
 			response -> {
-				isLoading = false;
 				SwingUtilities.invokeLater(() -> {
+					if (generation != accountRequestGeneration.get()) return;
+					isLoading = false;
 					currentAccount = response.getData();
-					if (currentAccount != null) pointsLog = currentAccount.getPointsLog();
+					pointsLog = currentAccount != null ? currentAccount.getPointsLog() : null;
 					if (pointsData != null) buildProfile();
 				});
 			},
 			error -> {
-				isLoading = false;
-				SwingUtilities.invokeLater(() -> showError(error.getMessage() != null ? error.getMessage() : "Player not found"));
+				SwingUtilities.invokeLater(() -> {
+					if (generation != accountRequestGeneration.get()) return;
+					isLoading = false;
+					showError(error.getMessage() != null ? error.getMessage() : "Player not found");
+				});
 			}
 		);
 	}
 
 	public void refresh() {
 		if (apiService != null && client != null) {
+			isLoading = false;
 			apiService.clearAccountCache();
 			loadCurrentAccount();
 		}
@@ -370,7 +390,7 @@ public class ProfilePanel extends JPanel {
 		pointsDisplay.setLayout(new BoxLayout(pointsDisplay, BoxLayout.Y_AXIS));
 		pointsDisplay.setOpaque(false);
 
-		int points = account.getActivityPoints() != null ? account.getActivityPoints() : 0;
+		double points = account.getActivityPoints() != null ? account.getActivityPoints() : 0;
 		JLabel pointsValue = new JLabel(NumberFmt.group(points));
 		pointsValue.setFont(FontManager.getRunescapeBoldFont());
 		pointsValue.setForeground(UIConstants.ACCENT_GOLD);
@@ -441,7 +461,7 @@ public class ProfilePanel extends JPanel {
 	private JPanel buildRankProgressBar(AccountResponse.OsrsAccount account) {
 		if (ranks == null || ranks.isEmpty()) return null;
 
-		int currentPoints = account.getActivityPoints() != null ? account.getActivityPoints() : 0;
+		double currentPoints = account.getActivityPoints() != null ? account.getActivityPoints() : 0;
 		String currentRank = account.getClanRank();
 
 		PointsResponse.Rank nextRank = null;
@@ -481,9 +501,9 @@ public class ProfilePanel extends JPanel {
 		}
 
 		int pointsNeeded = nextRank.getPointsRequired() - previousRankPoints;
-		int pointsProgress = currentPoints - previousRankPoints;
+		double pointsProgress = currentPoints - previousRankPoints;
 		double progress = Math.min(1.0, Math.max(0.0, pointsNeeded > 0 ? (double) pointsProgress / pointsNeeded : 0));
-		int pointsRemaining = nextRank.getPointsRequired() - currentPoints;
+		double pointsRemaining = nextRank.getPointsRequired() - currentPoints;
 		boolean needsRankUp = pointsRemaining < 0;
 
 		// Clickable sub-panel: hover highlight, opens the ranks page on the website
@@ -597,7 +617,7 @@ public class ProfilePanel extends JPanel {
 		bottomRow.add(createStatCard(formatNumber(breakdown.getRevalChallenges()), "Challenges", UIConstants.ACCENT_GREEN, "reval_challenge"));
 		bottomRow.add(createStatCard(formatNumber(breakdown.getEvents()), "Events", UIConstants.ACCENT_BLUE, "event"));
 
-		long miscPoints = breakdown.getTotal()
+		double miscPoints = breakdown.getTotal()
 			- breakdown.getDrops() - breakdown.getPets() - breakdown.getMilestones()
 			- breakdown.getEvents() - breakdown.getRevalDiaries() - breakdown.getRevalChallenges();
 
@@ -792,7 +812,8 @@ public class ProfilePanel extends JPanel {
 			int itemCount = 0;
 			int previousPoints = 0;
 			for (PointsResponse.PointSource tier : tiers) {
-				boolean completed = tier.getThreshold() != null && progress >= tier.getThreshold();
+				Integer threshold = tierThreshold(sourceKey, tier);
+				boolean completed = threshold != null && progress >= threshold;
 				// Tier points are running totals; reaching a tier only adds the gap to the tier below
 				int addedPoints = Math.max(0, tier.getPointsValue() - previousPoints);
 				previousPoints = Math.max(previousPoints, tier.getPointsValue());
@@ -814,6 +835,17 @@ public class ProfilePanel extends JPanel {
 		wrapper.add(title, BorderLayout.NORTH);
 		wrapper.add(list, BorderLayout.CENTER);
 		return wrapInRoundedPanel(wrapper);
+	}
+
+	private Integer tierThreshold(String sourceKey, PointsResponse.PointSource tier) {
+		if ("COMBAT_ACHIEVEMENTS".equals(sourceKey) && currentAccount != null
+			&& currentAccount.getCombatAchievementThresholds() != null
+			&& tier.getId() != null && tier.getId().startsWith("combat_achievement_")) {
+			String key = tier.getId().substring("combat_achievement_".length());
+			Integer threshold = currentAccount.getCombatAchievementThresholds().get(key);
+			if (threshold != null && threshold > 0) return threshold;
+		}
+		return tier.getThreshold();
 	}
 
 	private JPanel createStatCard(String value, String label, Color accentColor, String sourceType) {
@@ -882,10 +914,8 @@ public class ProfilePanel extends JPanel {
 		contentPanel.repaint();
 	}
 
-	private String formatNumber(long num) {
-		if (num >= 1_000_000) return new DecimalFormat("#.#M").format(num / 1_000_000.0);
-		if (num >= 1_000) return new DecimalFormat("#.#K").format(num / 1_000.0);
-		return String.valueOf(num);
+	private String formatNumber(double num) {
+		return NumberFmt.group(num);
 	}
 
 	private String formatDecimal(double num) {

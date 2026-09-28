@@ -2,9 +2,11 @@
 
 This candidate uses the published Reval client source at
 `179faa521b14e4541151effd0f5d28f12ec89597`, with NightLegion branding, endpoints,
-and Personal Link Token authentication. The original collection managers,
-notifiers, session handling, sync triggers, retry logic and panel loading are
-preserved. The previous custom NightLegion sync coordinator is not used.
+and Personal Link Token authentication. The pinned implementation remains the
+source baseline, with reviewed ownership, pet-ID, diary, receipt identity,
+acknowledgement, account/session boundary and point precision
+corrections documented in SOURCE_PARITY.md. The previous custom NightLegion
+sync coordinator is not used.
 
 ## Connect
 
@@ -21,9 +23,11 @@ Website: https://nightlegion-web.vercel.app/
 
 ## Preserved client behaviour
 
-Collection Log syncing uses the original in-game Sync button. Login/logout,
+Collection Log syncing uses the original in-game Sync button. It reports success
+after a matching server acknowledgement, distinguishes incomplete scoring and
+failures, and drops callbacks belonging to a previous account. Login/logout,
 heartbeat/session acknowledgements, event notifications, lazy panel loading and
-manual refresh behave according to the pinned original client. This does not
+manual refresh retain the pinned client's structure. This does not
 add a custom every-minute full-account scanner or automatically open game UI.
 Evidence unavailable to the original client cannot be inferred: bank-only items
 may require moving the item to inventory/equipment or available collection-log
@@ -37,21 +41,31 @@ achievements, capes, Misc and untradeable-drop sources remain.
 
 ## Reproducible verification
 
-`python3 tools/reval_source.py` checks every runtime file against the pinned
-upstream archive after the narrowly defined identity/authentication changes.
-It rejects missing files, unexpected runtime code and unapproved changes.
-Of 157 upstream Java files, 135 are byte-identical, 17 have only literal
-branding/destination changes, and five have token-authentication wiring. One
-small authentication class is added. There is no replacement data collector.
+`python3 tools/reval_source.py` checks the complete upstream runtime file set
+against a checksum-pinned archive after exact identity/authentication and
+documented bug-fix transformations. It rejects missing files, unexpected runtime
+code and unapproved changes, including additional edits inside adapted files.
+Windows CRLF is normalized to LF in Java/license text; other whitespace and code
+remain significant. The generated counts and adaptation list are written to
+`build/source-parity.json`. There is no replacement data collector.
 
-`gradle --no-daemon clean test jar` runs the upstream tests plus the token
-boundary tests. The paired backend includes an original-Java-client to real
+`python3 tools/test_reval_source.py` runs the same CLI implementation on disposable
+runtime-tree copies. Its negative tests prove that unrelated code, altered
+ownership guards, missing source and extra source still fail the check. They
+also cover receipt identity, native sync acknowledgements, session retry,
+account guards and decimal accounting. Both
+commands accept `--archive path/to/reval-reference.tar.gz`; the pinned SHA-256 is
+always verified. CI runs both commands as required steps.
+
+`gradle --no-daemon clean test jar` runs the upstream tests plus authentication,
+ownership, sync, points-display and account-boundary regressions. The paired
+backend includes an original-Java-client to real
 local HTTP/SQLite integration test, with external game/Discord inputs replaced
 by test fixtures. Those tests are not a live in-game acceptance test.
 
 ## Release status
 
-Candidate version: `2.20.1-nightlegion.1`. Native `/plugin/...`,
+Candidate version: `2.20.1-nightlegion.2`. Native `/plugin/...`,
 `/reval-webhook` and `/event-filters` routes on the paired NightLegion server are
 required BEFORE this client is released. The separate historical-activity-data
 migration requires a verified private backup and explicit application; code

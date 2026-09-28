@@ -468,6 +468,8 @@ public class RevalPanel extends PluginPanel {
 		SwingUtilities.invokeLater(() -> {
 			clanValidated = true;
 			memberTabsLoaded.clear();
+			rankingPanel.resetSession();
+			publicLoads.put("RANKING", rankingPanel::load);
 			profilePanel.refresh();
 			eventsPanel.onLoginReady();
 			loadSelectedTab(false);
@@ -478,6 +480,8 @@ public class RevalPanel extends PluginPanel {
 		SwingUtilities.invokeLater(() -> {
 			clanValidated = false;
 			memberTabsLoaded.clear();
+			rankingPanel.resetSession();
+			publicLoads.put("RANKING", rankingPanel::load);
 			competitionsPanel.onLoggedOut();
 			profilePanel.onLoggedOut();
 			achievementsPanel.onLoggedOut();

@@ -1,1 +1,55 @@
-{"upstreamCommit":"179faa521b14e4541151effd0f5d28f12ec89597","upstreamArchiveSha256":"65972faa05010ecf641772ea3f25490235d35f13da8c2da6648decd7638c6f8a","upstreamJavaFiles":157,"byteIdentical":135,"brandingOrDestinationOnly":17,"authenticationSeams":["src/main/java/com/revalclan/RevalClanConfig.java","src/main/java/com/revalclan/RevalClanPlugin.java","src/main/java/com/revalclan/api/RevalApiService.java","src/main/java/com/revalclan/util/EventFilterManager.java","src/main/java/com/revalclan/util/WebhookService.java"],"addedAuthenticationOnly":["src/main/java/com/revalclan/nightlegion/NightLegionAuthentication.java"],"missing":[],"unexpectedRuntimeFiles":[],"backendParityNotProvedByThisCheck":true}
+{
+  "upstreamCommit": "179faa521b14e4541151effd0f5d28f12ec89597",
+  "upstreamArchiveSha256": "65972faa05010ecf641772ea3f25490235d35f13da8c2da6648decd7638c6f8a",
+  "upstreamJavaFiles": 157,
+  "identicalAfterLineEndingNormalization": 123,
+  "comparisonNormalization": "CRLF to LF in Java and license text only",
+  "brandingOrDestinationOnly": 11,
+  "authenticationSeams": [
+    "src/main/java/com/revalclan/RevalClanConfig.java",
+    "src/main/java/com/revalclan/RevalClanPlugin.java",
+    "src/main/java/com/revalclan/api/RevalApiService.java",
+    "src/main/java/com/revalclan/util/EventFilterManager.java",
+    "src/main/java/com/revalclan/util/WebhookService.java"
+  ],
+  "authenticationOnlySeams": [
+    "src/main/java/com/revalclan/RevalClanConfig.java",
+    "src/main/java/com/revalclan/util/EventFilterManager.java"
+  ],
+  "reviewerFilepathSeams": [
+    "src/main/java/com/revalclan/session/SessionStore.java"
+  ],
+  "scopedBugFixes": {
+    "src/main/java/com/revalclan/RevalClanPlugin.java": "Consume fingerprint-repair requests only for the active account. Clear Collection Log ownership and API caches at logout.",
+    "src/main/java/com/revalclan/api/RevalApiService.java": "Invalidate in-flight account/catalog responses when their cache generation changes.",
+    "src/main/java/com/revalclan/api/account/AccountResponse.java": "Read account-specific combat achievement thresholds already returned by the backend. Retain fractional account balances, category totals and ledger deltas.",
+    "src/main/java/com/revalclan/collectionlog/CollectionLogManager.java": "Reject invalid/guest/temporary-world ownership; canonicalize item IDs; resolve exact pet IDs from All Pets.",
+    "src/main/java/com/revalclan/collectionlog/CollectionLogSyncButton.java": "Report acknowledged sync results and discard pending work/callbacks across account boundaries.",
+    "src/main/java/com/revalclan/notifiers/BaseNotifier.java": "Propagate clan-gate rejection to the manual sync completion callback.",
+    "src/main/java/com/revalclan/notifiers/DiaryNotifier.java": "Use the same 48 completion varbits as AchievementDiaryManager. Reject queued diary completions after reset, logout or account change.",
+    "src/main/java/com/revalclan/notifiers/LootNotifier.java": "Give each queued receipt its own stable event ID; clear all pending receipt evidence at session reset.",
+    "src/main/java/com/revalclan/notifiers/PetNotifier.java": "Attach the cache-resolved item ID to the existing pet event.",
+    "src/main/java/com/revalclan/notifiers/SyncNotifier.java": "Classify server acknowledgement as successful, incomplete or failed before reporting completion. Recognize strict native accepted acknowledgements and legacy ok acknowledgements while rejecting false or malformed success flags.",
+    "src/main/java/com/revalclan/session/SessionTracker.java": "Release failed HTTP session deliveries from in-flight state so persisted replay can retry.",
+    "src/main/java/com/revalclan/ui/AchievementsPanel.java": "Clear account-specific achievement data at logout and reject stale response callbacks.",
+    "src/main/java/com/revalclan/ui/DiaryPanel.java": "Clear account-specific diary data at logout and reject stale response callbacks.",
+    "src/main/java/com/revalclan/ui/PointsAlbumWindow.java": "Preserve fractional ledger values while grouping, totaling and sorting cards.",
+    "src/main/java/com/revalclan/ui/ProfilePanel.java": "Use account combat thresholds; clear account data on logout and reject stale profile callbacks. Invalidate catalog/UI state across accounts, restart cancelled profile loads during refresh, and preserve four-decimal points in totals, progress and categories.",
+    "src/main/java/com/revalclan/ui/RankingPanel.java": "Reject stale catalog callbacks and clear account-specific ranking views at session reset.",
+    "src/main/java/com/revalclan/ui/RevalPanel.java": "Reset and reload the ranking view across login/logout boundaries.",
+    "src/main/java/com/revalclan/util/NumberFmt.java": "Display up to four decimal places for points without rounding valid fractional adjustments away.",
+    "src/main/java/com/revalclan/util/SyncStateManager.java": "Bind a queued fingerprint-repair request to its originating account.",
+    "src/main/java/com/revalclan/util/WebhookService.java": "Propagate transport, HTTP and malformed-acknowledgement failures to the optional sync callback."
+  },
+  "addedAuthenticationOnly": [
+    "src/main/java/com/revalclan/nightlegion/NightLegionAuthentication.java"
+  ],
+  "authenticationSourceSha256": "ec437056b4ea8fca09f04a9c9639f9002cb040da49eb205fb39728885bb6ecd9",
+  "missing": [],
+  "unexpectedRuntimeFiles": [],
+  "modifiedAsset": "src/main/resources/com/revalclan/ui/assets/reval.png",
+  "assetSha256": "10eb9ff2d4ac1b1b41bd2399eb43542ceb75f34cbaf8cd865147fc5d03cf4b4a",
+  "unlistedUpstreamDeviationsRejected": true,
+  "backendParityNotProvedByThisCheck": true,
+  "reportBasis": "Versioned source summary; build/source-parity.json also reports raw byte-identical count for the local checkout."
+}

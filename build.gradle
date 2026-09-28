@@ -39,6 +39,8 @@ processResources {
 	// Ship the properties file so PluginVersion can read the version at runtime.
 	// A real task input, so bumping the version re-stamps the jar without a clean.
 	from('runelite-plugin.properties') { into 'com/revalclan' }
+	from(['LICENSE', 'THIRD_PARTY_NOTICES.md']) { into 'META-INF' }
+	from('LICENSES') { into 'META-INF/LICENSES' }
 }
 
 tasks.withType(JavaCompile).configureEach {

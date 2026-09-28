@@ -60,6 +60,8 @@ public class RevalApiService {
     // Cached responses
     private PointsResponse cachedPoints;
     private long lastPointsFetch = 0;
+    private long pointsGeneration;
+    private long accountGeneration;
     private AccountResponse cachedAccount;
     private String cachedAccountIdentifier;
     private long lastAccountFetch = 0;
@@ -87,33 +89,49 @@ public class RevalApiService {
 
     // ==================== POINTS API ====================
 
-    public void fetchPoints(Consumer<PointsResponse> onSuccess, Consumer<Exception> onError) {
+    public synchronized void fetchPoints(Consumer<PointsResponse> onSuccess, Consumer<Exception> onError) {
         if (cachedPoints != null && System.currentTimeMillis() - lastPointsFetch < CACHE_DURATION_MS) {
             onSuccess.accept(cachedPoints);
             return;
         }
+        long generation = pointsGeneration;
         get(ApiEndpoints.POINTS, PointsResponse.class, response -> {
-            cachedPoints = response;
-            lastPointsFetch = System.currentTimeMillis();
-            onSuccess.accept(response);
-        }, onError);
+            synchronized (this) {
+                if (generation != pointsGeneration) return;
+                cachedPoints = response;
+                lastPointsFetch = System.currentTimeMillis();
+                onSuccess.accept(response);
+            }
+        }, error -> {
+            synchronized (this) {
+                if (generation == pointsGeneration) onError.accept(error);
+            }
+        });
     }
 
     // ==================== ACCOUNT API ====================
 
-    public void fetchAccount(long accountHash, Consumer<AccountResponse> onSuccess, Consumer<Exception> onError) {
+    public synchronized void fetchAccount(long accountHash, Consumer<AccountResponse> onSuccess, Consumer<Exception> onError) {
         String identifier = String.valueOf(accountHash);
         if (cachedAccount != null && identifier.equals(cachedAccountIdentifier)
             && System.currentTimeMillis() - lastAccountFetch < ACCOUNT_CACHE_DURATION_MS) {
             onSuccess.accept(cachedAccount);
             return;
         }
+        long generation = accountGeneration;
         get(ApiEndpoints.ACCOUNT + "?accountHash=" + accountHash, AccountResponse.class, response -> {
-            cachedAccount = response;
-            cachedAccountIdentifier = identifier;
-            lastAccountFetch = System.currentTimeMillis();
-            onSuccess.accept(response);
-        }, onError);
+            synchronized (this) {
+                if (generation != accountGeneration) return;
+                cachedAccount = response;
+                cachedAccountIdentifier = identifier;
+                lastAccountFetch = System.currentTimeMillis();
+                onSuccess.accept(response);
+            }
+        }, error -> {
+            synchronized (this) {
+                if (generation == accountGeneration) onError.accept(error);
+            }
+        });
     }
 
     public void refreshAccount(long accountHash, Consumer<AccountResponse> onSuccess, Consumer<Exception> onError) {
@@ -444,7 +462,9 @@ public class RevalApiService {
 
     // ==================== CACHE MANAGEMENT ====================
 
-    public void clearCache() {
+    public synchronized void clearCache() {
+        pointsGeneration++;
+        accountGeneration++;
         cachedPoints = null;
         lastPointsFetch = 0;
         cachedAccount = null;
@@ -461,7 +481,8 @@ public class RevalApiService {
         cachedLeaguesConfig = null;
     }
 
-    public void clearAccountCache() {
+    public synchronized void clearAccountCache() {
+        accountGeneration++;
         cachedAccount = null;
         cachedAccountIdentifier = null;
         lastAccountFetch = 0;

@@ -29,6 +29,7 @@ public class RankingPanel extends JPanel {
 	private final JLabel loadingLabel;
 	private final GridBagConstraints gbc;
 	private int gridY = 0;
+	private long requestGeneration;
 
 	private RevalApiService apiService;
 	private ItemManager itemManager;
@@ -89,6 +90,11 @@ public class RankingPanel extends JPanel {
 
 	public void load() {
 		loadData();
+	}
+
+	public void resetSession() {
+		requestGeneration++;
+		showPlaceholder();
 	}
 
 	public void refresh() {
@@ -175,10 +181,15 @@ public class RankingPanel extends JPanel {
 	}
 
 	private void loadData() {
+		long generation = ++requestGeneration;
 		showLoading();
 		apiService.fetchPoints(
-			response -> SwingUtilities.invokeLater(() -> buildContent(response)),
-			error -> SwingUtilities.invokeLater(this::showError)
+			response -> SwingUtilities.invokeLater(() -> {
+				if (generation == requestGeneration) buildContent(response);
+			}),
+			error -> SwingUtilities.invokeLater(() -> {
+				if (generation == requestGeneration) showError();
+			})
 		);
 	}
 

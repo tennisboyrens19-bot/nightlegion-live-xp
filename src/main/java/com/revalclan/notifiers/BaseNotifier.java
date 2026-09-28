@@ -75,6 +75,16 @@ public abstract class BaseNotifier {
 		sendNotification(getEventType(), data, onResponse);
 	}
 
+	protected void sendNotification(Map<String, Object> data, Consumer<JsonObject> onResponse,
+		Consumer<Exception> onFailure) {
+		if (!passesClanCheck()) {
+			onFailure.accept(new IllegalStateException("Clan membership not confirmed"));
+			return;
+		}
+		addEventMetadata(getEventType(), data, true);
+		webhookService.sendDataAsync(data, null, onResponse, onFailure);
+	}
+
 	/** The one send primitive behind the two overloads above. */
 	private void sendNotification(String eventType, Map<String, Object> data, Consumer<JsonObject> onResponse) {
 		if (!passesClanCheck()) return;

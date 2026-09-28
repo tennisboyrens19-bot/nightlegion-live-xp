@@ -38,6 +38,7 @@ public class DiaryPanel extends JPanel {
 	private DiariesResponse.Diary selectedDiary = null;
 	private final Set<String> expandedTiers = new HashSet<>();
 	private RefreshButton refreshButton;
+	private long requestGeneration;
 
 	public DiaryPanel() {
 		setLayout(new BorderLayout());
@@ -64,10 +65,20 @@ public class DiaryPanel extends JPanel {
 		showNotLoggedIn();
 	}
 
-	public void onLoggedOut() { showNotLoggedIn(); }
+	public void onLoggedOut() {
+		requestGeneration++;
+		allDiaries = new ArrayList<>();
+		selectedDiary = null;
+		expandedTiers.clear();
+		refreshButton = null;
+		while (mainContainer.getComponentCount() > 1) mainContainer.remove(1);
+		cardLayout.show(mainContainer, "LIST");
+		showNotLoggedIn();
+	}
 	public void refresh() { loadData(); }
 
 	private void loadData() {
+		long generation = ++requestGeneration;
 		if (apiService == null) return;
 		if (refreshButton != null) refreshButton.setLoading(true);
 
@@ -79,6 +90,7 @@ public class DiaryPanel extends JPanel {
 
 		apiService.fetchDiaries(accountHash,
 			response -> SwingUtilities.invokeLater(() -> {
+				if (generation != requestGeneration) return;
 				if (refreshButton != null) refreshButton.setLoading(false);
 				allDiaries = (response != null && response.getData() != null && response.getData().getDiaries() != null)
 					? response.getData().getDiaries() : new ArrayList<>();
@@ -91,6 +103,7 @@ public class DiaryPanel extends JPanel {
 				}
 			}),
 			error -> SwingUtilities.invokeLater(() -> {
+				if (generation != requestGeneration) return;
 				if (refreshButton != null) refreshButton.setLoading(false);
 				allDiaries = new ArrayList<>();
 				buildUI();

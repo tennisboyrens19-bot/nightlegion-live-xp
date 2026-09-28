@@ -1,16 +1,33 @@
-"""Reproduce/verify the upstream client; only branding and authentication may differ."""
+"""Verify pinned upstream source with exact, documented NightLegion adaptations."""
 from __future__ import annotations
 import argparse, hashlib, io, json, pathlib, re, shutil, tarfile, urllib.request
+from reval_account_fixes import adapt_profile_account_boundary
+from reval_sync_fixes import FIXES as SYNC_FIXES, adapt_sync
+from reval_acceptance_fixes import FIXES as ACCEPTANCE_FIXES, adapt_acceptance
 
 COMMIT = '179faa521b14e4541151effd0f5d28f12ec89597'
 ARCHIVE_SHA256 = '65972faa05010ecf641772ea3f25490235d35f13da8c2da6648decd7638c6f8a'
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 JAVA = 'src/main/java/com/revalclan/'
 AUTH_PATH = JAVA + 'nightlegion/NightLegionAuthentication.java'
+AUTH_SHA256 = 'ec437056b4ea8fca09f04a9c9639f9002cb040da49eb205fb39728885bb6ecd9'
 FILEPATH_PATH = JAVA + 'session/SessionStore.java'
 FILEPATH_SHA256 = '0d0bd8d6feddf13f788dde3e02a84dd305551db8ab86e487144ef15dd2601f07'
 ICON = 'src/main/resources/com/revalclan/ui/assets/reval.png'
+ICON_SHA256 = '10eb9ff2d4ac1b1b41bd2399eb43542ceb75f34cbaf8cd865147fc5d03cf4b4a'
 AUTH_IMPORT = 'import com.revalclan.nightlegion.NightLegionAuthentication;\n'
+SCOPED_FIXES = {
+    JAVA+'collectionlog/CollectionLogManager.java': 'Reject invalid/guest/temporary-world ownership; canonicalize item IDs; resolve exact pet IDs from All Pets.',
+    JAVA+'notifiers/PetNotifier.java': 'Attach the cache-resolved item ID to the existing pet event.',
+    JAVA+'notifiers/DiaryNotifier.java': 'Use the same 48 completion varbits as AchievementDiaryManager.',
+    JAVA+'api/account/AccountResponse.java': 'Read account-specific combat achievement thresholds already returned by the backend.',
+    JAVA+'ui/ProfilePanel.java': 'Use account combat thresholds; clear account data on logout and reject stale profile callbacks.',
+}
+SCOPED_FIXES.update(SYNC_FIXES)
+for path, reason in ACCEPTANCE_FIXES.items():
+    SCOPED_FIXES[path] = (SCOPED_FIXES.get(path, '') + ' ' + reason).strip()
+AUTH_SEAMS = [JAVA+path for path in ('RevalClanConfig.java', 'RevalClanPlugin.java',
+    'api/RevalApiService.java', 'util/EventFilterManager.java', 'util/WebhookService.java')]
 # Literal-only substitutions. Wire keys, class/package names and protocol headers stay unchanged.
 EXACT = {
     'https://api.revalosrs.ee/plugin':'https://nightlegion-livexp.onrender.com/plugin',
@@ -69,7 +86,90 @@ def one(source, before, after):
     if source.count(before)!=1:raise ValueError('Upstream anchor changed: '+before[:100])
     return source.replace(before,after,1)
 
+def scoped_fixes(path, source):
+    # These are exact, single-anchor transformations, not whole-file exceptions.
+    # Every other byte is still checked against the pinned upstream source.
+    if path == JAVA+'collectionlog/CollectionLogManager.java':
+        source=one(source, '\t\tobtainedItems.put(itemId, new ObtainedCollectionItem(itemId, itemName, itemCount));', '''\t\tif (!Collections.disjoint(com.revalclan.util.Worlds.flagNames(client),
+\t\t\tArrays.asList("SEASONAL", "DEADMAN", "TOURNAMENT_WORLD", "BETA_WORLD",
+\t\t\t\t"NOSAVE_MODE", "QUEST_SPEEDRUNNING", "PVP_ARENA", "LAST_MAN_STANDING"))) return;
+\t\t// Use the same cache mapping as the category lists. Zero counts and POH
+\t\t// guest logs must never become ownership evidence for this account.
+\t\tif (itemId <= 0 || itemCount <= 0
+\t\t\t|| client.getVarbitValue(net.runelite.api.gameval.VarbitID.COLLECTION_POH_HOST_BOOK_OPEN) == 1) return;
+\t\tint replacement = client.getEnum(3721).getIntValue(itemId);
+\t\tint canonicalId = replacement > 0 ? replacement : itemId;
+\t\tif (canonicalId != itemId) itemName = client.getItemDefinition(canonicalId).getName();
+\t\tobtainedItems.put(canonicalId, new ObtainedCollectionItem(canonicalId, itemName, itemCount));
+\t}
+
+\t/** Resolve an exact pet name only within the cache's All Pets category. */
+\tpublic Integer getPetItemId(String name) {
+\t\tInteger category = categoryStructIdMap.get("all_pets");
+\t\tif (name == null || category == null) return null;
+\t\tInteger found = null;
+\t\tfor (Integer id : categoryItemMap.getOrDefault(category, Collections.emptySet())) {
+\t\t\tif (name.equalsIgnoreCase(client.getItemDefinition(id).getName())) {
+\t\t\t\tif (found != null && !found.equals(id)) return null;
+\t\t\t\tfound = id;
+\t\t\t}
+\t\t}
+\t\treturn found;''')
+    if path == JAVA+'notifiers/PetNotifier.java':
+        source=one(source, 'public class PetNotifier extends BaseNotifier {', '''public class PetNotifier extends BaseNotifier {
+\t@javax.inject.Inject
+\tprivate com.revalclan.collectionlog.CollectionLogManager collectionLogManager;''')
+        source=one(source, '\t\t\tpetData.put("petName", this.petName);', '''\t\t\tpetData.put("petName", this.petName);
+\t\t\tInteger itemId = collectionLogManager.getPetItemId(this.petName);
+\t\t\tif (itemId != null) petData.put("itemId", itemId);''')
+    if path == JAVA+'notifiers/DiaryNotifier.java':
+        # Correct the constants here; queued-completion guards are applied below.
+        mappings = {
+            'Ardougne': ([3577,3598,3608,3630], [4458,4459,4460,4461]),
+            'Desert': ([3579,3597,3610,3628], [4483,4484,4485,4486]),
+            'Falador': ([3580,3596,3612,3632], [4462,4463,4464,4465]),
+            'Fremennik': ([3582,3594,3615,3636], [4491,4492,4493,4494]),
+            'Kandarin': ([3583,3593,3617,3638], [4475,4476,4477,4478]),
+            'Karamja': ([3578,3599,3611,3631], [3578,3599,3611,4566]),
+            'Lumbridge': ([3581,3595,3614,3635], [4495,4496,4497,4498]),
+            'Morytania': ([3584,3592,3618,3639], [4487,4488,4489,4490]),
+            'Varrock': ([3576,3601,3606,3627], [4479,4480,4481,4482]),
+            'Western': ([3585,3591,3620,3641], [4471,4472,4473,4474]),
+            'Wilderness': ([3586,3600,3621,3642], [4466,4467,4468,4469]),
+        }
+        for area, (old_ids, new_ids) in mappings.items():
+            for tier, old, new in zip(('Easy','Medium','Hard','Elite'), old_ids, new_ids):
+                source=one(source, f'map.put({old}, "{area}_{tier}");', f'map.put({new}, "{area}_{tier}");')
+    if path == JAVA+'api/account/AccountResponse.java':
+        source=one(source, 'import java.util.List;', 'import java.util.List;\nimport java.util.Map;')
+        source=one(source, '        private Integer combatAchievementPoints;', '        private Integer combatAchievementPoints;\n        private Map<String, Integer> combatAchievementThresholds;')
+    if path == JAVA+'ui/ProfilePanel.java':
+        source=adapt_profile_account_boundary(source, one)
+        source=one(source, '\t\t\t\tboolean completed = tier.getThreshold() != null && progress >= tier.getThreshold();', '''\t\t\t\tInteger threshold = tierThreshold(sourceKey, tier);
+\t\t\t\tboolean completed = threshold != null && progress >= threshold;''')
+        source=one(source, '\tprivate JPanel createStatCard(String value, String label, Color accentColor, String sourceType) {', '''\tprivate Integer tierThreshold(String sourceKey, PointsResponse.PointSource tier) {
+\t\tif ("COMBAT_ACHIEVEMENTS".equals(sourceKey) && currentAccount != null
+\t\t\t&& currentAccount.getCombatAchievementThresholds() != null
+\t\t\t&& tier.getId() != null && tier.getId().startsWith("combat_achievement_")) {
+\t\t\tString key = tier.getId().substring("combat_achievement_".length());
+\t\t\tInteger threshold = currentAccount.getCombatAchievementThresholds().get(key);
+\t\t\tif (threshold != null && threshold > 0) return threshold;
+\t\t}
+\t\treturn tier.getThreshold();
+\t}
+
+\tprivate JPanel createStatCard(String value, String label, Color accentColor, String sourceType) {''')
+    return source
+
+def normalized(path, content):
+    # Git's Windows checkout may expand LF to CRLF. Only that text encoding
+    # difference is ignored; whitespace, comments and code remain significant.
+    if path.endswith('.java') or path == 'LICENSE' or path.startswith('LICENSES/'):
+        return content.replace(b'\r\n', b'\n')
+    return content
+
 def adapted(path, content):
+    content=normalized(path, content)
     if not path.endswith('.java'):return content
     source=branding(content.decode('utf-8'))
     if path == JAVA+'RevalClanConfig.java':
@@ -94,7 +194,8 @@ def adapted(path, content):
         source=one(source,'@PluginDescriptor(\n\tname = "NightLegion"\n)', '@PluginDescriptor(\n\tname = "NightLegion",\n\tinternalName = "nightlegion",\n\tlegacyDataDirectory = "nightlegion"\n)')
         source=one(source,'\t@Inject\tprivate SessionTracker sessionTracker;', '\t@Inject\tprivate SessionStore sessionStore;\n\t@Inject\tprivate SessionTracker sessionTracker;')
         source=one(source,'\t\tclanMembership.reset();\n\t\tsessionTracker.setOnHeartbeatResponse(this::onChanges);', '\t\tclanMembership.reset();\n\t\tsessionStore.initialize(getPluginDirectory());\n\t\tsessionTracker.setOnHeartbeatResponse(this::onChanges);')
-    return source.encode('utf-8')
+    source = adapt_sync(path, scoped_fixes(path, source), one)
+    return adapt_acceptance(path, source, one).encode('utf-8')
 
 def upstream(archive=None):
     if archive is not None:raw=pathlib.Path(archive).read_bytes()
@@ -111,8 +212,46 @@ def upstream(archive=None):
             files[str(path)]=tar.extractfile(member).read()
     return files
 
-def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--apply',action='store_true');parser.add_argument('--archive');args=parser.parse_args()
+def verify(files, root=ROOT):
+    """Verify a whole runtime tree. Shared by the CLI and negative mutation tests."""
+    scope={p:b for p,b in files.items() if p.startswith('src/main/') or p=='LICENSE' or p.startswith('LICENSES/')}
+    actual={p.relative_to(root).as_posix() for p in (root/'src/main').rglob('*') if p.is_file()}
+    expected={p for p in scope if p.startswith('src/main/')}|{AUTH_PATH}
+    if actual!=expected:raise AssertionError({'missing':sorted(expected-actual),'extra':sorted(actual-expected)})
+    mismatches=[];identical=[];raw_identical=[];branding_only=[];auth_seams=[];filepath_seams=[];bug_fixes=[]
+    if hashlib.sha256(normalized(AUTH_PATH, (root/AUTH_PATH).read_bytes())).hexdigest()!=AUTH_SHA256:
+        mismatches.append(AUTH_PATH)
+    if hashlib.sha256((root/ICON).read_bytes()).hexdigest()!=ICON_SHA256:
+        mismatches.append(ICON)
+    for p,b in scope.items():
+        if p==ICON:continue
+        raw=(root/p).read_bytes()
+        got=normalized(p, raw)
+        if p==FILEPATH_PATH:
+            if hashlib.sha256(got).hexdigest()!=FILEPATH_SHA256:mismatches.append(p)
+        elif got!=adapted(p,b):mismatches.append(p)
+        if p.endswith('.java'):
+            if raw==b:raw_identical.append(p)
+            if p==FILEPATH_PATH:filepath_seams.append(p)
+            elif p in SCOPED_FIXES:bug_fixes.append(p)
+            elif got==normalized(p,b):identical.append(p)
+            elif got==branding(normalized(p,b).decode()).encode():branding_only.append(p)
+            else:auth_seams.append(p)
+    if mismatches:raise AssertionError('Unapproved upstream deviations: '+str(mismatches))
+    return {'upstreamCommit':COMMIT,'upstreamArchiveSha256':ARCHIVE_SHA256,
+        'upstreamJavaFiles':len(identical)+len(branding_only)+len(auth_seams)+len(filepath_seams)+len(bug_fixes),
+        'byteIdentical':len(raw_identical),'identicalAfterLineEndingNormalization':len(identical),
+        'comparisonNormalization':'CRLF to LF in Java and license text only',
+        'brandingOrDestinationOnly':len(branding_only),'authenticationSeams':AUTH_SEAMS,
+        'authenticationOnlySeams':auth_seams,
+        'reviewerFilepathSeams':filepath_seams,'scopedBugFixes':{p:SCOPED_FIXES[p] for p in bug_fixes},
+        'addedAuthenticationOnly':[AUTH_PATH],'authenticationSourceSha256':AUTH_SHA256,
+        'missing':[],'unexpectedRuntimeFiles':[],
+        'modifiedAsset':ICON,'assetSha256':hashlib.sha256((root/ICON).read_bytes()).hexdigest(),
+        'unlistedUpstreamDeviationsRejected':True,'backendParityNotProvedByThisCheck':True}
+
+def main(argv=None):
+    parser=argparse.ArgumentParser();parser.add_argument('--apply',action='store_true');parser.add_argument('--archive');args=parser.parse_args(argv)
     files=upstream(args.archive)
     scope={p:b for p,b in files.items() if p.startswith('src/main/') or p=='LICENSE' or p.startswith('LICENSES/')}
     if args.apply:
@@ -123,7 +262,7 @@ def main():
         icon_path = ROOT/ICON
         if not icon_path.exists(): icon_path=ROOT/'src/main/resources/com/revalclan/ui/assets/nightlegion.png'
         icon=icon_path.read_bytes()
-        if hashlib.sha256(icon).hexdigest()!='10eb9ff2d4ac1b1b41bd2399eb43542ceb75f34cbaf8cd865147fc5d03cf4b4a': raise ValueError('Unexpected NightLegion icon')
+        if hashlib.sha256(icon).hexdigest()!=ICON_SHA256: raise ValueError('Unexpected NightLegion icon')
         shutil.rmtree(ROOT/'src/main')
         for p,b in scope.items():
             target=ROOT/p;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(adapted(p,b))
@@ -145,28 +284,7 @@ def main():
         (ROOT/'build.gradle').write_text(build)
         (ROOT/'settings.gradle').write_text("rootProject.name = 'nightlegion'\n")
         (ROOT/'runelite-plugin.properties').write_text('displayName=NightLegion\nbuild=standard\nauthor=NightLegion (upstream: Lightroom)\ndescription=NightLegion clan plugin\ntags=clan,cc,nightlegion\nplugins=com.revalclan.RevalClanPlugin\nversion=2.20.1-nightlegion.2\n')
-    actual={str(p.relative_to(ROOT)) for p in (ROOT/'src/main').rglob('*') if p.is_file()}
-    expected={p for p in scope if p.startswith('src/main/')}|{AUTH_PATH}
-    if actual!=expected:raise AssertionError({'missing':sorted(expected-actual),'extra':sorted(actual-expected)})
-    mismatches=[];identical=[];branding_only=[];auth_seams=[];filepath_seams=[]
-    for p,b in scope.items():
-        if p==ICON:continue
-        got=(ROOT/p).read_bytes()
-        if p==FILEPATH_PATH:
-            if hashlib.sha256(got).hexdigest()!=FILEPATH_SHA256:mismatches.append(p)
-        elif got!=adapted(p,b):mismatches.append(p)
-        if p.endswith('.java'):
-            if p==FILEPATH_PATH:filepath_seams.append(p)
-            elif got==b:identical.append(p)
-            elif got==branding(b.decode()).encode():branding_only.append(p)
-            else:auth_seams.append(p)
-    if mismatches:raise AssertionError('Unapproved upstream deviations: '+str(mismatches))
-    report={'upstreamCommit':COMMIT,'upstreamJavaFiles':len(identical)+len(branding_only)+len(auth_seams)+len(filepath_seams),
-        'byteIdentical':len(identical),'brandingOrDestinationOnly':len(branding_only),'authenticationSeams':auth_seams,
-        'reviewerFilepathSeams':filepath_seams,
-        'addedAuthenticationOnly':[AUTH_PATH],'missing':[],'unexpectedRuntimeFiles':[],
-        'modifiedAsset':ICON,'assetSha256':hashlib.sha256((ROOT/ICON).read_bytes()).hexdigest(),
-        'clientCollectorsSessionsNotifiersPreserved':True,'backendParityNotProvedByThisCheck':True}
+    report=verify(files, ROOT)
     (ROOT/'build').mkdir(exist_ok=True);(ROOT/'build/source-parity.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))
 if __name__=='__main__':main()

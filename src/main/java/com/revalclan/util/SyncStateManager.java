@@ -10,8 +10,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
@@ -30,7 +31,7 @@ public class SyncStateManager {
 	@Inject private ConfigManager configManager;
 
 	/** Set from the webhook response thread; consumed on the game-tick thread */
-	private final AtomicBoolean fullSyncRequested = new AtomicBoolean(false);
+	private final Set<Long> fullSyncRequested = ConcurrentHashMap.newKeySet();
 
 	/** Canonical state fingerprint; null when the data is too incomplete to hash safely. */
 	@SuppressWarnings("unchecked")
@@ -137,7 +138,7 @@ public class SyncStateManager {
 			boolean stale = sync.has("stale") && !sync.get("stale").isJsonNull() && sync.get("stale").getAsBoolean();
 			if (stale) {
 				clearAckedFingerprint(accountHash);
-				fullSyncRequested.set(true);
+				fullSyncRequested.add(accountHash);
 				log.info("Sync fingerprint stale — full sync requested");
 				return;
 			}
@@ -152,7 +153,15 @@ public class SyncStateManager {
 
 	/** Consumed from the game-tick loop */
 	public boolean consumeFullSyncRequest() {
-		return fullSyncRequested.getAndSet(false);
+		for (Long accountHash : fullSyncRequested) {
+			if (fullSyncRequested.remove(accountHash)) return true;
+		}
+		return false;
+	}
+
+	/** A late acknowledgement for one account must never request a sync for another. */
+	public boolean consumeFullSyncRequest(long accountHash) {
+		return fullSyncRequested.remove(accountHash);
 	}
 
 	private static String sha256Hex(String input) throws Exception {

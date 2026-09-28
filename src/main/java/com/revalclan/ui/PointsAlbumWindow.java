@@ -87,7 +87,7 @@ public class PointsAlbumWindow extends JFrame {
 		String origin = " ";
 		Integer itemId;
 		String sourceType;
-		int points;
+		double points;
 		int count;
 		String latestDate = "";
 	}
@@ -230,7 +230,7 @@ public class PointsAlbumWindow extends JFrame {
 		String query = searchField.getText() != null ? searchField.getText().trim().toLowerCase() : "";
 
 		List<CardData> cards = new ArrayList<>();
-		long totalPts = 0;
+		double totalPts = 0;
 		int totalEntries = 0;
 		Map<String, CardData> grouped = new LinkedHashMap<>();
 
@@ -280,7 +280,7 @@ public class PointsAlbumWindow extends JFrame {
 		}
 
 		Comparator<CardData> byDate = Comparator.comparing(c -> c.latestDate);
-		Comparator<CardData> byPoints = Comparator.comparingInt(c -> c.points);
+		Comparator<CardData> byPoints = Comparator.comparingDouble(c -> c.points);
 		switch (sortCombo.getSelectedIndex()) {
 			case 1: cards.sort(byDate); break;
 			case 2: cards.sort(byPoints.reversed()); break;

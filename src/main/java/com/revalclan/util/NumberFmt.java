@@ -4,7 +4,7 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
-/** Formats integers with space grouping ("12 345") independent of the default locale. */
+/** Formats numbers with space grouping ("12 345") independent of the default locale. */
 public final class NumberFmt {
 	private NumberFmt() {
 	}
@@ -26,5 +26,13 @@ public final class NumberFmt {
 		DecimalFormatSymbols symbols = DecimalFormatSymbols.getInstance(Locale.ROOT);
 		symbols.setGroupingSeparator(' ');
 		return new DecimalFormat("#,##0", symbols).format(value);
+	}
+
+	/** Point balances and ledger deltas retain the backend's four-decimal precision. */
+	public static String group(double value) {
+		DecimalFormatSymbols symbols = DecimalFormatSymbols.getInstance(Locale.ROOT);
+		symbols.setGroupingSeparator(' ');
+		// Arithmetic on category totals can leave a tiny negative remainder at zero.
+		return new DecimalFormat("#,##0.####", symbols).format(Math.abs(value) < 0.00005 ? 0 : value);
 	}
 }

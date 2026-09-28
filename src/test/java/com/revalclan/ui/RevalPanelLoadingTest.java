@@ -45,11 +45,11 @@ public class RevalPanelLoadingTest {
 		assertEquals(2, api.count("events"));
 		for (String name : new String[]{"diary", "achievements", "votes", "active", "scheduled"}) assertEquals(name, 1, api.count(name));
 	}
-	@Test public void publicPanelsSurviveLoginAndLogout() throws Exception {
+	@Test public void rankingCatalogReloadsAcrossAccountBoundariesWhileLeaderboardStaysLoaded() throws Exception {
 		SwingUtilities.invokeAndWait(() -> { panel.showTab("LEADERBOARD"); panel.showTab("RANKING"); });
 		panel.onLoggedIn(); panel.onLoggedOut(); flush();
 		SwingUtilities.invokeAndWait(() -> { panel.showTab("LEADERBOARD"); panel.showTab("RANKING"); });
-		assertEquals(1, api.count("leaderboard")); assertEquals(2, api.count("ranking"));
+		assertEquals(1, api.count("leaderboard")); assertEquals(4, api.count("ranking"));
 	}
 	@Test public void selectionBeforeValidationAndQuickRelogLoadSelectedMemberTab() throws Exception {
 		SwingUtilities.invokeAndWait(() -> panel.showTab("DIARY"));
