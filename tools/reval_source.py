@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse, hashlib, io, json, pathlib, re, shutil, tarfile, urllib.request
 from reval_account_fixes import adapt_profile_account_boundary
 from reval_sync_fixes import FIXES as SYNC_FIXES, adapt_sync
+from reval_acceptance_fixes import FIXES as ACCEPTANCE_FIXES, adapt_acceptance
 
 COMMIT = '179faa521b14e4541151effd0f5d28f12ec89597'
 ARCHIVE_SHA256 = '65972faa05010ecf641772ea3f25490235d35f13da8c2da6648decd7638c6f8a'
@@ -23,6 +24,8 @@ SCOPED_FIXES = {
     JAVA+'ui/ProfilePanel.java': 'Use account combat thresholds; clear account data on logout and reject stale profile callbacks.',
 }
 SCOPED_FIXES.update(SYNC_FIXES)
+for path, reason in ACCEPTANCE_FIXES.items():
+    SCOPED_FIXES[path] = (SCOPED_FIXES.get(path, '') + ' ' + reason).strip()
 AUTH_SEAMS = [JAVA+path for path in ('RevalClanConfig.java', 'RevalClanPlugin.java',
     'api/RevalApiService.java', 'util/EventFilterManager.java', 'util/WebhookService.java')]
 # Literal-only substitutions. Wire keys, class/package names and protocol headers stay unchanged.
@@ -120,7 +123,7 @@ def scoped_fixes(path, source):
 \t\t\tInteger itemId = collectionLogManager.getPetItemId(this.petName);
 \t\t\tif (itemId != null) petData.put("itemId", itemId);''')
     if path == JAVA+'notifiers/DiaryNotifier.java':
-        # Only the incorrect constants change; event handling stays upstream.
+        # Correct the constants here; queued-completion guards are applied below.
         mappings = {
             'Ardougne': ([3577,3598,3608,3630], [4458,4459,4460,4461]),
             'Desert': ([3579,3597,3610,3628], [4483,4484,4485,4486]),
@@ -191,7 +194,8 @@ def adapted(path, content):
         source=one(source,'@PluginDescriptor(\n\tname = "NightLegion"\n)', '@PluginDescriptor(\n\tname = "NightLegion",\n\tinternalName = "nightlegion",\n\tlegacyDataDirectory = "nightlegion"\n)')
         source=one(source,'\t@Inject\tprivate SessionTracker sessionTracker;', '\t@Inject\tprivate SessionStore sessionStore;\n\t@Inject\tprivate SessionTracker sessionTracker;')
         source=one(source,'\t\tclanMembership.reset();\n\t\tsessionTracker.setOnHeartbeatResponse(this::onChanges);', '\t\tclanMembership.reset();\n\t\tsessionStore.initialize(getPluginDirectory());\n\t\tsessionTracker.setOnHeartbeatResponse(this::onChanges);')
-    return adapt_sync(path, scoped_fixes(path, source), one).encode('utf-8')
+    source = adapt_sync(path, scoped_fixes(path, source), one)
+    return adapt_acceptance(path, source, one).encode('utf-8')
 
 def upstream(archive=None):
     if archive is not None:raw=pathlib.Path(archive).read_bytes()

@@ -89,6 +89,71 @@ class SourceParityMutationTest(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, 'Unapproved upstream deviations:.*SyncNotifier.java'):
             self.check()
 
+    def assert_runtime_mutation_rejected(self, relative, before, after):
+        path = self.root/(reval_source.JAVA+relative)
+        source = path.read_bytes().replace(b'\r\n', b'\n')
+        self.assertEqual(1, source.count(before))
+        path.write_bytes(source.replace(before, after, 1))
+        with self.assertRaisesRegex(AssertionError,
+                'Unapproved upstream deviations:.*'+path.name):
+            self.check()
+
+    def test_unrelated_code_in_new_loot_adaptation_fails_the_cli(self):
+        self.add_unrelated_field(reval_source.JAVA+'notifiers/LootNotifier.java')
+        with self.assertRaisesRegex(AssertionError, 'Unapproved upstream deviations:.*LootNotifier.java'):
+            self.check()
+
+    def test_changed_loot_receipt_identity_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('notifiers/LootNotifier.java',
+            b'lootData.put("eventId", UUID.randomUUID().toString());',
+            b'lootData.put("eventId", "same-for-every-drop");')
+
+    def test_removed_pending_loot_reset_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('notifiers/LootNotifier.java',
+            b'\t\tpendingLoot.clear();', b'\t\t// pending loot no longer reset')
+
+    def test_removed_diary_account_guard_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('notifiers/DiaryNotifier.java',
+            b'|| client.getAccountHash() != accountHash) return true;',
+            b') return true;')
+
+    def test_removed_session_failure_release_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('session/SessionTracker.java',
+            b'error -> confirmDelivered(id, null));', b'error -> {});')
+
+    def test_removed_api_account_generation_guard_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('api/RevalApiService.java',
+            b'if (generation != accountGeneration) return;',
+            b'// account generation guard removed')
+
+    def test_removed_logout_ownership_reset_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('RevalClanPlugin.java',
+            b'\t\t\tcase LOGIN_SCREEN: {\n\t\t\t\tcollectionLogManager.clearObtainedItems();',
+            b'\t\t\tcase LOGIN_SCREEN: {')
+
+    def test_changed_fractional_ledger_model_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('api/account/AccountResponse.java',
+            b'private Double pointsChange;', b'private Integer pointsChange;')
+
+    def test_changed_point_precision_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('util/NumberFmt.java',
+            b'new DecimalFormat("#,##0.####", symbols)',
+            b'new DecimalFormat("#,##0", symbols)')
+
+    def test_removed_native_acknowledgement_guard_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('notifiers/SyncNotifier.java',
+            b'(response.has("accepted") && !accepted)', b'false')
+
+    def test_removed_achievements_response_guard_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('ui/AchievementsPanel.java',
+            b'response -> SwingUtilities.invokeLater(() -> {\n\t\t\t\tif (generation != requestGeneration) return;',
+            b'response -> SwingUtilities.invokeLater(() -> {')
+
+    def test_removed_diary_response_guard_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('ui/DiaryPanel.java',
+            b'response -> SwingUtilities.invokeLater(() -> {\n\t\t\t\tif (generation != requestGeneration) return;',
+            b'response -> SwingUtilities.invokeLater(() -> {')
+
     def test_changed_brand_icon_fails_the_cli(self):
         path = self.root/reval_source.ICON
         path.write_bytes(path.read_bytes()+b'unapproved')

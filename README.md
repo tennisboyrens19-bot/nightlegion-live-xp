@@ -3,7 +3,8 @@
 This candidate uses the published Reval client source at
 `179faa521b14e4541151effd0f5d28f12ec89597`, with NightLegion branding, endpoints,
 and Personal Link Token authentication. The pinned implementation remains the
-source baseline, with reviewed ownership, pet-ID, diary and points-display
+source baseline, with reviewed ownership, pet-ID, diary, receipt identity,
+acknowledgement, account/session boundary and point precision
 corrections documented in SOURCE_PARITY.md. The previous custom NightLegion
 sync coordinator is not used.
 
@@ -50,7 +51,9 @@ remain significant. The generated counts and adaptation list are written to
 
 `python3 tools/test_reval_source.py` runs the same CLI implementation on disposable
 runtime-tree copies. Its negative tests prove that unrelated code, altered
-ownership guards, missing source and extra source still fail the check. Both
+ownership guards, missing source and extra source still fail the check. They
+also cover receipt identity, native sync acknowledgements, session retry,
+account guards and decimal accounting. Both
 commands accept `--archive path/to/reval-reference.tar.gz`; the pinned SHA-256 is
 always verified. CI runs both commands as required steps.
 
