@@ -57,7 +57,10 @@ public class SyncNotifier extends BaseNotifier {
 
 	private static SyncResult resultFor(JsonObject response, Object fingerprint) {
 		try {
-			if (!response.has("ok") || !response.get("ok").getAsBoolean()
+			boolean accepted = isTrue(response, "accepted");
+			boolean legacyOk = isTrue(response, "ok");
+			if ((!accepted && !legacyOk) || (response.has("accepted") && !accepted)
+				|| (response.has("ok") && !legacyOk)
 				|| !response.has("status") || !"success".equals(response.get("status").getAsString())) {
 				return SyncResult.FAILED;
 			}
@@ -70,6 +73,11 @@ public class SyncNotifier extends BaseNotifier {
 		} catch (RuntimeException e) {
 			return SyncResult.INCOMPLETE;
 		}
+	}
+
+	private static boolean isTrue(JsonObject response, String key) {
+		return response.has(key) && response.get(key).isJsonPrimitive()
+			&& response.getAsJsonPrimitive(key).isBoolean() && response.get(key).getAsBoolean();
 	}
 
 	private static boolean matchesFingerprint(JsonObject response, Object fingerprint) {

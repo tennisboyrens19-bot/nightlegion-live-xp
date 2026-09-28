@@ -42,7 +42,7 @@ import static org.mockito.Mockito.*;
 
 /** Exercises the actual button -> notifier -> gzipped HTTP -> acknowledgement path. */
 public class SyncAcknowledgementTest {
-    private static final String SUCCESS = "{\"ok\":true,\"status\":\"success\",\"sync\":{\"fingerprint\":\"state-a\",\"stale\":false},\"scoringWarnings\":[]}";
+    private static final String SUCCESS = "{\"accepted\":true,\"status\":\"success\",\"sync\":{\"fingerprint\":\"state-a\",\"stale\":false},\"scoringWarnings\":[]}";
     private MockWebServer server;
     private OkHttpClient http;
     private Client client;
@@ -152,6 +152,27 @@ public class SyncAcknowledgementTest {
             awaitResult("incomplete");
         }
 		verify(config, never()).setConfiguration("nightlegion", "syncFingerprint_11", "another-state");
+    }
+
+    @Test public void rejectedOrMissingAcceptanceNeverReportsSuccess() throws Exception {
+        for (String response : new String[] {
+            SUCCESS.replace("\"accepted\":true", "\"accepted\":false"),
+            SUCCESS.replace("\"accepted\":true,", ""),
+            SUCCESS.replace("\"accepted\":true", "\"accepted\":\"true\""),
+            SUCCESS.replace("\"accepted\":true", "\"accepted\":true,\"ok\":false"),
+            SUCCESS.replace("\"accepted\":true", "\"accepted\":false,\"ok\":true")
+        }) {
+            server.enqueue(new MockResponse().setBody(response));
+            begin();
+            awaitResult("Failed to sync");
+        }
+        verify(config, never()).setConfiguration(anyString(), anyString(), anyString());
+    }
+
+    @Test public void explicitLegacySuccessStillRequiresMatchingFingerprint() throws Exception {
+        server.enqueue(new MockResponse().setBody(SUCCESS.replace("\"accepted\":true", "\"ok\":true")));
+        begin();
+        awaitResult("successfully");
     }
 
     @Test public void timedOutRequestFailsAndAnExplicitRetryCanSucceed() throws Exception {
