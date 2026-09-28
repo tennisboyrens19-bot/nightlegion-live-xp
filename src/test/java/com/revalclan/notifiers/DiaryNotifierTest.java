@@ -4,6 +4,8 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.Varbits;
 import net.runelite.api.events.VarbitChanged;
+import net.runelite.api.events.GameStateChanged;
+import com.revalclan.diaries.AchievementDiaryManager;
 import net.runelite.client.callback.ClientThread;
 import org.junit.Test;
 
@@ -12,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -81,5 +84,47 @@ public class DiaryNotifierTest {
         notifier.reset();
         change(notifier, Varbits.DIARY_ARDOUGNE_EASY, 1);
         assertEquals(1, notifier.notifications.size());
+    }
+
+    @Test public void delayedCompletionCannotCrossLogoutOrAccountBoundary() throws Exception {
+        for (boolean logout : new boolean[]{false, true}) {
+            RecordingNotifier notifier = notifier();
+            when(notifier.client.getAccountHash()).thenReturn(11L);
+            AtomicReference<BooleanSupplier> queued = new AtomicReference<>();
+            ClientThread thread = mock(ClientThread.class);
+            doAnswer(call -> { queued.set(call.getArgument(0)); return null; })
+                .when(thread).invokeLater(any(BooleanSupplier.class));
+            Field field = DiaryNotifier.class.getDeclaredField("clientThread");
+            field.setAccessible(true);
+            field.set(notifier, thread);
+            change(notifier, Varbits.DIARY_ARDOUGNE_EASY, 1);
+            assertNotNull(queued.get());
+            if (logout) {
+                GameStateChanged event = new GameStateChanged();
+                event.setGameState(GameState.LOGIN_SCREEN);
+                notifier.onGameStateChanged(event);
+                // Relogging the same account still invalidates the old pending completion.
+            } else {
+                when(notifier.client.getAccountHash()).thenReturn(22L);
+            }
+            queued.get().getAsBoolean();
+            assertTrue("Old completion must not be attributed to the current session", notifier.notifications.isEmpty());
+        }
+    }
+
+    @Test public void missingClientDiaryStateCannotBecomeCompletedSnapshotOrEvent() throws Exception {
+        RecordingNotifier notifier = notifier();
+        notifier.reset();
+        when(notifier.client.getVarbitValue(anyInt())).thenReturn(-1);
+        for (int i = 0; i < 5; i++) notifier.onGameTick();
+        change(notifier, Varbits.DIARY_ARDOUGNE_EASY, 1);
+        assertTrue(notifier.notifications.isEmpty());
+        AchievementDiaryManager manager = new AchievementDiaryManager();
+        Field field = AchievementDiaryManager.class.getDeclaredField("client");
+        field.setAccessible(true);
+        field.set(manager, notifier.client);
+        assertEquals(0, manager.sync().get("totalCompleted"));
+        when(notifier.client.getVarbitValue(anyInt())).thenReturn(0);
+        assertEquals(0, manager.sync().get("totalCompleted"));
     }
 }

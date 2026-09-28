@@ -37,6 +37,7 @@ public class DiaryNotifier extends BaseNotifier {
 
 	private final Map<Integer, Integer> diaryCompletionById = new ConcurrentHashMap<>();
 	private int initDelayTicks = 0;
+	private int generation;
 
 	@Override
 	public boolean isEnabled() {
@@ -98,7 +99,11 @@ public class DiaryNotifier extends BaseNotifier {
 			diaryCompletionById.put(id, value);
 
 			if (isComplete(id, value)) {
+				long accountHash = client.getAccountHash();
+				int completionGeneration = generation;
 				clientThread.invokeLater(() -> {
+					if (completionGeneration != generation || client.getGameState() != GameState.LOGGED_IN
+						|| client.getAccountHash() != accountHash) return true;
 					handleDiaryCompletion(diaryInfo, id);
 					return true;
 				});
@@ -159,6 +164,7 @@ public class DiaryNotifier extends BaseNotifier {
 	}
 
 	public void reset() {
+		generation++;
 		diaryCompletionById.clear();
 		initDelayTicks = 0;
 	}

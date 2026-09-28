@@ -491,6 +491,12 @@ public class LootNotifier extends BaseNotifier {
 
 	/** Forget everything tied to the session that just ended. */
 	public void reset() {
+		pendingLoot.clear();
+		recentClogItems.clear();
+		recentSelfDrops.clear();
+		recentUnequips.clear();
+		equipmentSnapshot.clear();
+		tickCounter = 0;
 		lastInventory.clear();
 		lastInventoryKnown = false;
 		recentRealLootSources.clear();
@@ -750,6 +756,8 @@ public class LootNotifier extends BaseNotifier {
 		if (itemsList.isEmpty()) return;
 
 		Map<String, Object> lootData = new HashMap<>();
+		// Distinct drops can flush in the same millisecond; retries retain this identity.
+		lootData.put("eventId", UUID.randomUUID().toString());
 		lootData.put("source", source);
 		lootData.put("sourceType", sourceType);
 		if (sourceId != null) {
