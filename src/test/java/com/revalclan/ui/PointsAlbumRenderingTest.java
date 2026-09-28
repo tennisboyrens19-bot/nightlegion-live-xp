@@ -37,7 +37,7 @@ public class PointsAlbumRenderingTest {
         // All distinct resolved item IDs observed in the read-only acceptance baseline.
         // Only public item metadata is reproduced here; no account or ledger identity.
         int[] ids = {21273, 20693, 31130, 28947, 27372, 27381, 27380, 27378, 27377,
-            6570, 9813, 12954, 21295, 22494, 27248, 27255, 27257, 30793};
+            6570, 9813, 12954, 21295, 22494, 27248, 27255, 27257, 30793, 22324};
         List<AccountResponse.PointsLogEntry> entries = new ArrayList<>();
         ItemManager itemManager = mock(ItemManager.class);
         PendingImage[] images = new PendingImage[ids.length];
@@ -45,15 +45,20 @@ public class PointsAlbumRenderingTest {
             images[i] = new PendingImage();
             when(itemManager.getImage(ids[i])).thenReturn(images[i]);
             entries.add(new Gson().fromJson("{\"itemId\":" + ids[i]
-                + ",\"pointsChange\":100,\"sourceType\":\"" + (i < 3 ? "pet" : (i >= 5 && i <= 8 ? "drop" : "milestone"))
+                + ",\"pointsChange\":100,\"sourceType\":\"" + (i < 3 ? "pet" : ((i >= 5 && i <= 8) || ids[i] == 22324 ? "drop" : "milestone"))
                 + "\",\"sourceDescription\":\"Fixture " + ids[i] + "\"}", AccountResponse.PointsLogEntry.class));
         }
+        // Deserialize the actual API envelope, not just an isolated item model.
+        AccountResponse response = new Gson().fromJson("{\"status\":\"success\",\"data\":{\"pointsLog\":"
+            + new Gson().toJson(entries) + "}}", AccountResponse.class);
+        entries = response.getData().getPointsLog();
+        final List<AccountResponse.PointsLogEntry> apiEntries = entries;
         // Avoid a native JFrame in headless CI; exercise its actual rebuild/card code.
         PointsAlbumWindow window = mock(PointsAlbumWindow.class, CALLS_REAL_METHODS);
         JPanel grid = new JPanel();
         SwingUtilities.invokeAndWait(() -> {
             try {
-                set(window, "allEntries", entries);
+                set(window, "allEntries", apiEntries);
                 set(window, "itemManager", itemManager);
                 set(window, "sourceCombo", new JComboBox<>(new String[]{"All", "Drops", "Pets", "Milestones", "Diaries", "Challenges", "Events", "Misc"}));
                 set(window, "sortCombo", new JComboBox<>(new String[]{"Newest"}));
@@ -69,6 +74,16 @@ public class PointsAlbumRenderingTest {
         });
         SwingUtilities.invokeAndWait(() -> {});
         assertEquals(ids.length, grid.getComponentCount());
+        Field filtered = PointsAlbumWindow.class.getDeclaredField("filtered");
+        filtered.setAccessible(true);
+        List<?> cards = (List<?>) filtered.get(window);
+        for (int i = 0; i < ids.length; i++) {
+            Field itemId = cards.get(i).getClass().getDeclaredField("itemId");
+            itemId.setAccessible(true);
+            assertEquals("CardData must retain the API item ID", ids[i], itemId.get(cards.get(i)));
+            assertTrue("Valid item must take ImageIcon path, never a generic badge",
+                iconLabel((Container) grid.getComponent(i)).getIcon() instanceof ImageIcon);
+        }
         for (int id : ids) verify(itemManager).getImage(id);
         for (int i = 0; i < images.length; i++) images[i].complete(0xff000000 | ids[i]);
         SwingUtilities.invokeAndWait(() -> {});
@@ -88,6 +103,35 @@ public class PointsAlbumRenderingTest {
             SwingUtilities.invokeAndWait(() -> {});
             assertEquals(ids.length, grid.getComponentCount());
         }
+
+        // A refresh replaces the list with newly deserialized models, and keeps the sprite path.
+        List<AccountResponse.PointsLogEntry> refreshed = new Gson().fromJson(new Gson().toJson(response), AccountResponse.class)
+            .getData().getPointsLog();
+        SwingUtilities.invokeAndWait(() -> {
+            try { set(window, "allEntries", refreshed); rebuild(window); }
+            catch (Exception error) { throw new AssertionError(error); }
+        });
+        SwingUtilities.invokeAndWait(() -> {});
+        assertEquals(ids.length, grid.getComponentCount());
+        for (int i = 0; i < ids.length; i++) assertEquals(0xff000000 | ids[i], pixel(iconLabel((Container) grid.getComponent(i))));
+
+        // Abstract milestones intentionally retain the non-item M badge.
+        AccountResponse.PointsLogEntry abstractMilestone = new Gson().fromJson(
+            "{\"sourceType\":\"milestone\",\"sourceDescription\":\"Combat Achievements: Elite\",\"pointsChange\":600}",
+            AccountResponse.PointsLogEntry.class);
+        clearInvocations(itemManager);
+        SwingUtilities.invokeAndWait(() -> {
+            try { set(window, "allEntries", java.util.Collections.singletonList(abstractMilestone)); rebuild(window); }
+            catch (Exception error) { throw new AssertionError(error); }
+        });
+        SwingUtilities.invokeAndWait(() -> {});
+        Icon badge = iconLabel((Container) grid.getComponent(0)).getIcon();
+        assertEquals("SourceBadgeIcon", badge.getClass().getSimpleName());
+        Field text = badge.getClass().getDeclaredField("text");
+        text.setAccessible(true);
+        assertEquals("M", text.get(badge));
+        pixel(iconLabel((Container) grid.getComponent(0)));
+        verifyNoInteractions(itemManager);
     }
 
     private static void set(Object object, String name, Object value) throws Exception {

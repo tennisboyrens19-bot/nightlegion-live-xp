@@ -26,7 +26,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/** Exercises displayed labels using unchanged NightLegionBot 7a22c35 catalogue rows. */
+/** Exercises displayed labels, all six current fallback tiers and server-supplied thresholds. */
 public class ProfileTierDisplayTest {
     @Test
     public void combatTierLabelsShowTheRewardAddedAtEachTier() throws Exception {
@@ -50,21 +50,35 @@ public class ProfileTierDisplayTest {
 
     @Test
     public void accountThresholdOverridesCatalogueForCombatCompletion() throws Exception {
-        assertTrue(allLabels(render("COMBAT_ACHIEVEMENTS", 2691, true)).contains("Grandmaster tier"));
+        assertTrue(allLabels(render("COMBAT_ACHIEVEMENTS", 2690, true)).contains("Grandmaster tier"));
         assertFalse(allLabels(render("COMBAT_ACHIEVEMENTS", 2691, true,
             Collections.singletonMap("grandmaster", 2691))).contains("Grandmaster tier"));
-        assertTrue(allLabels(render("COMBAT_ACHIEVEMENTS", 2697, true,
+        assertTrue(allLabels(render("COMBAT_ACHIEVEMENTS", 2691, true,
             Collections.singletonMap("grandmaster", 2800))).contains("Grandmaster tier"));
     }
 
     @Test
     public void invalidOrUnrelatedThresholdsKeepCatalogueCompletion() throws Exception {
         for (Integer invalid : Arrays.asList(null, 0, -1)) {
-            assertTrue(allLabels(render("COMBAT_ACHIEVEMENTS", 2691, true,
+            assertTrue(allLabels(render("COMBAT_ACHIEVEMENTS", 2690, true,
                 Collections.singletonMap("grandmaster", invalid))).contains("Grandmaster tier"));
         }
         assertEquals(rewardLabels(render("COLLECTION_LOG", 0, true)),
             rewardLabels(render("COLLECTION_LOG", 0, true, Collections.singletonMap("bronze", 1))));
+    }
+
+    @Test
+    public void allSixTierBoundariesUseTheSameOrderedLadder() throws Exception {
+        String[] tiers = {"Easy", "Medium", "Hard", "Elite", "Master", "Grandmaster"};
+        int[] points = {41, 169, 436, 1100, 1965, 2691};
+        Map<String, Integer> thresholds = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < tiers.length; i++) thresholds.put(tiers[i].toLowerCase(java.util.Locale.ROOT), points[i]);
+        for (int i = 0; i < tiers.length; i++) {
+            for (Map<String, Integer> source : Arrays.asList(null, thresholds)) {
+                assertTrue(tiers[i], allLabels(render("COMBAT_ACHIEVEMENTS", points[i] - 1, true, source)).contains(tiers[i] + " tier"));
+                assertFalse(tiers[i], allLabels(render("COMBAT_ACHIEVEMENTS", points[i], true, source)).contains(tiers[i] + " tier"));
+            }
+        }
     }
 
     private static JPanel render(String category, int progress, boolean hideCompleted) throws Exception {

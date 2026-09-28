@@ -75,7 +75,7 @@
           "repeatable": false,
           "icon": "Combat_Achievements_-_grandmaster_tier_icon",
           "points": 3000,
-          "threshold": 2697,
+          "threshold": 2691,
           "metadata": {
             "itemId": 25956
           }
