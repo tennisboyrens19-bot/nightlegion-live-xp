@@ -20,6 +20,9 @@ SCOPED_FIXES = {
     JAVA+'collectionlog/CollectionLogManager.java': 'Reject invalid/guest/temporary-world ownership; canonicalize item IDs; resolve exact pet IDs from All Pets.',
     JAVA+'notifiers/PetNotifier.java': 'Attach the cache-resolved item ID to the existing pet event.',
     JAVA+'notifiers/DiaryNotifier.java': 'Use the same 48 completion varbits as AchievementDiaryManager.',
+    JAVA+'notifiers/ClueNotifier.java': 'Accept RuneLite 1.13.1 long item prices without narrowing; preserve clue quantity arithmetic.',
+    JAVA+'notifiers/DeathNotifier.java': 'Accept RuneLite 1.13.1 long item prices throughout death valuation and sorting without changing item selection.',
+    JAVA+'notifiers/LootNotifier.java': 'Accept RuneLite 1.13.1 long item prices without narrowing; preserve unit-price filters and stack-value arithmetic.',
     JAVA+'api/account/AccountResponse.java': 'Read account-specific combat achievement thresholds already returned by the backend.',
     JAVA+'ui/ProfilePanel.java': 'Use account combat thresholds; clear account data on logout and reject stale profile callbacks.',
     JAVA+'util/UIAssetLoader.java': 'Read both bundled-image paths through Class.getResourceAsStream with scoped stream closure; preserve paths, caches and null fallbacks.',
@@ -90,6 +93,22 @@ def one(source, before, after):
 def scoped_fixes(path, source):
     # These are exact, single-anchor transformations, not whole-file exceptions.
     # Every other byte is still checked against the pinned upstream source.
+    if path == JAVA+'notifiers/ClueNotifier.java':
+        source=one(source, 'int price = itemManager.getItemPrice(itemId);',
+            'long price = itemManager.getItemPrice(itemId);')
+        source=one(source, '(long) price * quantity', 'price * quantity')
+    if path == JAVA+'notifiers/DeathNotifier.java':
+        source=one(source, 'int gePrice = itemManager.getItemPrice(item.getId());',
+            'long gePrice = itemManager.getItemPrice(item.getId());')
+        source=one(source, 'int gePrice = (int) item.get("gePrice");',
+            'long gePrice = ((Number) item.get("gePrice")).longValue();')
+        source=one(source, '(long) gePrice * quantity', 'gePrice * quantity')
+        source=one(source, 'Comparator.<Map<String, Object>>comparingInt(m -> (int) m.get("gePrice"))',
+            'Comparator.<Map<String, Object>>comparingLong(m -> ((Number) m.get("gePrice")).longValue())')
+    if path == JAVA+'notifiers/LootNotifier.java':
+        source=one(source, 'int gePrice = itemManager.getItemPrice(itemId);',
+            'long gePrice = itemManager.getItemPrice(itemId);')
+        source=one(source, '(long) gePrice * item.getQuantity()', 'gePrice * item.getQuantity()')
     if path == JAVA+'util/UIAssetLoader.java':
         source=one(source, 'import java.net.URL;', 'import java.io.InputStream;')
         source=one(source,

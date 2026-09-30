@@ -69,7 +69,10 @@ public class LootNotifierReplayTest {
     @Test public void backendWhitelistedLowValuePointItemsReachPayloadButCosmeticAndBlacklistDoNot() throws Exception {
         LootNotifier notifier = notifier();
         assertEquals(1_000_000, filters.getFilters().getLootMinValue());
-        when(itemManager.getItemPrice(995)).thenReturn(2_000_000);
+        doAnswer(call -> {
+            if (call.getMethod().getReturnType() == long.class) return 2_000_000L;
+            return 2_000_000;
+        }).when(itemManager).getItemPrice(995);
         event(notifier, "Guardians of the Rift", new ItemStack(26822, 1), new ItemStack(26824, 1), new ItemStack(995, 1));
         flush(notifier);
         assertEquals(1, payloads.size());
