@@ -140,6 +140,21 @@ class SourceParityMutationTest(unittest.TestCase):
             b'new DecimalFormat("#,##0.####", symbols)',
             b'new DecimalFormat("#,##0", symbols)')
 
+    def test_unrelated_code_in_resource_loader_fails_the_cli(self):
+        self.add_unrelated_field(reval_source.JAVA+'util/UIAssetLoader.java')
+        with self.assertRaisesRegex(AssertionError, 'Unapproved upstream deviations:.*UIAssetLoader.java'):
+            self.check()
+
+    def test_removed_resource_stream_closure_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('util/UIAssetLoader.java',
+            b'\n      try (InputStream imageStream = getClass().getResourceAsStream(resourcePath)) {',
+            b'\n      try {\n        InputStream imageStream = getClass().getResourceAsStream(resourcePath);')
+
+    def test_removed_missing_resource_fallback_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('util/UIAssetLoader.java',
+            b'\n        if (imageStream == null) {\n          return null;\n        }',
+            b'\n        // Missing-resource fallback removed')
+
     def test_removed_native_acknowledgement_guard_fails_the_cli(self):
         self.assert_runtime_mutation_rejected('notifiers/SyncNotifier.java',
             b'(response.has("accepted") && !accepted)', b'false')

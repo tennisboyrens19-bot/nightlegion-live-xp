@@ -7,7 +7,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.net.URL;
+import java.io.InputStream;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -41,21 +41,19 @@ public class UIAssetLoader {
       }
       
       String resourcePath = ASSETS_BASE_PATH + normalizedFilename;
-      URL imageUrl = getClass().getResource(resourcePath);
-      
-      if (imageUrl == null) {
-        return null;
-      }
-      
-      try {
-        BufferedImage image = ImageIO.read(imageUrl);
-        if (image != null) {
-          imageCache.put(normalizedFilename, image);
+      BufferedImage image;
+      try (InputStream imageStream = getClass().getResourceAsStream(resourcePath)) {
+        if (imageStream == null) {
+          return null;
         }
-        return image;
+        image = ImageIO.read(imageStream);
       } catch (IOException e) {
         return null;
       }
+      if (image != null) {
+        imageCache.put(normalizedFilename, image);
+      }
+      return image;
     }
     
     /**
@@ -82,19 +80,16 @@ public class UIAssetLoader {
       BufferedImage image = imageCache.get(normalizedFilename);
       if (image == null) {
         String resourcePath = ASSETS_BASE_PATH + normalizedFilename;
-        URL imageUrl = getClass().getResource(resourcePath);
-        
-        if (imageUrl == null) {
-          return null;
-        }
-        
-        try {
-          image = ImageIO.read(imageUrl);
-          if (image != null) {
-            imageCache.put(normalizedFilename, image);
+        try (InputStream imageStream = getClass().getResourceAsStream(resourcePath)) {
+          if (imageStream == null) {
+            return null;
           }
+          image = ImageIO.read(imageStream);
         } catch (IOException e) {
           return null;
+        }
+        if (image != null) {
+          imageCache.put(normalizedFilename, image);
         }
       }
       

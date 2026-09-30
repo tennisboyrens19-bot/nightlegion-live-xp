@@ -22,6 +22,7 @@ SCOPED_FIXES = {
     JAVA+'notifiers/DiaryNotifier.java': 'Use the same 48 completion varbits as AchievementDiaryManager.',
     JAVA+'api/account/AccountResponse.java': 'Read account-specific combat achievement thresholds already returned by the backend.',
     JAVA+'ui/ProfilePanel.java': 'Use account combat thresholds; clear account data on logout and reject stale profile callbacks.',
+    JAVA+'util/UIAssetLoader.java': 'Read both bundled-image paths through Class.getResourceAsStream with scoped stream closure; preserve paths, caches and null fallbacks.',
 }
 SCOPED_FIXES.update(SYNC_FIXES)
 for path, reason in ACCEPTANCE_FIXES.items():
@@ -89,6 +90,61 @@ def one(source, before, after):
 def scoped_fixes(path, source):
     # These are exact, single-anchor transformations, not whole-file exceptions.
     # Every other byte is still checked against the pinned upstream source.
+    if path == JAVA+'util/UIAssetLoader.java':
+        source=one(source, 'import java.net.URL;', 'import java.io.InputStream;')
+        source=one(source,
+            '      URL imageUrl = getClass().getResource(resourcePath);\n'
+            '      \n'
+            '      if (imageUrl == null) {\n'
+            '        return null;\n'
+            '      }\n'
+            '      \n'
+            '      try {\n'
+            '''        BufferedImage image = ImageIO.read(imageUrl);
+        if (image != null) {
+          imageCache.put(normalizedFilename, image);
+        }
+        return image;
+      } catch (IOException e) {
+        return null;
+      }''', '''      BufferedImage image;
+      try (InputStream imageStream = getClass().getResourceAsStream(resourcePath)) {
+        if (imageStream == null) {
+          return null;
+        }
+        image = ImageIO.read(imageStream);
+      } catch (IOException e) {
+        return null;
+      }
+      if (image != null) {
+        imageCache.put(normalizedFilename, image);
+      }
+      return image;''')
+        source=one(source,
+            '        URL imageUrl = getClass().getResource(resourcePath);\n'
+            '        \n'
+            '        if (imageUrl == null) {\n'
+            '          return null;\n'
+            '        }\n'
+            '        \n'
+            '        try {\n'
+            '''          image = ImageIO.read(imageUrl);
+          if (image != null) {
+            imageCache.put(normalizedFilename, image);
+          }
+        } catch (IOException e) {
+          return null;
+        }''', '''        try (InputStream imageStream = getClass().getResourceAsStream(resourcePath)) {
+          if (imageStream == null) {
+            return null;
+          }
+          image = ImageIO.read(imageStream);
+        } catch (IOException e) {
+          return null;
+        }
+        if (image != null) {
+          imageCache.put(normalizedFilename, image);
+        }''')
     if path == JAVA+'collectionlog/CollectionLogManager.java':
         source=one(source, '\t\tobtainedItems.put(itemId, new ObtainedCollectionItem(itemId, itemName, itemCount));', '''\t\tif (!Collections.disjoint(com.revalclan.util.Worlds.flagNames(client),
 \t\t\tArrays.asList("SEASONAL", "DEADMAN", "TOURNAMENT_WORLD", "BETA_WORLD",

@@ -28,6 +28,7 @@ is never an exemption from content verification.
 | `ui/AchievementsPanel.java` | Clear account-specific achievement data at logout; reject late success/error callbacks after logout or a newer request. |
 | `ui/DiaryPanel.java` | Clear diary data, expanded tiers and selected detail view at logout; reject late success/error callbacks after logout or a newer request. |
 | `util/NumberFmt.java` | Display point balances and deltas to the same four-decimal precision as the backend. |
+| `util/UIAssetLoader.java` | Apply the Plugin Hub maintainer's requested `Class.getResourceAsStream()` loading in both bundled-image paths, closing each stream with try-with-resources. Preserve resource paths, normalization, caches, scaling and null/error fallbacks. |
 | `session/SessionTracker.java` | Clear the in-flight marker after HTTP/transport failure so the existing persisted session replay can retry. |
 | `collectionlog/CollectionLogSyncButton.java` | Show success only after an acknowledged sync, marshal UI updates to the client thread, and discard pending syncs/callbacks across account boundaries. |
 | `notifiers/SyncNotifier.java` | Distinguish successful, incomplete and failed acknowledgements. Accept strict native `accepted: true` or legacy `ok: true`; reject explicit false/malformed flags. Only matching fingerprints can be stored; preserve the original no-argument call. |
@@ -43,9 +44,9 @@ transformed file must match, so these helpers do not permit arbitrary edits.
 Some files contain both existing authentication wiring and scoped bug fixes;
 the generated report identifies both boundaries.
 
-The 157 upstream Java files comprise 123 identical after line-ending
+The 157 upstream Java files comprise 122 identical after line-ending
 normalization, 11 with only branding/destination changes, 2 with only
-authentication wiring, 1 exact Filepath adaptation and 20 with scoped bug fixes.
+authentication wiring, 1 exact Filepath adaptation and 21 with scoped bug fixes.
 
 Existing literal branding/destination substitutions, token-authentication seams,
 the authentication class, the NightLegion icon and the exact Filepath
@@ -71,11 +72,12 @@ copies the candidate runtime tree to a temporary directory and invokes the real
 - A changed fractional ledger model or point precision formatter.
 - A removed native acknowledgement rejection guard.
 - A removed stale-response guard in either the achievements or diary panel.
+- Unrelated code, removed stream closure or removed missing-resource fallback in the bundled-image loader.
 - Any change to the pinned authentication boundary or NightLegion icon.
 - A missing runtime source file.
 - An extra runtime source file.
 
-The 23 tests include positive checks for the current candidate and Windows CRLF
+The 26 tests include positive checks for the current candidate and Windows CRLF
 checkout and negative checks for every mutation above.
 Only CRLF-to-LF normalization is applied to Java/license text. Other whitespace,
 comments, code and binary resources remain significant. Both existing parity
