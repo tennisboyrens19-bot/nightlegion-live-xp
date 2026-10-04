@@ -9,6 +9,11 @@ import com.revalclan.player.PlayerManager;
 import com.revalclan.quests.QuestManager;
 import com.revalclan.util.SyncStateManager;
 import com.revalclan.util.Worlds;
+import com.revalclan.util.ClanRanks;
+import net.runelite.api.clan.ClanChannel;
+import net.runelite.api.clan.ClanChannelMember;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.gameval.VarClientID;
@@ -76,6 +81,8 @@ public class PlayerDataCollector {
 				Map<String, Object> slim = new HashMap<>();
 				slim.put("player", data.get("player"));
 				slim.put("syncFingerprint", fingerprint);
+				if (data.containsKey("currentClanRank")) slim.put("currentClanRank", data.get("currentClanRank"));
+				if (data.containsKey("clanRoster")) slim.put("clanRoster", data.get("clanRoster"));
 				data = slim;
 			}
 		}
@@ -97,6 +104,23 @@ public class PlayerDataCollector {
 		data.put("combatAchievements", combatAchievementManager.sync());
 		data.put("personalBests", personalBestManager.sync());
 		data.put("clogPersonalBests", clogPersonalBestCapture.sync());
+		ClanChannel clan = client.getClanChannel();
+		String localName = client.getLocalPlayer() != null ? client.getLocalPlayer().getName() : null;
+		if (clan != null && localName != null) {
+			ClanChannelMember localMember = clan.findMember(localName);
+			if (localMember != null) data.put("currentClanRank", localMember.getRank().toString());
+			if (ClanRanks.isDeputyOwnerPlus(client)) {
+				List<Map<String, Object>> roster = new ArrayList<>();
+				for (ClanChannelMember member : clan.getMembers()) {
+					if (member == null || member.getName() == null || roster.size() >= 500) continue;
+					Map<String, Object> row = new HashMap<>();
+					row.put("rsn", member.getName());
+					row.put("rank", member.getRank().toString());
+					roster.add(row);
+				}
+				data.put("clanRoster", roster);
+			}
+		}
 		return data;
 	}
 
