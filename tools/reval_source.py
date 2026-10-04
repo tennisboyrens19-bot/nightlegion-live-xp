@@ -26,6 +26,7 @@ SCOPED_FIXES = {
     JAVA+'api/account/AccountResponse.java': 'Read account-specific combat achievement thresholds already returned by the backend.',
     JAVA+'ui/ProfilePanel.java': 'Use account combat thresholds; clear account data on logout and reject stale profile callbacks.',
     JAVA+'util/UIAssetLoader.java': 'Read both bundled-image paths through Class.getResourceAsStream with scoped stream closure; preserve paths, caches and null fallbacks.',
+    JAVA+'PlayerDataCollector.java': 'Include a bounded staff-observed CC RSN/rank roster and current clan rank in existing sync/login payloads for Bingo registration; no Discord identifiers are added.',
 }
 SCOPED_FIXES.update(SYNC_FIXES)
 for path, reason in ACCEPTANCE_FIXES.items():
@@ -93,6 +94,35 @@ def one(source, before, after):
 def scoped_fixes(path, source):
     # These are exact, single-anchor transformations, not whole-file exceptions.
     # Every other byte is still checked against the pinned upstream source.
+    if path == JAVA+'PlayerDataCollector.java':
+        source=one(source, 'import com.revalclan.util.Worlds;\n', '''import com.revalclan.util.Worlds;
+import com.revalclan.util.ClanRanks;
+import net.runelite.api.clan.ClanChannel;
+import net.runelite.api.clan.ClanChannelMember;
+import java.util.ArrayList;
+import java.util.List;
+''')
+        source=one(source, '\t\t\t\tslim.put("syncFingerprint", fingerprint);', '''\t\t\t\tslim.put("syncFingerprint", fingerprint);
+\t\t\t\tif (data.containsKey("currentClanRank")) slim.put("currentClanRank", data.get("currentClanRank"));
+\t\t\t\tif (data.containsKey("clanRoster")) slim.put("clanRoster", data.get("clanRoster"));''')
+        source=one(source, '\t\tdata.put("clogPersonalBests", clogPersonalBestCapture.sync());', '''\t\tdata.put("clogPersonalBests", clogPersonalBestCapture.sync());
+\t\tClanChannel clan = client.getClanChannel();
+\t\tString localName = client.getLocalPlayer() != null ? client.getLocalPlayer().getName() : null;
+\t\tif (clan != null && localName != null) {
+\t\t\tClanChannelMember localMember = clan.findMember(localName);
+\t\t\tif (localMember != null) data.put("currentClanRank", localMember.getRank().toString());
+\t\t\tif (ClanRanks.isDeputyOwnerPlus(client)) {
+\t\t\t\tList<Map<String, Object>> roster = new ArrayList<>();
+\t\t\t\tfor (ClanChannelMember member : clan.getMembers()) {
+\t\t\t\t\tif (member == null || member.getName() == null || roster.size() >= 500) continue;
+\t\t\t\t\tMap<String, Object> row = new HashMap<>();
+\t\t\t\t\trow.put("rsn", member.getName());
+\t\t\t\t\trow.put("rank", member.getRank().toString());
+\t\t\t\t\troster.add(row);
+\t\t\t\t}
+\t\t\t\tdata.put("clanRoster", roster);
+\t\t\t}
+\t\t}''')
     if path == JAVA+'notifiers/ClueNotifier.java':
         source=one(source, 'int price = itemManager.getItemPrice(itemId);',
             'long price = itemManager.getItemPrice(itemId);')
