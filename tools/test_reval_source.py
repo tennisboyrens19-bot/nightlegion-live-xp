@@ -140,6 +140,55 @@ class SourceParityMutationTest(unittest.TestCase):
             b'new DecimalFormat("#,##0.####", symbols)',
             b'new DecimalFormat("#,##0", symbols)')
 
+    def test_unrelated_code_in_resource_loader_fails_the_cli(self):
+        self.add_unrelated_field(reval_source.JAVA+'util/UIAssetLoader.java')
+        with self.assertRaisesRegex(AssertionError, 'Unapproved upstream deviations:.*UIAssetLoader.java'):
+            self.check()
+
+    def test_removed_resource_stream_closure_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('util/UIAssetLoader.java',
+            b'\n      try (InputStream imageStream = getClass().getResourceAsStream(resourcePath)) {',
+            b'\n      try {\n        InputStream imageStream = getClass().getResourceAsStream(resourcePath);')
+
+    def test_removed_missing_resource_fallback_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('util/UIAssetLoader.java',
+            b'\n        if (imageStream == null) {\n          return null;\n        }',
+            b'\n        // Missing-resource fallback removed')
+
+    def test_narrowed_clue_price_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('notifiers/ClueNotifier.java',
+            b'long price = itemManager.getItemPrice(itemId);',
+            b'int price = (int) itemManager.getItemPrice(itemId);')
+
+    def test_changed_clue_quantity_arithmetic_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('notifiers/ClueNotifier.java',
+            b'totalValue += price * quantity;', b'totalValue += price;')
+
+    def test_narrowed_loot_price_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('notifiers/LootNotifier.java',
+            b'long gePrice = itemManager.getItemPrice(itemId);',
+            b'int gePrice = (int) itemManager.getItemPrice(itemId);')
+
+    def test_changed_loot_unit_price_threshold_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('notifiers/LootNotifier.java',
+            b'!keepAll && gePrice < minLootValue && !whitelistItemIds.contains(itemId)',
+            b'!keepAll && stackValue < minLootValue && !whitelistItemIds.contains(itemId)')
+
+    def test_narrowed_death_value_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('notifiers/DeathNotifier.java',
+            b'long gePrice = ((Number) item.get("gePrice")).longValue();',
+            b'int gePrice = ((Number) item.get("gePrice")).intValue();')
+
+    def test_narrowed_death_sort_fails_the_cli(self):
+        self.assert_runtime_mutation_rejected('notifiers/DeathNotifier.java',
+            b'Comparator.<Map<String, Object>>comparingLong(m -> ((Number) m.get("gePrice")).longValue())',
+            b'Comparator.<Map<String, Object>>comparingInt(m -> ((Number) m.get("gePrice")).intValue())')
+
+    def test_unrelated_code_in_death_price_adaptation_fails_the_cli(self):
+        self.add_unrelated_field(reval_source.JAVA+'notifiers/DeathNotifier.java')
+        with self.assertRaisesRegex(AssertionError, 'Unapproved upstream deviations:.*DeathNotifier.java'):
+            self.check()
+
     def test_removed_native_acknowledgement_guard_fails_the_cli(self):
         self.assert_runtime_mutation_rejected('notifiers/SyncNotifier.java',
             b'(response.has("accepted") && !accepted)', b'false')
